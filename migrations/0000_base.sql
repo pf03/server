@@ -1,5 +1,6 @@
 
-DROP TABLE IF EXISTS users, authors, cathegories, tags, news, tags_to_news;
+DROP TABLE IF EXISTS users, authors, categories, tags, contents, news, drafts,
+    tags_to_contents, photos, comments;
 
 CREATE TABLE users (
 	id SERIAL PRIMARY KEY,
@@ -45,15 +46,15 @@ INSERT into authors (
 	(5, 'Влади́мир Влади́мирович Маяко́вский — русский советский поэт. Футурист. Один из крупнейших поэтов XX века. Помимо поэзии, ярко проявил себя как драматург, киносценарист, кинорежиссёр, киноактёр, художник, редактор журналов «ЛЕФ», «Новый ЛЕФ»'),
     (6, 'Доцент кафедры математических и информационных технологий, СПбАУ РАН. Один из основателей и координаторов Санкт-Петербургской группы пользователей Haskell (SPbHUG)');
 
-CREATE TABLE cathegories (
+CREATE TABLE categories (
 	id SERIAL PRIMARY KEY,
 	parent_id INTEGER,
-	cathegory_name VARCHAR (1000)
+	category_name VARCHAR (1000)
 );
 
-INSERT into cathegories (
+INSERT into categories (
 	parent_id,
-	cathegory_name
+	category_name
 ) values 
 	(null, 'Языки программирования'),
 	(null, 'Поэзия'),
@@ -82,43 +83,85 @@ INSERT into tags (
 	('monad'),
 	('ghc');
 
-CREATE TABLE news (
+--CONTENT = DRAFT OR NEWS
+CREATE TABLE contents (
     id SERIAL PRIMARY KEY,
+    autor_id INTEGER not null,
     name VARCHAR (50) not null,
     creation_date DATE,
-    autor_id INTEGER,
-    cathegory_id INTEGER,
+    category_id INTEGER,
     text TEXT,
     photo VARCHAR (100)
 );
-INSERT INTO news (
+
+CREATE TABLE news (
+    id SERIAL PRIMARY KEY,
+    content_id INTEGER not null
+);
+CREATE TABLE drafts (
+    id SERIAL PRIMARY KEY,
+    content_id INTEGER not null,
+    news_id INTEGER
+);
+
+INSERT INTO contents (
+    autor_id,
     name,
     creation_date,
-    autor_id,
-    cathegory_id,
+    category_id,
     text,
     photo
 )
 VALUES
-    ('GHC 8.10.1',
-     '2020-03-20',
-     6,
-     6,
-     'Состоялся очередной релиз компилятора Glasgow Haskell Compiler.',
-     'logo.jpg'
-);
-CREATE TABLE tags_to_news(
-    id SERIAL PRIMARY KEY,
-    news_id INTEGER,
-    tag_id INT
-);
-INSERT INTO tags_to_news (news_id, tag_id) VALUES
-    (1,1),(1,2),(1,5),(1,6),(1,9)
+    (
+        6,
+        'GHC 8.10.1',
+        '2020-03-20',
+        6,
+        'Состоялся очередной релиз компилятора Glasgow Haskell Compiler.',
+        'logo.jpg'
+    ),(
+        4,
+        'Я помню чудное мгновенье',
+        '1825-03-20',
+        2,
+        'Я помню чудное мгновенье:\nПередо мной явилась ты,\nКак мимолетное виденье,\nКак гений чистой красоты.',
+        'pushkin.jpg'
+    );
 
-CREATE TABLE photo_to_news(
+INSERT INTO news (content_id) VALUES (1);
+
+INSERT INTO drafts (content_id, news_id) VALUES (2, null);
+
+--many to many
+CREATE TABLE tags_to_contents(
+    id SERIAL PRIMARY KEY,
+    content_id INT,
+    tag_id INTEGER
+);
+INSERT INTO tags_to_contents (content_id, tag_id) VALUES
+    (1,1),(1,2),(1,5),(1,6),(1,9),(2,3);
+
+CREATE TABLE photos(
+    id SERIAL PRIMARY KEY,
+    photo VARCHAR (100),
+    content_id INTEGER
+);
+INSERT INTO photos (photo, content_id) VALUES
+    ('haskell.jpg', 1),
+    ('open_source.jpg', 1),
+    ('poem.jpg', 2);
+
+CREATE TABLE comments (
     id SERIAL PRIMARY KEY,
     news_id INTEGER,
-    photo VARCHAR (100)
+    user_id INTEGER,
+    creation_date DATE,
+    text text
 );
-INSERT INTO photo_to_news (news_id, photo) VALUES
-    (1,'haskell.jpg'),(1,'open_source.jpg')
+
+INSERT INTO comments (news_id, user_id, creation_date, text) VALUES
+    (1, 1, '2020-03-21', 'Какая замечательная новость...'),
+    (1, 2, '2020-03-22', 'Какая превосходная новость...'),
+    (1, 3, '2020-03-23', 'Какая великолепная новость...')
+
