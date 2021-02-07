@@ -19,6 +19,7 @@ extra-source-files:
 # common to point users to the README.md file.
 description:         Please see the README on GitHub at <https://github.com/githubuser/server#readme>
 
+# maybe should remove TemplateHaskell, QuasiQuotes later!
 default-extensions: OverloadedStrings, TemplateHaskell, QuasiQuotes
 
 dependencies:
@@ -30,7 +31,10 @@ dependencies:
 - postgresql-simple
 - postgresql-simple-migration
 - cryptohash-md5
-
+- ansi-terminal
+- text
+- aeson
+- split
 library:
   source-dirs: src
 

@@ -6,6 +6,7 @@ import Database.PostgreSQL.Simple.SqlQQ
 import  qualified Data.ByteString as B
 
 
+
 hashPasswords :: IO()
 hashPasswords = do
     --это в модуль DB!!

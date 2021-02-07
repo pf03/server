@@ -1,0 +1,33 @@
+{
+    "apps":[
+        {
+            "name":"VK",
+            "host":"api.vk.com",
+            "token":"a1a1a1aaaaaaaaaaaaaaaa1111111111111111111111111aaaaaaaaaaaaaaaa1111111111111111a1111a",
+            "updateId": 0,
+            "repeatNumber": {},
+            "groupId": 999999999,
+            "version": "5.50" 
+            
+        },
+        {
+            "name": "Telegram",
+            "host": "api.telegram.org",
+            "token": "1111111111:AAAAAAAAAAAAAAAAA-AAAAAAAAAAAAAAAAA",
+            "updateId": 58414589,
+            "repeatNumber": {
+                "1306064978": 5,
+                "433218230": 2
+            },
+            "groupId": 0,
+            "version": "" 
+        }
+    ],
+    "text" : {
+        "help": "Вас приветстсвует бот",
+        "repeat": "Введите количество повторов. Сейчас выбрано количество повторов: {0}",
+        "button": "Количество повторов изменено с {0} на {1}",
+        "unknown": "Обнаружена неведомая команда: {0}"
+    },
+    "app": "VK"
+}
