@@ -37,7 +37,7 @@ connectDB connectInfo = do
     return conn
 
 hC :: IOException -> IO (EE Connection )
-hC e = throw $ DBError "Ошибка соединения с базой данных!"
+hC e = return $ Left  $ DBError "Ошибка соединения с базой данных!"
 
 
 readS :: ExceptT E IO S
@@ -53,8 +53,8 @@ pathConfig = "config.json"
 
 hR :: IOException -> IO (EE L.ByteString )
 hR e
-    | isDoesNotExistError e = throw $ DBError "Файл конфигурации не найден!"
-    | otherwise = throw $ DBError "Ошибка чтения файла конфигурации"
+    | isDoesNotExistError e = return $ Left $ ConfigError "Файл конфигурации не найден!"
+    | otherwise = return $ Left  $ ConfigError "Ошибка чтения файла конфигурации"
 
 
 

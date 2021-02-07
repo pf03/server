@@ -9,6 +9,12 @@ import qualified Log
 import qualified System.Console.ANSI as Color (Color(..)) 
 import Class
 import qualified State as S
+import qualified Data.ByteString.Lazy as L
+import Control.Exception
+import Data.Int
+
+
+
 
 
 --обработка ошибок при запросах к бд!
@@ -20,7 +26,7 @@ hashPasswords = do
     users <- toT $ query_ conn [sql|SELECT id, login, pass FROM users|] :: T [(Int, B.ByteString, B.ByteString)]
     Log.textT Log.Info "Получен список пользователей..."
     rows <- toT $ executeMany conn [sql|
-        UPDATE users
+        UPDAT1E users
         SET pass = md5(upd.lp)
         FROM (VALUES (?, ?)) as upd(id, lp)
         WHERE users.id = upd.id
@@ -32,6 +38,22 @@ hashPasswords = do
     |]
     Log.textT Log.Info "Урезана длина строки пароля до 32 символов..."
     Log.textT Log.Info "Миграция окончена успешно"
+
+testException :: IO()
+testException = do
+    let connectDBInfo  = ConnectInfo {connectHost = "127.0.0.1", connectPort = 5432, connectUser = "postgres", connectPassword = "demo", connectDatabase = "server"}
+    conn <- connect connectDBInfo
+    (execute_ conn [sql| WRONG SQL |]) `catch` sqlhandler
+
+
+    return()
+
+sqlhandler :: SqlError -> IO Int64
+sqlhandler e = do
+    putStrLn "Неверный запрос"
+    return 0
+
+
 
 
 -- _hashPasswords :: IO()
