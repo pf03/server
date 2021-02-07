@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: a1de6fb1d76901556f99d935d07ca59096d4197a151d0e27671b7e3f2be55128
+-- hash: 2bb74f3e36a3365ac9dd338c0a8c46e5bdb098cebe8507aaadbb2d91fa1d45b7
 
 name:           server
 version:        0.1.0.0
@@ -27,13 +27,18 @@ source-repository head
 
 library
   exposed-modules:
+      DB
       Lib
+      Migrations
   other-modules:
       Paths_server
   hs-source-dirs:
       src
+  default-extensions: OverloadedStrings, TemplateHaskell, QuasiQuotes
   build-depends:
       base >=4.7 && <5
+    , bytestring
+    , cryptohash-md5
     , http-types
     , postgresql-simple
     , postgresql-simple-migration
@@ -47,9 +52,12 @@ executable server-exe
       Paths_server
   hs-source-dirs:
       app
+  default-extensions: OverloadedStrings, TemplateHaskell, QuasiQuotes
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , bytestring
+    , cryptohash-md5
     , http-types
     , postgresql-simple
     , postgresql-simple-migration
@@ -65,9 +73,12 @@ test-suite server-test
       Paths_server
   hs-source-dirs:
       test
+  default-extensions: OverloadedStrings, TemplateHaskell, QuasiQuotes
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , bytestring
+    , cryptohash-md5
     , http-types
     , postgresql-simple
     , postgresql-simple-migration

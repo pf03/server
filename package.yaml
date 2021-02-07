@@ -19,13 +19,17 @@ extra-source-files:
 # common to point users to the README.md file.
 description:         Please see the README on GitHub at <https://github.com/githubuser/server#readme>
 
+default-extensions: OverloadedStrings, TemplateHaskell, QuasiQuotes
+
 dependencies:
 - base >= 4.7 && < 5
+- bytestring
 - warp
 - wai
 - http-types
 - postgresql-simple
 - postgresql-simple-migration
+- cryptohash-md5
 
 library:
   source-dirs: src

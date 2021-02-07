@@ -7,8 +7,8 @@ CREATE TABLE users (
 	first_name VARCHAR (50),
 	last_name VARCHAR (50),
 	avatar VARCHAR (100),
-	login VARCHAR (100) unique not null,
-	pass VARCHAR (100),
+	login VARCHAR (50) unique not null,
+	pass VARCHAR (50) not null,
 	creation_date DATE,
 	is_admin Boolean
 );
@@ -21,17 +21,16 @@ INSERT into users (
 	pass,
 	creation_date,
 	is_admin
-) values 
+) values
 	('Ivanov', 'Petr', 'Petr.jpg', 'admin', '123456', '2020-01-01', True),
-	('Petrov', 'Ivan', 'Ivan.jpg', 'pivan', 'qwerty', '2000-01-01', False),
-	('Yuryev', 'Sergey', 'Sergey.jpg', 'ysergey', '1234', '2015-01-01', False),
+	('Petrov', 'Ivan', 'Ivan.jpg', 'pivan', 'equalpass', '2000-01-01', False),
+	('Yuryev', 'Sergey', 'Sergey.jpg', 'ysergey', 'equalpass', '2015-01-01', False),
 	('Pushkin', 'Sergey', 'Pushkin.jpg', 'psergey', 'psergeypass', '1830-01-01', False),
 	('Mayakovskiy', 'Vladimir', 'Mayakovskiy.jpg', 'vmayakovskiy', 'vmayakovskiypass', '1920-01-01', False),
 	('Moskvin', 'Denis', 'Moskvin.jpg', 'dmoskvin', 'dmoskvinpass', '2020-03-03', False);
 	
---пароли нужно закодировать
+--пароли нужно закодировать!!!!!!!!!
 --это будет первая миграция
-
 CREATE TABLE authors (
 	id SERIAL PRIMARY KEY,
 	user_id INTEGER,
