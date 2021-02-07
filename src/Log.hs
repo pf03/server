@@ -1,5 +1,6 @@
 module Log(
     module Log.Types,
+    MonadLog (..),
     sendT,
     receiveT,
     receiveDataT,
@@ -124,8 +125,8 @@ error config settings error = do
 
 
 text :: ConfigLog -> LogSettings -> LogLevel -> String -> IO ()
-text (ConfigLog color terminal file configLevel) (LogSettings colorScheme enable _ ) level text = do
-    if not $ level >= configLevel && enable then return () else do
+text (ConfigLog color terminal file minLevel) (LogSettings colorScheme enable _ ) level text = do
+    if not $ level >= toEnum minLevel && enable then return () else do
         when (color && terminal) $ Color.setSchemeT colorScheme
         when terminal $ putStrLnT text
         when file $ Log.file text
@@ -133,16 +134,16 @@ text (ConfigLog color terminal file configLevel) (LogSettings colorScheme enable
 
 --Данные с цветом, зависяцим от LogLevel--logData не зависит от настроек цвета, только logText зависит
 ldata :: (Show a) => ConfigLog -> LogSettings -> LogLevel -> a -> IO ()
-ldata (ConfigLog color terminal file configLevel) (LogSettings colorScheme enable _ ) level dataValue = do
-    if not $ level >= configLevel && enable then return () else do
+ldata (ConfigLog color terminal file minLevel) (LogSettings colorScheme enable _ ) level dataValue = do
+    if not $ level >= toEnum minLevel && enable then return () else do
         when (color && terminal) $ Color.setColorT $ Log.getColor level
         when terminal $ printT dataValue
         when file $ Log.file $ show dataValue
         when (color && terminal) Color.resetColorSchemeT 
 -------------эти две функции объединить в одну----------------------------------------------------------------
 convertData :: (ToJSON a, Show a) => ConfigLog -> LogSettings -> LogLevel -> a -> IO ()
-convertData (ConfigLog color terminal file configLevel) (LogSettings colorScheme enable _ ) level dataValue = do
-    if not $ level >= configLevel && enable then return () else do
+convertData (ConfigLog color terminal file minLevel) (LogSettings colorScheme enable _ ) level dataValue = do
+    if not $ level >= toEnum minLevel && enable then return () else do
         when (color && terminal) $ Color.setColorT $ getColor level
         when terminal $ printT dataValue
         --when file $ logFile $ show dataValue
@@ -153,7 +154,7 @@ defaultSettings :: LogSettings
 defaultSettings = LogSettings Black True ""
 
 defaultConfig :: ConfigLog
-defaultConfig = ConfigLog {colorEnable = False, terminalEnable = True, fileEnable = False, level = Debug}
+defaultConfig = ConfigLog {colorEnable = False, terminalEnable = True, fileEnable = False, minLevel = 0}
 
 file :: ToJSON a => a -> IO()
 file str = do 

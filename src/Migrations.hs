@@ -4,11 +4,16 @@ import Database.PostgreSQL.Simple
 import Database.PostgreSQL.Simple.SqlQQ
 -- import Crypto.Hash.MD5
 import  qualified Data.ByteString as B
+import Types
 
 
 
-hashPasswords :: IO()
+hashPasswords :: T()
 hashPasswords = do
+    return()
+
+_hashPasswords :: IO()
+_hashPasswords = do
     --это в модуль DB!!
     -- разобраться с пакетом postgresql-simple-migration
     let connectDBInfo  = ConnectInfo {connectHost = "127.0.0.1", connectPort = 5432, connectUser = "postgres", connectPassword = "demo", connectDatabase = "server"}

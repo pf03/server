@@ -3,22 +3,21 @@ module Config
 where
 
 --наши модули
--- import Error --70
--- import qualified Parse --50
--- import Types --100
+import Error --70
+import qualified Parse --50
+import Types
 import qualified Log
--- import Class
+import Class
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Lazy.Char8 as LC
 import Data.Aeson
 import Control.Exception
 import System.IO.Error (isDoesNotExistError)
---import GHC.Generics
 -- import qualified Data.Map.Internal as M
 
--- import Control.Monad.Trans.Except
--- import Control.Monad.Trans.Class
--- import Control.Monad.State.Lazy
+import Control.Monad.Trans.Except
+import Control.Monad.Trans.Class
+import Control.Monad.State.Lazy
 
 readConfig :: ExceptT E IO Config
 readConfig = do

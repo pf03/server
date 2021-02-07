@@ -35,6 +35,11 @@ dependencies:
 - text
 - aeson
 - split
+- transformers
+- mtl
+- hspec
+- QuickCheck
+- containers
 library:
   source-dirs: src
 
