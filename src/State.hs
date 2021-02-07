@@ -22,8 +22,11 @@ getLogConfig = gets configLog
 getConfigWarp :: MonadState S m => m ConfigWarp
 getConfigWarp = gets configWarp --trivial
 
-getConfigDB:: MonadState S m => m ConnectInfo
-getConfigDB = gets configDB --trivial
+getConnection:: MonadState S m => m Connection
+getConnection = gets connectionDB --trivial
+
+-- getConfigDB:: MonadState S m => m ConnectInfo
+-- getConfigDB = gets configDB --trivial
 
 -- setConfigApp :: MonadState S m => ConfigApp -> m ()
 -- setConfigApp ca  = modify $ \s -> s {configApp = ca}

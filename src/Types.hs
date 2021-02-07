@@ -28,7 +28,7 @@ instance FromJSON App
 instance ToJSON App
 
 --------------------------------------Error--------------------------------------------------------
-data E = ParseError String | QueryError String | ConfigError String 
+data E = ParseError String | QueryError String | ConfigError String | DBError String
 -- это надо убрать, раз мы пользуемся мондами Parser - Except - ExceptT
 type ES = Either String
 type EE = Either E
@@ -43,10 +43,11 @@ type T = StateT S (ExceptT E IO)
 --состояние приложения, используется в трансформере, Reader
 data S = S {
     configWarp :: ConfigWarp,
-    configDB :: ConnectInfo,
+    -- configDB :: ConnectInfo,
+    connectionDB :: Connection,
     configLog :: Log.ConfigLog,
-    logSettings :: Log.LogSettings,
-    mconnectionDB :: Maybe Connection
+    logSettings :: Log.LogSettings
+    
 } deriving (Show, Generic)
 
 data Config = Config {
@@ -66,7 +67,8 @@ newtype ConfigWarp = ConfigWarp{
 --     connectPassword :: String,
 --     connectDatabase :: String
 -- } deriving (Show, Generic)
-
+instance Show Connection where 
+    show c = "connected"
 
 instance ToJSON Config where
     toJSON = genericToJSON defaultOptions {

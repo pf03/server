@@ -14,10 +14,14 @@ import Data.Aeson
 import Control.Exception
 import System.IO.Error (isDoesNotExistError)
 -- import qualified Data.Map.Internal as M
+import Database.PostgreSQL.Simple
 
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Class
 import Control.Monad.State.Lazy
+
+-- этот модуль можно объединить с трансформер
+-- потому что они оба нужны для запуска трансформера
 
 readConfig :: ExceptT E IO Config
 readConfig = do
@@ -26,10 +30,21 @@ readConfig = do
     --print fileConfig
     return fileConfig
 
+--тут сделать обработку ошибок
+connectDB :: ConnectInfo -> ExceptT E IO Connection
+connectDB connectInfo = do
+    conn <- ExceptT $ toEE (connect connectInfo) `catch` hC
+    return conn
+
+hC :: IOException -> IO (EE Connection )
+hC e = throw $ DBError "Ошибка соединения с базой данных!"
+
+
 readS :: ExceptT E IO S
 readS = do
     config <- readConfig
-    let s = toS config
+    conn <- connectDB $ _db config 
+    let s = toS config conn
     --print config
     return s
 
@@ -38,16 +53,24 @@ pathConfig = "config.json"
 
 hR :: IOException -> IO (EE L.ByteString )
 hR e
-    | isDoesNotExistError e = throw $ ConfigError "Файл конфигурации не найден!"
-    | otherwise = throw $ ConfigError "Ошибка чтения файла конфигурации"
+    | isDoesNotExistError e = throw $ DBError "Файл конфигурации не найден!"
+    | otherwise = throw $ DBError "Ошибка чтения файла конфигурации"
+
+
+
 
 
 -------------------State <-> Config--------------------------------------
-toS :: Config -> S
-toS configFile = undefined
+toS :: Config -> Connection -> S
+toS Config {_warp = configWarp, _db = _, _log = configLog} connection = S {
+    configWarp = configWarp,
+    connectionDB = connection,
+    configLog = configLog, 
+    logSettings = Log.defaultSettings 
+}
 
-fromS :: Config -> S -> Config
-fromS configFile config = undefined
+-- fromS :: Config -> S -> Config
+-- fromS configFile config = undefined
 
 
 

@@ -46,11 +46,11 @@ runT m = do
     case es of 
         Left e -> do
             let dlc = Log.defaultConfig
-            Log.text dlc settings Log.Error "Ошибка считывания конфига: "
+            Log.text dlc settings Log.Error "Ошибка запуска трансформера: "
             Log.error dlc settings e
         Right s -> do 
             let cl = configLog s
-            Log.text cl settings Log.Info "Конфиг успешно считан..."
+            Log.text cl settings Log.Info "Конфиг успешно считан, бд успешно подключена..."
             ea <- runExceptT $ runStateT (toT m) s
             case ea  of
                 Left e -> do 
@@ -60,12 +60,6 @@ runT m = do
                     Log.text cl settings Log.Info "Результат: "
                     Log.ldata cl settings Log.Data $ fst a
 
---тут сделать обработку ошибок
-connectDB :: T ()
-connectDB = do
-    connectInfo <- S.getConfigDB
-    conn <- toT $ connect connectInfo
-    return ()
 
 
 --сохранять конфиг не надо в этом проекте

@@ -11,6 +11,7 @@ instance Show E where
     show (ParseError s) = "Ошибка парсинга JSON: "++s
     show (QueryError s) = "Ошибка веб-запроса: "++s
     show (ConfigError s) = "Ошибка чтения или парсинга файла конфигурации config.json: "++s
+    show (DBError s) = "Ошибка базы данных: "++s
 instance Exception E
 
 --конкретизируем тип ошибки конструктором c
