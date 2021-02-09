@@ -15,6 +15,7 @@ import Data.Aeson
 import Data.Aeson.Types
 import System.Console.ANSI
 import Database.PostgreSQL.Simple
+import Network.Wai.Internal ( Request, Response, ResponseReceived )
 
 --Этот модуль содержит все типы в проекте, исключая специфические для каждого из приложений VK, Telegram
 --Специфические нужно разместить в VK.Types и Telegram.Types
@@ -28,7 +29,7 @@ instance FromJSON App
 instance ToJSON App
 
 --------------------------------------Error--------------------------------------------------------
-data E = ParseError String | QueryError String | ConfigError String | DBError String
+data E = ParseError String | QueryError String | ConfigError String | DBError String | IOError String | SomeError String
 -- это надо убрать, раз мы пользуемся мондами Parser - Except - ExceptT
 type ES = Either String
 type EE = Either E
@@ -103,6 +104,9 @@ type Url = String
 type ItemName = String
 type UserName = String
 type StateChanged = Bool
+
+----------------------------------WAI-------------------------------------------------------------------------
+type ApplicationT = Request -> (Response -> T ResponseReceived) -> T ResponseReceived
 
 
 

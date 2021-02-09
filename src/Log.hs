@@ -118,13 +118,13 @@ resetSettings = Log._setSettings Log.defaultSettings
 
 --более низкоуровневые функции, если нету доступа к трансформеру, например в runT
 --Текст идет с цветовой схемой
-error :: (Show a) => ConfigLog -> LogSettings -> a -> IO()
+error :: (MonadIO m, Show a) => ConfigLog -> LogSettings -> a -> m()
 error config settings error = do
     Log.text config settings Error $ template "Получили ошибку в функции {0}!" [funcName settings]
     Log.ldata config settings Error error
 
 
-text :: ConfigLog -> LogSettings -> LogLevel -> String -> IO ()
+text :: MonadIO m => ConfigLog -> LogSettings -> LogLevel -> String -> m ()
 text (ConfigLog color terminal file minLevel) (LogSettings colorScheme enable _ ) level text = do
     if not $ level >= toEnum minLevel && enable then return () else do
         when (color && terminal) $ Color.setSchemeT colorScheme
@@ -133,7 +133,7 @@ text (ConfigLog color terminal file minLevel) (LogSettings colorScheme enable _ 
         when (color && terminal) Color.resetColorSchemeT 
 
 --Данные с цветом, зависяцим от LogLevel--logData не зависит от настроек цвета, только logText зависит
-ldata :: (Show a) => ConfigLog -> LogSettings -> LogLevel -> a -> IO ()
+ldata :: (MonadIO m,Show a) => ConfigLog -> LogSettings -> LogLevel -> a -> m ()
 ldata (ConfigLog color terminal file minLevel) (LogSettings colorScheme enable _ ) level dataValue = do
     if not $ level >= toEnum minLevel && enable then return () else do
         when (color && terminal) $ Color.setColorT $ Log.getColor level
@@ -141,7 +141,7 @@ ldata (ConfigLog color terminal file minLevel) (LogSettings colorScheme enable _
         when file $ Log.file $ show dataValue
         when (color && terminal) Color.resetColorSchemeT 
 -------------эти две функции объединить в одну----------------------------------------------------------------
-convertData :: (ToJSON a, Show a) => ConfigLog -> LogSettings -> LogLevel -> a -> IO ()
+convertData :: (MonadIO m, ToJSON a, Show a) => ConfigLog -> LogSettings -> LogLevel -> a -> m ()
 convertData (ConfigLog color terminal file minLevel) (LogSettings colorScheme enable _ ) level dataValue = do
     if not $ level >= toEnum minLevel && enable then return () else do
         when (color && terminal) $ Color.setColorT $ getColor level
@@ -156,10 +156,10 @@ defaultSettings = LogSettings Black True ""
 defaultConfig :: ConfigLog
 defaultConfig = ConfigLog {colorEnable = False, terminalEnable = True, fileEnable = False, minLevel = 0}
 
-file :: ToJSON a => a -> IO()
+file :: (MonadIO m, ToJSON a) => a -> m()
 file str = do 
-    B.appendFile "log.txt" $ convert . encode $ str --строгая версия
-    B.appendFile "log.txt" $ convert ("\n" :: String)  --строгая версия
+    liftIO $ B.appendFile "log.txt" $ convert . encode $ str --строгая версия
+    liftIO $ B.appendFile "log.txt" $ convert ("\n" :: String)  --строгая версия
 
 clearFile :: IO()
 clearFile = B.writeFile "log.txt" $ convert ("" :: String)

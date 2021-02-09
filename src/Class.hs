@@ -34,11 +34,11 @@ instance ToTransformer IO where
         --тут нужно как-то конкретизировать ошибку, хотя бы ее тип
         --handler :: Exception e => e -> IO (EE a)
         iohandler :: IOException -> IO (EE a)
-        iohandler e = return $ Left  $ DBError $ show e 
+        iohandler e = return . Left  . IOError . show $ e 
         sqlhandler :: SqlError -> IO (EE a)
-        sqlhandler e = return $ Left  $ DBError $ show e 
+        sqlhandler e = return . Left . DBError . show $ e 
         otherhandler :: SomeException -> IO (EE a)
-        otherhandler e = return $ Left  $ DBError $ "неведомая ошибка " ++ show e
+        otherhandler e = return . Left . SomeError . show $ e
 -- Note that we have to give a type signature to e , or the program will not 
 -- typecheck as the type is ambiguous. While it is possible to catch exceptions of 
 -- any type, see the section "Catching all exceptions" (in Control.Exception ) for an explanation of the problems with doing so.

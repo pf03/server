@@ -1,3 +1,6 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
+
 module Migrations where
 
 import Database.PostgreSQL.Simple
@@ -12,7 +15,7 @@ import qualified State as S
 import qualified Data.ByteString.Lazy as L
 import Control.Exception
 import Data.Int
-
+import Control.Monad
 
 
 
@@ -26,7 +29,7 @@ hashPasswords = do
     users <- toT $ query_ conn [sql|SELECT id, login, pass FROM users|] :: T [(Int, B.ByteString, B.ByteString)]
     Log.textT Log.Info "Получен список пользователей..."
     rows <- toT $ executeMany conn [sql|
-        UPDAT1E users
+        UPDATE users
         SET pass = md5(upd.lp)
         FROM (VALUES (?, ?)) as upd(id, lp)
         WHERE users.id = upd.id
@@ -52,6 +55,7 @@ sqlhandler :: SqlError -> IO Int64
 sqlhandler e = do
     putStrLn "Неверный запрос"
     return 0
+
 
 
 
