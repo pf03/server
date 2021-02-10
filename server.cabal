@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 43dbc517bcca803410e50731eac0c591e8b2a75c694efa7f61048c4568a2bb62
+-- hash: 415862b913845232f7f659ef80cd27704cce855cc800a77f5a0e2446bdadee8f
 
 name:           server
 version:        0.1.0.0
@@ -37,6 +37,7 @@ library
       Log.Types
       Migrations
       Parse
+      Response
       State
       Transformer
       Types

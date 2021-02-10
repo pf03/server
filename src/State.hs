@@ -19,8 +19,11 @@ setLogSettings cs e fn = modify $ \s -> s {logSettings = Log.LogSettings cs e fn
 getLogConfig :: MonadState S m => m Log.ConfigLog
 getLogConfig = gets configLog
 
-getConfigWarp :: MonadState S m => m ConfigWarp
-getConfigWarp = gets configWarp --trivial
+-- getConfigWarp :: MonadState S m => m ConfigWarp
+-- getConfigWarp = gets configWarp --trivial
+
+getWarpPort :: MonadState S m => m ConfigWarp
+getWarpPort = gets configWarp --trivial
 
 getConnection:: MonadState S m => m Connection
 getConnection = gets connectionDB --trivial

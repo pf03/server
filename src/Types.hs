@@ -58,7 +58,7 @@ data Config = Config {
 } deriving (Show, Generic)
 
 newtype ConfigWarp = ConfigWarp{
-    warpPort:: String
+    warpPort:: Port
 } deriving (Show, Generic)
 
 -- data ConfigDB = ConfigDB{
@@ -104,6 +104,7 @@ type Url = String
 type ItemName = String
 type UserName = String
 type StateChanged = Bool
+type Port = Int
 
 ----------------------------------WAI-------------------------------------------------------------------------
 type ApplicationT = Request -> (Response -> T ResponseReceived) -> T ResponseReceived

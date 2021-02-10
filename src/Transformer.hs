@@ -29,6 +29,9 @@ import qualified Parse --50
 import Control.Exception
 import System.IO.Error (isDoesNotExistError)
 import Network.Wai.Handler.Warp (run)
+import System.Environment
+import qualified Log
+import Control.Applicative ((<|>))
 
 
 --Пользователи ничего не должны знать о внутренней структуре нашего трансформера.
@@ -38,6 +41,8 @@ throwT :: E -> T a
 throwT e  = toT (throwE e::Except E a)  
 
 
+--все переделать покрсивей
+--часть кода скопировать в бот
 
 --запуск основного трансформера и всех монад попроще
 --трансформер есть кусок программы, который можно запускать независимо от основной программы,
@@ -73,6 +78,7 @@ throwT e  = toT (throwE e::Except E a)
 --                             Log.text lc ls Log.Info "Результат: "
 --                             Log.ldata lc ls Log.Data $ fst a
 
+--эта функция будет использоваться в миграциях и в боте, ее не удалять
 --using ExceptT internal monad
 runT :: (ToTransformer m, Show a) => m a -> IO ()
 runT m = runE $ do 
@@ -93,8 +99,7 @@ runT m = runE $ do
     Log.text lc ls Log.Info "БД успешно подключена..."
     let s = getS config connection
     let cl = configLog s
-    ---------------------start warp-----------------------
-
+   ---------------------run transformer---------------------
     a <-  catchE (runStateT (toT m) s) $ \e -> do
         Log.text lc ls Log.Error "Ошибка приложения: "
         Log.error lc ls e
@@ -102,17 +107,96 @@ runT m = runE $ do
     Log.text lc ls Log.Info "Результат: "
     Log.ldata lc ls Log.Data $ fst a
 
-runApp :: ApplicationT -> T ()
-runApp appT = do
-    let port = 80
-    toT $ putStrLn $ "Listening on port " ++ show port
-    run port appT
-    undefined
+runT_ :: (ToTransformer m, Show a) => m a -> String -> IO ()
+runT_ m configString= runE $ do 
+    let ls = Log.LogSettings Cyan True "runT"
+    
+    ---------------------read config---------------------
+    config <-  toE $ Parse.eDecode  $ read configString
+    let lc = _log config
+    ---------------------connect db---------------------
+    connection <- catchE (connectDB . _db $ config) $ \e -> do
+        Log.text lc ls Log.Error "Ошибка соединения с БД при запуске трансформера: "
+        Log.error lc ls e
+        exit
+    Log.text lc ls Log.Info "БД успешно подключена..."
+    let s = getS config connection
+    let cl = configLog s
+    ---------------------run transformer---------------------
+    a <-  catchE (runStateT (toT m) s) $ \e -> do
+        Log.text lc ls Log.Error "Ошибка приложения: "
+        Log.error lc ls e
+        exit
+    Log.text lc ls Log.Info "Результат: "
+    Log.ldata lc ls Log.Data $ fst a
 
-runAppT_ :: ApplicationT -> T Application
-runAppT_ funcT = \req fT -> do 
-    f < -  fT
-    funcT req f
+runT2 :: (ToTransformer m) => m a -> a -> String -> IO a
+runT2 m def configString = runE_ def $ do 
+    
+    let ls = Log.LogSettings Cyan True "runT"
+    let dlc = Log.defaultConfig 
+    Log.text dlc ls  Log.Info "runT"
+    ---------------------read config---------------------
+    config <-  toE $ Parse.eDecode  $ read configString
+    let lc = _log config
+    ---------------------connect db---------------------
+    connection <- catchE (connectDB . _db $ config) $ \e -> do
+        Log.text lc ls Log.Error "Ошибка соединения с БД при запуске трансформера: "
+        Log.error lc ls e
+        exit
+    Log.text lc ls Log.Info "БД успешно подключена..."
+    let s = getS config connection
+    let cl = configLog s
+    ---------------------run transformer---------------------
+    a <-  catchE (runStateT (toT m) s) $ \e -> do
+        Log.text lc ls Log.Error "Ошибка приложения: "
+        Log.error lc ls e
+        exit
+    Log.text lc ls Log.Info "Успех"
+    --Log.ldata lc ls Log.Data $ fst a
+    --возможно нужно в конце отключать бд????
+    return $ fst a
+
+setEnvirnoment :: IO ()
+setEnvirnoment = runE $ do
+    let ls = Log.LogSettings Cyan True "runT"
+    ---------------------read config---------------------
+    (config, configString) <- catchE readConfig_ $ \e -> do
+        let dlc = Log.defaultConfig
+        Log.text dlc ls Log.Error "Ошибка чтения конфигурации при запуске трансформера: "
+        Log.error dlc ls e
+        exit
+    let lc = _log config
+    --передать весь конфиг как строку 
+    Log.text lc ls Log.Info "Конфиг успешно считан..."
+    lift $ setEnv "configString" configString
+    -- lift $ setEnv "connectHost" $ (connectHost . _db $ config)
+    -- lift $ setEnv "connectPort" $ (show . connectPort . _db $ config)
+    -- lift $ setEnv "connectUser" $ (connectUser . _db $ config)
+    -- lift $ setEnv "connectPassword" $ (connectPassword . _db $ config)
+    -- lift $ setEnv "connectDatabase" $ (connectDatabase . _db $ config)
+    -- lift $ setEnv "colorEnable" $ (show . Log.colorEnable . _log $ config)
+    -- lift $ setEnv "terminalEnable" $ (show . Log.terminalEnable . _log $ config)
+    -- lift $ setEnv "fileEnable" $ (fileEnable . _log $ config)
+    -- lift $ setEnv "minLevel" $ (minLevel . _log $ config)
+    return()
+
+
+
+
+ ---------------------start warp-----------------------
+-- runApp :: ApplicationT -> T ()
+-- runApp appT = do
+--     let port = 80
+--     toT $ putStrLn $ "Listening on port " ++ show port
+--     app <- runAppT_ appT
+--     toT $ run port app
+--     undefined
+
+-- runAppT_ :: ApplicationT -> T Application
+-- runAppT_ funcT = \req fT -> do 
+--     f < -  fT
+--     funcT req f
     
 
 
@@ -125,6 +209,15 @@ exit = ExceptT $ do
 runE :: ExceptT E IO () -> IO()
 runE m = runExceptT m >> return ()
 
+runE_ :: a -> ExceptT E IO a -> IO a
+runE_ a m = do
+    putStrLn "runE_"
+    --return a
+    eb <- runExceptT m  
+    case eb of 
+        Left e -> return a
+        Right b -> return b
+
 -- handler :: (ToTransformer m, Show a) => e -> ExceptT E m a
 -- handler = do
 --     let dlc = Log.defaultConfig
@@ -134,12 +227,35 @@ runE m = runExceptT m >> return ()
 pathConfig :: FilePath
 pathConfig = "config.json"
 
+readConfigString :: ExceptT E IO String
+readConfigString = do
+    bs <- ExceptT $ toEE (L.readFile pathConfig) `catch` handler
+    let fileConfig = show bs
+    --print fileConfig
+    return fileConfig where
+        handler :: IOException -> IO (EE L.ByteString )
+        handler e
+            | isDoesNotExistError e = return $ Left $ ConfigError "Файл конфигурации не найден!"
+            | otherwise = return $ Left  $ ConfigError "Ошибка чтения файла конфигурации"
+
+
 readConfig :: ExceptT E IO Config
 readConfig = do
     bs <- ExceptT $ toEE (L.readFile pathConfig) `catch` handler
     fileConfig <- toE $ Parse.eDecode bs
     --print fileConfig
     return fileConfig where
+        handler :: IOException -> IO (EE L.ByteString )
+        handler e
+            | isDoesNotExistError e = return $ Left $ ConfigError "Файл конфигурации не найден!"
+            | otherwise = return $ Left  $ ConfigError "Ошибка чтения файла конфигурации"
+
+readConfig_ :: ExceptT E IO (Config, String)
+readConfig_ = do
+    bs <- ExceptT $ toEE (L.readFile pathConfig) `catch` handler
+    fileConfig <- toE $ Parse.eDecode bs
+    --print fileConfig
+    return (fileConfig, show bs) where
         handler :: IOException -> IO (EE L.ByteString )
         handler e
             | isDoesNotExistError e = return $ Left $ ConfigError "Файл конфигурации не найден!"
