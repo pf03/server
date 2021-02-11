@@ -107,7 +107,22 @@ type StateChanged = Bool
 type Port = Int
 
 ----------------------------------WAI-------------------------------------------------------------------------
-type ApplicationT = Request -> (Response -> T ResponseReceived) -> T ResponseReceived
+-- type ApplicationT = Request -> (Response -> T ResponseReceived) -> T ResponseReceived
+
+
+----------------------------------DB------------------------------------------------------------------------------
+
+-- ?? ByteString??
+data User = User {
+    userId :: Int,
+    firstName :: String,
+    lastName :: String,
+    avatar :: String,
+    login :: String,
+    pass :: String,
+    creationDate :: String,
+    isAdmin :: Bool
+}
 
 
 

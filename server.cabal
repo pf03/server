@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 415862b913845232f7f659ef80cd27704cce855cc800a77f5a0e2446bdadee8f
+-- hash: de701f1ee13144a79f02aadf502a2e549f58fe0c404a00dcf144ef31517f6e4a
 
 name:           server
 version:        0.1.0.0
@@ -31,12 +31,14 @@ library
       Common
       Config
       DB
+      Encode
       Error
       Log
       Log.Color
       Log.Types
       Migrations
       Parse
+      Query
       Response
       State
       Transformer

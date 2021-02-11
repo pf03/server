@@ -11,8 +11,11 @@ import qualified Data.ByteString.Lazy.Char8 as LC
 
 import Data.Aeson.Types
 import Data.Aeson
-import Data.Text.Encoding
-import Data.Text (pack)
+import qualified Data.Text.Encoding as B
+import qualified Data.Text.Lazy.Encoding as L
+import qualified Data.Text as B (pack)
+
+import qualified Data.Text.Lazy as L
 
 
 ----------------вспомогательные монадические функции -------------------------------------
@@ -57,11 +60,13 @@ safeInit [] = []
 safeInit x = init x
 
 ----------------------------------------Convert--------------------------------------------------
+--сделать двухпараметрический класс типов
+--strict version
 class Convert a where
     convert :: a -> BC.ByteString
 
 instance Convert String where
-    convert = encodeUtf8 . pack  --encodeUtf8 для корректной кодировки кирилицы
+    convert = B.encodeUtf8 . B.pack  --encodeUtf8 для корректной кодировки кирилицы
 
 instance Convert LC.ByteString where
   convert = BC.pack . LC.unpack
@@ -77,6 +82,34 @@ instance Convert Value where
 
 instance Convert Object where 
      convert = convert . encode 
+
+--lazy version
+class ConvertL a where
+    convertL :: a -> LC.ByteString
+
+instance ConvertL String where
+    convertL = L.encodeUtf8 . L.pack  --encodeUtf8 для корректной кодировки кирилицы
+
+instance ConvertL BC.ByteString where
+  convertL = LC.pack . BC.unpack
+
+instance ConvertL LC.ByteString where
+  convertL = id
+
+instance ConvertL Int where
+  convertL = LC.pack . show
+
+instance ConvertL Float where
+  convertL = LC.pack . show
+
+instance ConvertL Value where 
+     convertL = convertL . encode 
+
+instance ConvertL Object where 
+     convertL = convertL . encode 
+
+
+
 
 jc :: Convert a => a -> Maybe BC.ByteString
 jc = Just . convert
