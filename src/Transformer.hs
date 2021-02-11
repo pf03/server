@@ -1,7 +1,7 @@
 --{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE FlexibleInstances #-}
 --importPriority = 20
-module Transformer where 
+module Transformer  where
 --mtl
 import Control.Monad.State.Lazy
 import Control.Monad.Except
@@ -32,6 +32,7 @@ import Network.Wai.Handler.Warp (run)
 import System.Environment
 import qualified Log
 import Control.Applicative ((<|>))
+import Common
 
 
 --Пользователи ничего не должны знать о внутренней структуре нашего трансформера.
@@ -41,65 +42,33 @@ throwT :: E -> T a
 throwT e  = toT (throwE e::Except E a)  
 
 
---все переделать покрсивей
---часть кода скопировать в бот
+------------------------------------------IO---------------------------------------------------------------------------
 
+--часть кода скопировать в бот
 --эта функция будет использоваться в миграциях и в боте, ее не удалять
 --using ExceptT internal monad
 --run and show result of transformer
-runT :: (ToTransformer m, Show a) => m a -> IO ()
-runT m = runE_ $ do 
-    let ls = Log.LogSettings Color.Cyan True "runT"
-    ---------------------read config---------------------
-    (config, _) <- catchE readConfig $ \e -> do
-        let dlc = Log.defaultConfig
-        Log.text dlc ls Log.Error "Ошибка чтения конфигурации при запуске трансформера: "
-        Log.error dlc ls e
-        exit
-    let lc = _log config
-    Log.text lc ls Log.Info "Конфиг успешно считан..."
-    ---------------------connect db---------------------
-    connection <- catchE (connectDB . _db $ config) $ \e -> do
-        Log.text lc ls Log.Error "Ошибка соединения с БД при запуске трансформера: "
-        Log.error lc ls e
-        exit
-    Log.text lc ls Log.Info "БД успешно подключена..."
-    let s = getS config connection
-    let cl = configLog s
-   ---------------------run transformer---------------------
-    a <-  catchE (runStateT (toT m) s) $ \e -> do
-        Log.text lc ls Log.Error "Ошибка приложения: "
-        Log.error lc ls e
-        exit
-    Log.text lc ls Log.Info "Результат: "
-    Log.ldata lc ls Log.Data $ fst a
+showT :: (ToTransformer m, Show a) => m a -> IO ()
+showT m = runE_ $ do
+    config <- _runConfig
+    connection <- _runConnection config
+    value <-_getValue config connection m
+    _showValue config value
+
+--run transformer without showing
+runT :: ToTransformer m => m a -> IO ()
+runT m = runE_ $ do
+    config <- _runConfig
+    connection <- _runConnection config
+    _getValue config connection m
+    return ()
 
 -- evaluate value of transformer with default value in error case
 evalT :: (ToTransformer m) => m a -> a -> String -> IO a
 evalT m def configString = runE def $ do    
-    let ls = Log.LogSettings Color.Cyan True "runT"
-    let dlc = Log.defaultConfig 
-    Log.text dlc ls  Log.Info "runT"
-    ---------------------read config---------------------
-    config <-  toE $ Parse.eDecode  $ read configString
-    let lc = _log config
-    ---------------------connect db---------------------
-    connection <- catchE (connectDB . _db $ config) $ \e -> do
-        Log.text lc ls Log.Error "Ошибка соединения с БД при запуске трансформера: "
-        Log.error lc ls e
-        exit
-    Log.text lc ls Log.Info "БД успешно подключена..."
-    let s = getS config connection
-    let cl = configLog s
-    ---------------------run transformer---------------------
-    a <-  catchE (runStateT (toT m) s) $ \e -> do
-        Log.text lc ls Log.Error "Ошибка приложения: "
-        Log.error lc ls e
-        exit
-    Log.text lc ls Log.Info "Успех"
-    --Log.ldata lc ls Log.Data $ fst a
-    --возможно нужно в конце отключать бд????
-    return $ fst a
+    config <- _runConfig
+    connection <- _runConnection config
+    _getValue config connection m
 
 --set config as string to the environment, return True if success
 setEnvironment :: IO (Maybe Config)
@@ -118,6 +87,59 @@ setEnvironment = runE Nothing $ do
     return $ Just config
 
 
+
+--internal functions
+
+--тавтология с readConfig
+_runConfig ::ExceptT E IO Config
+_runConfig = do
+    let ls = Log.LogSettings Color.Cyan True "runT"
+    ---------------------read config---------------------
+    (config, _) <- catchE readConfig $ \e -> do
+        let dlc = Log.defaultConfig
+        Log.text dlc ls Log.Error "Ошибка чтения конфигурации при запуске трансформера: "
+        Log.error dlc ls e
+        exit 
+    let lc = _log config
+    Log.text lc ls Log.Info "Конфиг успешно считан..."
+    return config
+
+_runConnection  :: Config -> ExceptT E IO Connection
+_runConnection config = do
+    let ls = Log.LogSettings Color.Cyan True "runT"
+    let lc = _log config
+    connection <- catchE (connectDB . _db $ config) $ \e -> do
+        Log.text lc ls Log.Error "Ошибка соединения с БД при запуске трансформера: "
+        Log.error lc ls e
+        exit
+    Log.text lc ls Log.Info "БД успешно подключена..."
+    let s = getS config connection
+    let cl = configLog s
+    return connection
+
+_getValue :: (ToTransformer m) => Config -> Connection -> m a -> ExceptT E IO a
+_getValue config connection m = do
+    let s = getS config connection
+    let ls = Log.LogSettings Color.Cyan True "runT"
+    let lc = _log config
+    a <-  catchE (runStateT (toT m) s) $ \e -> do
+        Log.text lc ls Log.Error "Ошибка приложения: "
+        Log.error lc ls e
+        exit
+    return $ fst a 
+
+_showValue :: (Show a) => Config -> a -> ExceptT E IO ()
+_showValue config value = do 
+    let s = getS config
+    let ls = Log.LogSettings Color.Cyan True "runT"
+    let lc = _log config
+    Log.text lc ls Log.Info "Результат: "
+    Log.ldata lc ls Log.Data value
+    return ()
+
+
+
+--------------------------------------------ExceptT E IO a--------------------------------------------
 --exit from ExceptT transformer with error
 exit :: ExceptT E IO a
 exit = ExceptT $ do
@@ -131,6 +153,15 @@ runE a m = do
     eb <- runExceptT m  
     case eb of 
         Left e -> return a
+        Right b -> return b
+
+fromE ::  ExceptT E IO a -> IO a
+fromE m = do
+    putStrLn "fromE"
+    --return a
+    eb <- runExceptT m  
+    case eb of 
+        Left e -> error $ "error in fromE with exception: " ++ show e
         Right b -> return b
 
 --value doesn't matter
