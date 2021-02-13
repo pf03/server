@@ -32,5 +32,5 @@ app :: Application
 app req f = do
     configString <- getEnv "configString"
     putStrLn "app"
-    response <- evalT  (Response.get req) Response.rdefault configString
+    response <- evalTwithHandler  (Response.get req) Response.errorHandler configString
     f $ response

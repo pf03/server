@@ -4,12 +4,15 @@ import Database.PostgreSQL.Simple.SqlQQ
 -- import  qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy.Char8 as LC
 import qualified Log
+import Database.PostgreSQL.Simple.Time
 import Class
 import Types
 import qualified Query 
+import Data.Text
 
-getUsers :: T [(Int, String, String)]
+
+getUsers :: T [User]
 getUsers = do
-    Query.query_ [sql|SELECT id, login, pass FROM users|]
+    Query.query_ [sql|SELECT * FROM users|]
 
 

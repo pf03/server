@@ -9,7 +9,7 @@ import Types  --100
 
 instance Show E where
     show (ParseError s) = "Ошибка парсинга JSON: "++s
-    show (QueryError s) = "Ошибка веб-запроса: "++s
+    show (RequestError s) = "Ошибка веб-запроса: "++s
     show (ConfigError s) = "Ошибка конфигурации: "++s
     show (DBError s) = "Ошибка базы данных: "++s
     show (IOError s) = "Ошибка ввода-вывода: "++s

@@ -50,7 +50,7 @@ throwT e  = toT (throwE e::Except E a)
 --run and show result of transformer
 showT :: (ToTransformer m, Show a) => m a -> IO ()
 showT m = runE_ $ do
-    config <- _runConfig
+    (config, _) <- _runConfig
     connection <- _runConnection config
     value <-_getValue config connection m
     _showValue config value
@@ -58,60 +58,57 @@ showT m = runE_ $ do
 --run transformer without showing
 runT :: ToTransformer m => m a -> IO ()
 runT m = runE_ $ do
-    config <- _runConfig
+    (config, _) <- _runConfig
     connection <- _runConnection config
     _getValue config connection m
     return ()
 
 -- evaluate value of transformer with default value in error case
+-- configString red from Environment
 evalT :: (ToTransformer m) => m a -> a -> String -> IO a
 evalT m def configString = runE def $ do    
-    config <- _runConfig
+    config <-  toE $ Parse.eDecode  $ read configString
+    connection <- _runConnection config
+    _getValue config connection m
+
+-- evaluate value of transformer with default value in error case
+--configString red from Environment
+evalTwithHandler :: (ToTransformer m) => m a -> (E -> a) -> String -> IO a
+evalTwithHandler m handler configString = runEwithHandler handler $ do    
+    config <-  toE $ Parse.eDecode  $ read configString
     connection <- _runConnection config
     _getValue config connection m
 
 --set config as string to the environment, return True if success
 setEnvironment :: IO (Maybe Config)
 setEnvironment = runE Nothing $ do
+    (config, configString) <- _runConfig
+    lift $ setEnv "configString" configString
+    return $ Just config
+
+--internal functions
+--тавтология с readConfig
+_runConfig :: ExceptT E IO (Config, String)
+_runConfig = do
     let ls = Log.LogSettings Color.Cyan True "runT"
     ---------------------read config---------------------
     (config, configString) <- catchE readConfig $ \e -> do
         let dlc = Log.defaultConfig
         Log.text dlc ls Log.Error "Ошибка чтения конфигурации при запуске трансформера: "
         Log.error dlc ls e
-        exit
-    let lc = _log config
-    --передать весь конфиг как строку 
-    Log.text lc ls Log.Info "Конфиг успешно считан..."
-    lift $ setEnv "configString" configString
-    return $ Just config
-
-
-
---internal functions
-
---тавтология с readConfig
-_runConfig ::ExceptT E IO Config
-_runConfig = do
-    let ls = Log.LogSettings Color.Cyan True "runT"
-    ---------------------read config---------------------
-    (config, _) <- catchE readConfig $ \e -> do
-        let dlc = Log.defaultConfig
-        Log.text dlc ls Log.Error "Ошибка чтения конфигурации при запуске трансформера: "
-        Log.error dlc ls e
-        exit 
+        throwE e
     let lc = _log config
     Log.text lc ls Log.Info "Конфиг успешно считан..."
-    return config
+    return (config, configString)
 
-_runConnection  :: Config -> ExceptT E IO Connection
+_runConnection :: Config -> ExceptT E IO Connection
 _runConnection config = do
     let ls = Log.LogSettings Color.Cyan True "runT"
     let lc = _log config
     connection <- catchE (connectDB . _db $ config) $ \e -> do
         Log.text lc ls Log.Error "Ошибка соединения с БД при запуске трансформера: "
         Log.error lc ls e
-        exit
+        throwE e
     Log.text lc ls Log.Info "БД успешно подключена..."
     let s = getS config connection
     let cl = configLog s
@@ -125,7 +122,7 @@ _getValue config connection m = do
     a <-  catchE (runStateT (toT m) s) $ \e -> do
         Log.text lc ls Log.Error "Ошибка приложения: "
         Log.error lc ls e
-        exit
+        throwE e
     return $ fst a 
 
 _showValue :: (Show a) => Config -> a -> ExceptT E IO ()
@@ -141,9 +138,9 @@ _showValue config value = do
 
 --------------------------------------------ExceptT E IO a--------------------------------------------
 --exit from ExceptT transformer with error
-exit :: ExceptT E IO a
-exit = ExceptT $ do
-    return $ Left $ SomeError ""
+-- exit :: ExceptT E IO a
+-- exit = ExceptT $ do
+--     return $ Left $ SomeError ""
 
 --run ExceptT transformer without error handling with default value
 runE :: a -> ExceptT E IO a -> IO a
@@ -153,6 +150,14 @@ runE a m = do
     eb <- runExceptT m  
     case eb of 
         Left e -> return a
+        Right b -> return b
+runEwithHandler :: (E -> a) -> ExceptT E IO a -> IO a
+runEwithHandler handler m = do
+    putStrLn "runE_"
+    --return a
+    eb <- runExceptT m  
+    case eb of 
+        Left e -> return $ handler e
         Right b -> return b
 
 fromE ::  ExceptT E IO a -> IO a

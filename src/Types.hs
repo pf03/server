@@ -1,4 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 --importPriority = 100
 module Types where
@@ -16,6 +18,8 @@ import Data.Aeson.Types
 import System.Console.ANSI
 import Database.PostgreSQL.Simple
 import Network.Wai.Internal ( Request, Response, ResponseReceived )
+import Database.PostgreSQL.Simple.Time
+import Data.Text (pack)
 
 --Этот модуль содержит все типы в проекте, исключая специфические для каждого из приложений VK, Telegram
 --Специфические нужно разместить в VK.Types и Telegram.Types
@@ -29,7 +33,7 @@ instance FromJSON App
 instance ToJSON App
 
 --------------------------------------Error--------------------------------------------------------
-data E = ParseError String | QueryError String | ConfigError String | DBError String | IOError String | SomeError String
+data E = ParseError String | RequestError String | ConfigError String | DBError String | IOError String | SomeError String
 -- это надо убрать, раз мы пользуемся мондами Parser - Except - ExceptT
 type ES = Either String
 type EE = Either E
@@ -120,9 +124,15 @@ data User = User {
     avatar :: String,
     login :: String,
     pass :: String,
-    creationDate :: String,
+    creationDate :: Date,
     isAdmin :: Bool
-}
+} deriving (Show, Generic, FromRow)
+-- instance FromRow User where
+--     fromRow = User <$> field <*> field
 
+instance ToJSON User
+
+instance ToJSON Date where
+  toJSON = String . pack . show
 
 
