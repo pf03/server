@@ -40,6 +40,9 @@ printT = liftIO . print
 putStrLnT :: MonadIO m => String -> m ()
 putStrLnT = liftIO . putStrLn
 
+readLnT :: MonadIO m => m String
+readLnT = liftIO getLine
+
 ----------------для работы со строками------------------------------------------------------
 --подстановка в шаблон
 template :: String -> [String] -> String
@@ -118,3 +121,6 @@ instance ConvertL Object where
 
 jc :: Convert a => a -> Maybe BC.ByteString
 jc = Just . convert
+
+
+

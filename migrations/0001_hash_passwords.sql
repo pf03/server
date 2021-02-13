@@ -31,3 +31,8 @@
 --         SET pass = md5(upd.pass)
 --         FROM (VALUES (1, 'admin')) as upd(id,pass)
 --         WHERE users.id = upd.id
+
+DROP TABLE IF EXISTS posts;
+ALTER TABLE news RENAME TO posts;
+ALTER TABLE drafts RENAME COLUMN news_id TO post_id;
+ALTER TABLE comments RENAME COLUMN news_id TO post_id;

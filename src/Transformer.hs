@@ -12,6 +12,9 @@ import qualified State as S
 
 import qualified System.Console.ANSI as Color
 
+
+import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as BC
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Lazy.Char8 as LC
 import Network.Wai (responseLBS, Application)
@@ -151,6 +154,8 @@ runE a m = do
     case eb of 
         Left e -> return a
         Right b -> return b
+        
+--run ExceptT transformer with error handling
 runEwithHandler :: (E -> a) -> ExceptT E IO a -> IO a
 runEwithHandler handler m = do
     putStrLn "runE_"
@@ -185,6 +190,9 @@ readConfig = do
             | isDoesNotExistError e = return $ Left $ ConfigError "Файл конфигурации не найден!"
             | otherwise = return $ Left  $ ConfigError "Ошибка чтения файла конфигурации"
 
+pathConfig :: FilePath
+pathConfig = "config.json"
+
 connectDB :: ConnectInfo -> ExceptT E IO Connection
 connectDB connectInfo = do
     conn <- ExceptT $ toEE (connect connectInfo) `catch` handler 
@@ -193,8 +201,7 @@ connectDB connectInfo = do
         handler e = return . Left  . DBError $ "Ошибка соединения с базой данных!"
 
 
-pathConfig :: FilePath
-pathConfig = "config.json"
+
 
 -------------------State <-> Config--------------------------------------
 getS :: Config -> Connection -> S
@@ -218,3 +225,15 @@ testLog = runT $ do
     Log.colorTextT Color.Green Log.Debug $ "Green color scheme " ++ klichko
     Log.colorTextT Color.Yellow Log.Debug $ "Yellow color scheme " ++ klichko
         where klichko = "Есть очень много по этому поводу точек зрения. Я четко придерживаюсь и четко понимаю, что те проявления, если вы уже так ребром ставите вопрос, что якобы мы"
+
+--переместить в какой-то другой модуль
+-----------------работа с файлами-----------------------------------------------------------------------------------
+readFile :: String -> ExceptT E IO B.ByteString
+readFile path = do
+    bs <- ExceptT $ toEE (BC.readFile pathConfig) `catch` handler
+    --print fileConfig
+    return bs where
+        handler :: IOException -> IO (EE B.ByteString )
+        handler e
+            | isDoesNotExistError e = return $ Left $ IOError $ template  "Файл \"{0}\" не найден!" [path]
+            | otherwise = return $ Left  $ IOError  $ template "Ошибка чтения файла \"{0}\"" [path]
