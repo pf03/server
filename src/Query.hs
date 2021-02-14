@@ -21,6 +21,10 @@ execute_ q = do
     conn <- S.getConnection
     toT $ SQL.execute_ conn q
 
+execute__ :: Query -> T ()
+execute__ q = do
+    Query.execute_ q
+    return()
 
 -- _constructor :: () -> ()
 

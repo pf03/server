@@ -23,11 +23,12 @@ import qualified Data.Map as M
 import Transformer
 
 --использовать этот список
-list :: M.Map String (T())
-list = M.fromList [
-    ("УДАЛЕНИЕ таблиц, создание новых и наполнение тестовыми данными", base),
-    ("Хеширование паролей", hashPasswords),
-    ("Переименование news в posts", renameNewsToPosts)
+--list :: M.Map String (T())
+list = --M.fromList 
+    [
+        ("0000 УДАЛЕНИЕ таблиц, создание новых и наполнение тестовыми данными", base),
+        ("0001 Хеширование паролей", hashPasswords),
+        ("0002 Переименование news в posts", renameNewsToPosts)
     ]
 
 --сделать возможность выбора номера миграции
@@ -40,33 +41,35 @@ all = do
     case answer of
         "N" ->  putStrLnT "Выход из программы миграций"
         "Y" -> do
-            base
-            hashPasswords
-            renameNewsToPosts
+            Log.colorTextT Color.Blue Log.Info "Производятся миграции..."
+            mapM_ Migrations.wrapper Migrations.list
+            Log.colorTextT Color.Green Log.Info "Все миграции выполнены успешно."
         _ -> do
             putStrLnT "Неверный выбор. Попробуйте снова"
-            Migrations.all
+            Migrations.all 
 
+wrapper :: (String, T()) -> T()
+wrapper (name, func) = do
+    Log.colorTextT Color.Blue Log.Info "Производится следующая миграция:"
+    Log.colorTextT Color.Cyan Log.Info name
+    Log.setSettings Color.Cyan True name 
+    func
+    Log.colorTextT Color.Green Log.Info "Миграция окончена успешно"
 
 pathMigrations :: FilePath
-pathMigrations = "migrationldfffffffffs/0000_base.sql"
+pathMigrations = "migrations/0000_base.sql"
 
 --DB initialization from sql file
 base :: T()
 base = do 
-    Log.textT Log.Warning "Производится следующая миграция: УДАЛЕНИЕ таблиц, создание новых и наполнение тестовыми данными"
     queryBS <- toT $ Transformer.readFile pathMigrations
+    --Log.dataT Log.Warning queryBS
     let query = Query queryBS
-    execute_ query
-    Log.textT Log.Info "Миграция окончена успешно"
-
+    execute__ query
 
 --обработка ошибок при запросах к бд!
 hashPasswords :: T()
 hashPasswords = do
-    Log.setSettings Color.Blue True "application" 
-    Log.textT Log.Warning "Производится следующая миграция: хеширование паролей"
-    -- conn <- S.getConnection
     users <- query_ [sql|SELECT id, login, pass FROM users|] :: T [(Int, B.ByteString, B.ByteString)]
     Log.textT Log.Info "Получен список пользователей..."
     rows <- executeMany [sql|
@@ -81,19 +84,16 @@ hashPasswords = do
             ALTER COLUMN pass TYPE VARCHAR (32)
     |]
     Log.textT Log.Info "Урезана длина строки пароля до 32 символов..."
-    Log.textT Log.Info "Миграция окончена успешно"
 
+--это тоже можно запихнуть в файл
 renameNewsToPosts :: T()
 renameNewsToPosts = do
-    Log.setSettings Color.Blue True "application" 
-    Log.textT Log.Warning "Производится следующая миграция: переименование news в posts"
-    execute_ [sql|
+    execute__ [sql|
         DROP TABLE IF EXISTS posts;
         ALTER TABLE news RENAME TO posts;
         ALTER TABLE drafts RENAME COLUMN news_id TO post_id;
         ALTER TABLE comments RENAME COLUMN news_id TO post_id;
     |]
-    Log.textT Log.Info "Миграция окончена успешно"
 
 
 

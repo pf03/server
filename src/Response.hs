@@ -34,6 +34,7 @@ get req = do
     getUsers
     case pathInfo of 
         ["users"] -> getUsers
+        ["authors"] -> getAuthors
         _ -> throwT . RequestError $ template  "Неизвестный путь: {0}"  [show . rawPathInfo $ req]
     --return $ responseLBS status200 [(hContentType, "text/plain")] "Hello world!"
 
@@ -42,13 +43,32 @@ get req = do
 
 getUsers :: T Response
 getUsers = do
-    Log.setSettings Color.Blue  True "Response.get"
-    Log.textT Log.Info "Request.get"
+    Log.setSettings Color.Blue  True "Response.getUsers"
     users <- DB.getUsers 
     -- let keyboard = Encode.keyboard ["Вася", "Петя", "Маша"] 
     let eusers = encode users
     Log.dataT Log.Info users
     return $ Wai.responseLBS status200 [(hContentType, "text/plain")] eusers
+
+getAuthors :: T Response
+getAuthors = do 
+    Log.setSettings Color.Blue  True "Response.getAuthors"
+    authors <- DB.getAuthors 
+    let eauthors = encode authors
+    Log.dataT Log.Info authors
+    Response.json eauthors
+
+
+getPosts :: T Response
+getPosts = do 
+    Log.setSettings Color.Blue  True "Response.getUsers"
+    posts <- DB.getPosts 
+    let eposts = encode posts
+    Log.dataT Log.Info posts
+    Response.json eposts
+
+json :: LC.ByteString -> T Response
+json = return . Wai.responseLBS status200 [(hContentType, "text/plain")] 
 
 
 -- getUsersBody :: T LC.ByteString

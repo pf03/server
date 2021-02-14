@@ -230,7 +230,7 @@ testLog = runT $ do
 -----------------работа с файлами-----------------------------------------------------------------------------------
 readFile :: String -> ExceptT E IO B.ByteString
 readFile path = do
-    bs <- ExceptT $ toEE (BC.readFile pathConfig) `catch` handler
+    bs <- ExceptT $ toEE (BC.readFile path) `catch` handler
     --print fileConfig
     return bs where
         handler :: IOException -> IO (EE B.ByteString )

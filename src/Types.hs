@@ -17,9 +17,10 @@ import Data.Aeson
 import Data.Aeson.Types
 import System.Console.ANSI
 import Database.PostgreSQL.Simple
+import Database.PostgreSQL.Simple.FromRow
 import Network.Wai.Internal ( Request, Response, ResponseReceived )
 import Database.PostgreSQL.Simple.Time
-import Data.Text (pack)
+import Data.Text (pack, Text(..))
 
 --Этот модуль содержит все типы в проекте, исключая специфические для каждого из приложений VK, Telegram
 --Специфические нужно разместить в VK.Types и Telegram.Types
@@ -116,7 +117,7 @@ type Port = Int
 
 ----------------------------------DB------------------------------------------------------------------------------
 
--- ?? ByteString??
+-- ?? ByteString??  --aeson не работает с ByteString
 data User = User {
     userId :: Int,
     firstName :: String,
@@ -124,14 +125,63 @@ data User = User {
     avatar :: String,
     login :: String,
     pass :: String,
-    creationDate :: Date,
+    userCreationDate :: Date,
     isAdmin :: Bool
 } deriving (Show, Generic, FromRow)
+instance ToJSON User
 -- instance FromRow User where
 --     fromRow = User <$> field <*> field
 
-instance ToJSON User
+data Author = Author {
+    authorId :: Int,
+    user :: User,
+    description :: String
+} deriving (Show, Generic)
+instance ToJSON Author
 
+
+instance FromRow Author where
+    --fromRow = Author <$> field <*> field <*> field <*> fromRow <*> field
+    fromRow = do
+        authorId <- field
+        _ <- field :: RowParser Int  --user_id
+        description <- field
+        user <- fromRow 
+        
+        return $ Author authorId user description
+
+-- data Category = Category{
+--     categoryId :: Int,
+--     parent :: Category
+-- } deriving (Show, Generic, FromRow)
+
+-- data Tag = Tag {
+--     tagId :: Int,
+--     tagName :: Int
+-- }
+
+
+-- data Content = Content {
+--     contentId :: Int,
+--     author :: User,
+--     contentName :: String,
+--     contentCreationDate :: Date,
+--     category :: Category,
+--     text :: Text,
+--     photo :: Path 
+-- } deriving (Show, Generic, FromRow)
+-- data Post = Post {
+--     postId :: Int,
+--     postContent :: Content
+-- } deriving (Show, Generic, FromRow)
+
+-- data Draft = Draft {
+--     draftId :: Int,
+--     draftContent :: Content
+-- } deriving (Show, Generic, FromRow)
+
+
+-- --возможно тут нужен другой инстанс, чтобы хорошо читался фронтендом
 instance ToJSON Date where
   toJSON = String . pack . show
 
