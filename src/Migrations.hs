@@ -31,6 +31,8 @@ list = --M.fromList
         ("0002 Переименование news в posts", renameNewsToPosts)
     ]
 
+
+
 --сделать возможность выбора номера миграции
 all :: T()
 all = do
@@ -40,13 +42,16 @@ all = do
     answer <- readLnT 
     case answer of
         "N" ->  putStrLnT "Выход из программы миграций"
-        "Y" -> do
-            Log.colorTextT Color.Blue Log.Info "Производятся миграции..."
-            mapM_ Migrations.wrapper Migrations.list
-            Log.colorTextT Color.Green Log.Info "Все миграции выполнены успешно."
+        "Y" -> Migrations.allForce   
         _ -> do
             putStrLnT "Неверный выбор. Попробуйте снова"
             Migrations.all 
+
+allForce :: T()
+allForce = do
+    Log.colorTextT Color.Blue Log.Info "Производятся миграции..."
+    mapM_ Migrations.wrapper Migrations.list
+    Log.colorTextT Color.Green Log.Info "Все миграции выполнены успешно."
 
 wrapper :: (String, T()) -> T()
 wrapper (name, func) = do

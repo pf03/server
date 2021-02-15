@@ -110,7 +110,7 @@ type ItemName = String
 type UserName = String
 type StateChanged = Bool
 type Port = Int
-
+type PathInfo = [Text]
 ----------------------------------WAI-------------------------------------------------------------------------
 -- type ApplicationT = Request -> (Response -> T ResponseReceived) -> T ResponseReceived
 
@@ -137,8 +137,6 @@ data Author = Author {
     user :: User,
     description :: String
 } deriving (Show, Generic)
-instance ToJSON Author
-
 
 instance FromRow Author where
     --fromRow = Author <$> field <*> field <*> field <*> fromRow <*> field
@@ -147,38 +145,98 @@ instance FromRow Author where
         _ <- field :: RowParser Int  --user_id
         description <- field
         user <- fromRow 
-        
         return $ Author authorId user description
+instance ToJSON Author
 
--- data Category = Category{
---     categoryId :: Int,
---     parent :: Category
--- } deriving (Show, Generic, FromRow)
+data Category = Category{
+    categoryId :: Int,
+    parent :: Maybe Category,
+    categoryName :: String
+} deriving (Show, Generic)
+instance ToJSON Category
 
+-- instance FromRow Category where
+--     --fromRow = Author <$> field <*> field <*> field <*> fromRow <*> field
+--     fromRow = do
+--         categoryId <- field
+--         parent <- fromRow 
+--         categoryName <- field
+--         return $ Category categoryId parent categoryName
 -- data Tag = Tag {
 --     tagId :: Int,
 --     tagName :: Int
 -- }
 
+--это вспомогательный тип, не участвует в API
 
--- data Content = Content {
---     contentId :: Int,
---     author :: User,
---     contentName :: String,
---     contentCreationDate :: Date,
---     category :: Category,
---     text :: Text,
---     photo :: Path 
--- } deriving (Show, Generic, FromRow)
--- data Post = Post {
---     postId :: Int,
---     postContent :: Content
--- } deriving (Show, Generic, FromRow)
+-- type ContentTuple = (Int, User, String, Date, Int, Text, Path)
+
+--этот тип нужен потому, что не получается сразу вытянуть рекурсивные категории
+data Content' = Content' {
+    contentId' :: Int,
+    author' :: Author,
+    contentName' :: String,
+    contentCreationDate' :: Date,
+    category' :: Int,
+    text' :: Text,
+    photo' :: Path 
+} deriving (Show, Generic)
+-- instance ToJSON Content'
+
+instance FromRow Content' where
+    fromRow = do
+        contentId <- field
+        _ <- field :: RowParser Int  --author_id
+        name <- field
+        creationDate <- field
+        categoryId <- field
+        text <- field
+        photo <- field
+        author <- fromRow
+        return $ Content' contentId author name creationDate categoryId text photo
+
+data Content = Content {
+    contentId :: Int,
+    author :: Author,
+    contentName :: String,
+    contentCreationDate :: Date,
+    category :: Category,
+    text :: Text,
+    photo :: Path 
+} deriving (Show, Generic)
+instance ToJSON Content
+
+
+-- -- type PostTuple = (Int, Int, User, String, Date, Int, Text, Path)
+-- instance FromRow PostTuple where
+--     fromRow = undefined 
+
+data Post' = Post' {
+    postId' :: Int,
+    postContent' :: Content'
+} deriving (Show, Generic)
+-- instance ToJSON Post'
+
+instance FromRow Post' where
+    fromRow = do
+        postId <- field
+        _ <- field :: RowParser Int  --content_id
+        content <- fromRow
+        return $ Post' postId content
+
+
+data Post = Post {
+    postId :: Int,
+    postContent :: Content
+} deriving (Show, Generic)
+instance ToJSON Post
+
 
 -- data Draft = Draft {
 --     draftId :: Int,
 --     draftContent :: Content
--- } deriving (Show, Generic, FromRow)
+-- } deriving (Show, Generic)
+-- instance ToJSON Draft
 
 
 -- --возможно тут нужен другой инстанс, чтобы хорошо читался фронтендом

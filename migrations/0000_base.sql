@@ -87,7 +87,7 @@ INSERT into tags (
 --CONTENT = DRAFT OR NEWS
 CREATE TABLE contents (
     id SERIAL PRIMARY KEY,
-    autor_id INTEGER not null,
+    author_id INTEGER not null,
     name VARCHAR (50) not null,
     creation_date DATE,
     category_id INTEGER,
@@ -106,7 +106,7 @@ CREATE TABLE drafts (
 );
 
 INSERT INTO contents (
-    autor_id,
+    author_id,
     name,
     creation_date,
     category_id,
@@ -115,14 +115,21 @@ INSERT INTO contents (
 )
 VALUES
     (
-        6,
+        3,
         'GHC 8.10.1',
         '2020-03-20',
         6,
         'Состоялся очередной релиз компилятора Glasgow Haskell Compiler.',
         'logo.jpg'
     ),(
-        4,
+        1,
+        'Я помню чудное мгновенье, черновик',
+        '1825-03-20',
+        2,
+        'Черновик: Я помню чудное мгновенье:\nПередо мной явилась ты,\nКак мимолетное виденье,\nКак гений чистой красоты.',
+        'pushkin.jpg'
+    ),(
+        1,
         'Я помню чудное мгновенье',
         '1825-03-20',
         2,
@@ -130,7 +137,7 @@ VALUES
         'pushkin.jpg'
     );
 
-INSERT INTO news (content_id) VALUES (1);
+INSERT INTO news (content_id) VALUES (1), (3);
 
 INSERT INTO drafts (content_id, news_id) VALUES (2, null);
 
