@@ -89,6 +89,13 @@ instance ToJSON ConfigWarp
 instance FromJSON ConnectInfo
 instance ToJSON ConnectInfo
 
+---------------------------------------API-------------------------------------------------------------
+
+data API a  = API {
+    funcName :: FuncName,
+    pathInfo :: PathInfo,
+    handler :: T [a]
+}
 
 --------------------------------Parse && Logic----------------------------------------------------------
 type Token = String
@@ -111,6 +118,7 @@ type UserName = String
 type StateChanged = Bool
 type Port = Int
 type PathInfo = [Text]
+type FuncName = String
 ----------------------------------WAI-------------------------------------------------------------------------
 -- type ApplicationT = Request -> (Response -> T ResponseReceived) -> T ResponseReceived
 
@@ -148,6 +156,12 @@ instance FromRow Author where
         return $ Author authorId user description
 instance ToJSON Author
 
+data Category' = Category'{
+    categoryId' :: Int,
+    parent' :: Maybe Int,
+    categoryName' :: String
+} deriving (Show, Generic, FromRow)
+
 data Category = Category{
     categoryId :: Int,
     parent :: Maybe Category,
@@ -155,17 +169,7 @@ data Category = Category{
 } deriving (Show, Generic)
 instance ToJSON Category
 
--- instance FromRow Category where
---     --fromRow = Author <$> field <*> field <*> field <*> fromRow <*> field
---     fromRow = do
---         categoryId <- field
---         parent <- fromRow 
---         categoryName <- field
---         return $ Category categoryId parent categoryName
--- data Tag = Tag {
---     tagId :: Int,
---     tagName :: Int
--- }
+
 
 --это вспомогательный тип, не участвует в API
 
@@ -230,6 +234,12 @@ data Post = Post {
     postContent :: Content
 } deriving (Show, Generic)
 instance ToJSON Post
+
+data Tag = Tag {
+    tagId :: Int,
+    tagName :: Int
+} deriving (Show, Generic)
+instance ToJSON Tag
 
 
 -- data Draft = Draft {
