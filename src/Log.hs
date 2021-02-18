@@ -9,6 +9,7 @@ module Log(
     funcT,
     colorTextT,
     textT,
+    debugT,
     dataT,
     convertDataT,
     resetSettings,
@@ -84,6 +85,9 @@ colorTextT :: MonadLog m => ColorScheme -> LogLevel -> String -> m ()
 colorTextT colorScheme level text = do
     Log.setSettings colorScheme True ""
     Log.textT level text
+
+debugT :: MonadLog m => (MonadLog m, Show a) => a -> m ()
+debugT = Log.dataT Debug
 
 textT :: MonadLog m => LogLevel -> String -> m ()
 textT level text = do

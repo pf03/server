@@ -30,7 +30,8 @@ import Data.Maybe
 import Control.Monad.Except
 import Data.List
 import Control.Monad.Trans.Except
-import Database.PostgreSQL.Simple
+--import Database.PostgreSQL.Simple
+import Network.HTTP.Types.URI
 
 --all possible paths with handlers
 -- getAPI :: ToJSON a => PathInfo -> API a
@@ -42,27 +43,28 @@ import Database.PostgreSQL.Simple
 --     ["tags"] -> API "getTags" pathInfo DB.getTags
 --     _ -> throwT . RequestError $ template  "Неизвестный путь: {0}"  [show . rawPathInfo $ req]
 
-apiList :: (ToJSON a, Show a) => [API a]
-apiList =  [
-    API "getUsers" ["users"] DB.getUsers,
-    API "getAuthors" ["authors"] DB.getAuthors,
-    API "getCategories" ["categories"] DB.getCategories,
-    API "getPosts" ["posts"] DB.getPosts,
-    API "getTags" ["tags"] DB.getTags
-    ]
+-- apiList :: (ToJSON a, Show a) => [API a]
+-- apiList =  [
+--     API "getUsers" ["users"] DB.getUsers,
+--     API "getAuthors" ["authors"] DB.getAuthors,
+--     API "getCategories" ["categories"] DB.getCategories,
+--     API "getPosts" ["posts"] DB.getPosts,
+--     API "getTags" ["tags"] DB.getTags
+--     ]
 
-findApi :: PathInfo -> [API a] -> Maybe (API a)
-findApi pathInfo =  find (\(API _ pi _) -> pi == pathInfo)
+-- findApi :: PathInfo -> [API a] -> Maybe (API a)
+-- findApi pathInfo =  find (\(API _ pi _) -> pi == pathInfo)
 
 get :: Request -> T Response
 get req = do
     Log.setSettings Color.Blue  True "Response.get"
     Log.dataT Log.Debug req
     let pathInfo = Wai.pathInfo req
-    let mapi = Response.findApi pathInfo Response.apiList
-    case mapi of
-        Just api -> getData api
-        Nothing -> throwT . RequestError $ template  "Неизвестный путь: {0}"  [show . rawPathInfo $ req]
+    let queryString = Wai.queryString req
+    -- let mapi = Response.findApi pathInfo Response.apiList
+    -- case mapi of
+    --     Just api -> getData api
+    --     Nothing -> throwT . RequestError $ template  "Неизвестный путь: {0}"  [show . rawPathInfo $ req]
     
     -- undefined 
     --let 
@@ -74,26 +76,29 @@ get req = do
     --     -- ["posts"] -> API "getPosts" pathInfo DB.getPosts
     --     -- ["tags"] -> API "getTags" pathInfo DB.getTags
     --     _ -> throwT . RequestError $ template  "Неизвестный путь: {0}"  [show . rawPathInfo $ req]
-    edata <- case pathInfo of 
-        ["users"] -> (toT . encode) <*> DB.getUsers
-        ["authors"] -> encode . DB.getAuthors
-        -- ["categories"] -> getCategories
-        -- ["posts"] -> getPosts
-        -- ["tags"] -> getTags
+    --let send = Response.sendData (show . head $ pathInfo) 
+    case pathInfo of 
+        ["users"] -> Response.sendData DB.getUsers pathInfo queryString 
+        -- ["authors"] -> Response.sendData pathInfo queryString DB.getAuthors
+        -- ["categories"] -> Response.sendData pathInfo queryString DB.getCategories
+        ["posts"] -> Response.sendData DB.getPosts pathInfo queryString 
+        -- ["tags"] -> Response.sendData pathInfo queryString DB.getTags
         _ -> throwT . RequestError $ template  "Неизвестный путь: {0}"  [show . rawPathInfo $ req]
     --return $ responseLBS status200 [(hContentType, "text/plain")] "Hello world!"
-    Response.json edata
+    --Response.json edata
+    --["users"] -> Response.sendData (show . head $ pathInfo) DB.getUsers
 
 
-getData :: ( ToJSON a, Show a) =>  API a -> T Response
-getData (API funcName pathInfo handler) = do
-    Log.setSettings Color.Blue  True funcName
-    _data <- handler
+sendData :: ( ToJSON a, Show a) => (Query -> T a) -> PathInfo -> Query  -> T Response
+sendData tgetData pathInfo queryString  = do
+    Log.setSettings Color.Blue  True $ template "sendData: {0}" [show . head $ pathInfo] 
+    _data <- tgetData queryString
     let edata = encode _data
     Log.dataT Log.Info _data
     Response.json edata
 
-
+-- ff :: ToJSON a => T a -> T Response
+-- ff = undefined
 
 -- getUsers :: T Response
 -- getUsers = do
