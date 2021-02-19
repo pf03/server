@@ -126,131 +126,154 @@ type FuncName = String
 ----------------------------------DB------------------------------------------------------------------------------
 
 -- ?? ByteString??  --aeson не работает с ByteString
-data User = User {
-    userId :: Int,
-    firstName :: String,
-    lastName :: String,
-    avatar :: String,
-    login :: String,
-    pass :: String,
-    userCreationDate :: Date,
-    isAdmin :: Bool
-} deriving (Show, Generic, FromRow)
-instance ToJSON User
--- instance FromRow User where
---     fromRow = User <$> field <*> field
+-- data User = User {
+--     userId :: Int,
+--     firstName :: String,
+--     lastName :: String,
+--     avatar :: String,
+--     login :: String,
+--     pass :: String,
+--     userCreationDate :: Date,
+--     isAdmin :: Bool
+-- } deriving (Show, Generic, FromRow)
+-- instance ToJSON User
+-- -- instance FromRow User where
+-- --     fromRow = User <$> field <*> field
 
-data Author = Author {
-    authorId :: Int,
-    user :: User,
-    description :: String
-} deriving (Show, Generic)
+-- data Author = Author {
+--     authorId :: Int,
+--     user :: User,
+--     description :: String
+-- } deriving (Show, Generic)
 
-instance FromRow Author where
-    --fromRow = Author <$> field <*> field <*> field <*> fromRow <*> field
-    fromRow = do
-        authorId <- field
-        _ <- field :: RowParser Int  --user_id
-        description <- field
-        user <- fromRow 
-        return $ Author authorId user description
-instance ToJSON Author
+-- instance FromRow Author where
+--     --fromRow = Author <$> field <*> field <*> field <*> fromRow <*> field
+--     fromRow = do
+--         authorId <- field
+--         _ <- field :: RowParser Int  --user_id
+--         description <- field
+--         user <- fromRow 
+--         return $ Author authorId user description
+-- instance ToJSON Author
 
-data Category' = Category'{
-    categoryId' :: Int,
-    parent' :: Maybe Int,
-    categoryName' :: String
-} deriving (Show, Generic, FromRow)
+-- data Category' = Category'{
+--     categoryId' :: Int,
+--     parent' :: Maybe Int,
+--     categoryName' :: String
+-- } deriving (Show, Generic, FromRow)
 
-data Category = Category{
-    categoryId :: Int,
-    parent :: Maybe Category,
-    categoryName :: String
-} deriving (Show, Generic)
-instance ToJSON Category
+-- data Category = Category{
+--     categoryId :: Int,
+--     parent :: Maybe Category,
+--     categoryName :: String
+-- } deriving (Show, Generic)
+-- instance ToJSON Category
 
 
 
---это вспомогательный тип, не участвует в API
+-- --это вспомогательный тип, не участвует в API
 
--- type ContentTuple = (Int, User, String, Date, Int, Text, Path)
+-- -- type ContentTuple = (Int, User, String, Date, Int, Text, Path)
 
---этот тип нужен потому, что не получается сразу вытянуть рекурсивные категории
-data Content' = Content' {
-    contentId' :: Int,
-    author' :: Author,
-    contentName' :: String,
-    contentCreationDate' :: Date,
-    category' :: Int,
-    text' :: Text,
-    photo' :: Path 
-} deriving (Show, Generic)
+-- --этот тип нужен потому, что не получается сразу вытянуть рекурсивные категории
+-- data Content' = Content' {
+--     contentId' :: Int,
+--     author' :: Author,
+--     contentName' :: String,
+--     contentCreationDate' :: Date,
+--     category' :: Int,
+--     text' :: Text,
+--     photo' :: Path,
+--     tag :: Maybe Tag
+-- } deriving (Show, Generic)
 -- instance ToJSON Content'
 
-instance FromRow Content' where
-    fromRow = do
-        contentId <- field
-        _ <- field :: RowParser Int  --author_id
-        name <- field
-        creationDate <- field
-        categoryId <- field
-        text <- field
-        photo <- field
-        author <- fromRow
-        return $ Content' contentId author name creationDate categoryId text photo
-
-data Content = Content {
-    contentId :: Int,
-    author :: Author,
-    contentName :: String,
-    contentCreationDate :: Date,
-    category :: Category,
-    text :: Text,
-    photo :: Path 
-} deriving (Show, Generic)
-instance ToJSON Content
+-- instance FromRow (Maybe Tag) where
+--     fromRow = do
+--         mtagId <- field
+--         mtagName <- field
+--         return $ Tag <$> mtagId <*> mtagName
 
 
--- -- type PostTuple = (Int, Int, User, String, Date, Int, Text, Path)
--- instance FromRow PostTuple where
---     fromRow = undefined 
+-- instance FromRow Content' where
+--     fromRow = do
+--         contentId <- field
+--         _ <- field :: RowParser Int  --author_id
+--         name <- field
+--         creationDate <- field
+--         categoryId <- field
+--         text <- field
+--         photo <- field
+--         author <- fromRow 
+--         _  <- field :: RowParser (Maybe Int) --tags_to_contents
+--         _  <- field :: RowParser (Maybe Int)
+--         _  <- field :: RowParser (Maybe Int)
+--         mtag <- fromRow
 
-data Post' = Post' {
-    postId' :: Int,
-    postContent' :: Content'
-} deriving (Show, Generic)
+--         return $ Content' contentId author name creationDate categoryId text photo mtag
+
+-- data Content = Content {
+--     contentId :: Int,
+--     author :: Author,
+--     contentName :: String,
+--     contentCreationDate :: Date,
+--     category :: Category,
+--     text :: Text,
+--     photo :: Path, 
+--     tags :: [Tag]
+-- } deriving (Show, Generic)
+-- instance ToJSON Content
+
+
+
+
+-- -- -- type PostTuple = (Int, Int, User, String, Date, Int, Text, Path)
+-- -- instance FromRow PostTuple where
+-- --     fromRow = undefined 
+
+-- data Post' = Post' {
+--     postId' :: Int,
+--     postContent' :: Content'
+-- } deriving (Show, Generic)
 -- instance ToJSON Post'
 
-instance FromRow Post' where
-    fromRow = do
-        postId <- field
-        _ <- field :: RowParser Int  --content_id
-        content <- fromRow
-        return $ Post' postId content
+-- instance FromRow Post' where
+--     fromRow = do
+--         postId <- field
+--         _ <- field :: RowParser Int  --content_id
+--         content <- fromRow
+--         return $ Post' postId content
 
 
-data Post = Post {
-    postId :: Int,
-    postContent :: Content
-} deriving (Show, Generic)
-instance ToJSON Post
-
-data Tag = Tag {
-    tagId :: Int,
-    tagName :: Int
-} deriving (Show, Generic)
-instance ToJSON Tag
-
-
--- data Draft = Draft {
---     draftId :: Int,
---     draftContent :: Content
+-- data Post = Post {
+--     postId :: Int,
+--     postContent :: Content
 -- } deriving (Show, Generic)
--- instance ToJSON Draft
+-- instance ToJSON Post
+
+-- data Tag = Tag {
+--     tagId :: Int,
+--     tagName :: String
+-- } deriving (Show, Generic, FromRow)
+-- instance ToJSON Tag
 
 
--- --возможно тут нужен другой инстанс, чтобы хорошо читался фронтендом
-instance ToJSON Date where
-  toJSON = String . pack . show
+-- -- data Draft = Draft {
+-- --     draftId :: Int,
+-- --     draftContent :: Content
+-- -- } deriving (Show, Generic)
+-- -- instance ToJSON Draft
 
 
+-- -- --возможно тут нужен другой инстанс, чтобы хорошо читался фронтендом
+-- instance ToJSON Date where
+--   toJSON = String . pack . show
+
+--  Вобщем нужно два отдельных типа - один для  бд, другой для json
+--может даже третий под конкретный запрос
+--UserTable
+--UserRow
+--UserJSON
+--Table.User
+--Row.User
+--JSON.User

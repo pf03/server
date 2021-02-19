@@ -81,8 +81,8 @@ get req = do
         ["users"] -> Response.sendData DB.getUsers pathInfo queryString 
         -- ["authors"] -> Response.sendData pathInfo queryString DB.getAuthors
         -- ["categories"] -> Response.sendData pathInfo queryString DB.getCategories
-        ["posts"] -> Response.sendData DB.getPosts pathInfo queryString 
-        -- ["tags"] -> Response.sendData pathInfo queryString DB.getTags
+        ["posts"] -> Response.sendData DB.getPosts pathInfo queryString
+        ["tags"] -> Response.sendData DB.getTags pathInfo queryString
         _ -> throwT . RequestError $ template  "Неизвестный путь: {0}"  [show . rawPathInfo $ req]
     --return $ responseLBS status200 [(hContentType, "text/plain")] "Hello world!"
     --Response.json edata

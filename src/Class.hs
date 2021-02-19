@@ -2,6 +2,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 module Class where
 
+import  qualified Data.ByteString.Char8 as BC
 import Control.Monad.Trans.Except
 import Control.Monad.Except
 import Control.Monad.Reader
@@ -36,7 +37,9 @@ instance ToTransformer IO where
         iohandler :: IOException -> IO (EE a)
         iohandler e = return . Left  . IOError . show $ e 
         sqlhandler :: SqlError -> IO (EE a)
-        sqlhandler e = return . Left . DBError . show $ e 
+        sqlhandler e = do
+            return . Left . DBError . show $ e 
+            --return . Left . DBError . BC.unpack . sqlErrorMsg $ e
         otherhandler :: SomeException -> IO (EE a)
         otherhandler e = return . Left . SomeError . show $ e
 -- Note that we have to give a type signature to e , or the program will not 
