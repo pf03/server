@@ -79,8 +79,8 @@ get req = do
     --let send = Response.sendData (show . head $ pathInfo) 
     case pathInfo of 
         ["users"] -> Response.sendData DB.getUsers pathInfo queryString 
-        -- ["authors"] -> Response.sendData pathInfo queryString DB.getAuthors
-        -- ["categories"] -> Response.sendData pathInfo queryString DB.getCategories
+        ["authors"] -> Response.sendData DB.getAuthors pathInfo queryString 
+        ["categories"] -> Response.sendData DB.getCategories pathInfo queryString 
         ["posts"] -> Response.sendData DB.getPosts pathInfo queryString
         ["tags"] -> Response.sendData DB.getTags pathInfo queryString
         _ -> throwT . RequestError $ template  "Неизвестный путь: {0}"  [show . rawPathInfo $ req]

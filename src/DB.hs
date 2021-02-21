@@ -1,5 +1,10 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE FlexibleInstances #-}
+
 module DB where
 
+import Database.PostgreSQL.Simple.FromRow
 import Database.PostgreSQL.Simple.SqlQQ
 import  qualified Data.ByteString.Char8 as BC
 import qualified Data.ByteString.Lazy.Char8 as LC
@@ -24,6 +29,7 @@ import Transformer
 import qualified Row
 import qualified Select
 import JSON
+import Database.PostgreSQL.Simple
 
 -- class FromDB a where 
 --     get :: T [a]
@@ -131,31 +137,33 @@ lookupOne templates strs = do
         (r:rs) -> throwE . DBError $ template "В списке {0} должно быть не более одного значения из списка {1}" [show strs, show templates]
 
 
-test :: T()
-test = do
-    let a =3::Int
-    let b = 5::Int
-    let query1 = template [sql|SELECT * FROM users
-        WHERE id BETWEEN {0} AND {1}|] [q a, q b]
-    let query2 = [sql|ADD SOMETHING|]
+-- test :: T()
+-- test = do
+--     let a =3::Int
+--     let b = 5::Int
+--     let query1 = template [sql|SELECT * FROM users
+--         WHERE id BETWEEN {0} AND {1}|] [q a, q b]
+--     let query2 = [sql|ADD SOMETHING|]
 
-    Log.debugT $ query1<>query2
-    return()
+--     Log.debugT $ query1<>query2
+--     return()
 
-getAuthors :: T [Author]
-getAuthors = do
-    selectAuthors <- Query.query_ [sql|SELECT * FROM authors
-        LEFT JOIN users
-        ON authors.user_id = users.id|]
 
-getCategories :: T [Category]
-getCategories = do 
+
+getAuthors :: HTTP.Query -> T [Author]
+getAuthors qs = do
+    let selectQ = Select.authorQuery
+    selectAuthors <- Query.query_ selectQ
+    return $ evalAuthors selectAuthors
+
+getCategories :: HTTP.Query -> T [Category]
+getCategories qs = do 
     categories' <- Query.query_ [sql|SELECT * FROM categories|]
     toT $ JSON.evalCategories categories' 
 
-getPosts_ :: T [Post]
-getPosts_ = do
-    categories <- DB.getCategories
+getPosts_ :: HTTP.Query -> T [Post]
+getPosts_ qs = do
+    categories <- DB.getCategories qs
     posts' <- Query.query_ [sql|SELECT * FROM posts
         LEFT JOIN contents ON contents.id = posts.content_id
         LEFT JOIN authors ON authors.id = contents.author_id

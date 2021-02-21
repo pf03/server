@@ -19,6 +19,8 @@ import Control.Monad.Except
 import Common
 import Data.List
 import Control.Monad.Trans.Except
+import Database.PostgreSQL.Simple
+
 
 
 
@@ -89,7 +91,7 @@ evalPosts :: [Category] -> [Select.Post] -> Except E [Post]
 evalPosts cs = mapM (evalPost cs)
 
 evalPost :: [Category] -> Select.Post -> Except E Post
-evalPost cs (Select.Post rpost rcontent rauthor user mtag)  = do
+evalPost cs (rpost :. rcontent :. rauthor :. user :. _ :. mtag)  = do
     let postId = Row.postId rpost
     let categoryId = Row.contentCategoryId rcontent
     let mcategory = find (\(Category cid _ _) -> cid == categoryId) cs
@@ -100,6 +102,14 @@ evalPost cs (Select.Post rpost rcontent rauthor user mtag)  = do
             let author = turnAuthor rauthor user
             let postContent = turnContent rcontent author category (maybeToList mtag)
             return Post {..}
+
+evalAuthor :: Select.Author -> Author
+evalAuthor  (author :. user) = turnAuthor author user
+    --uncurry turnAuthor
+--(Row.Author :. Row.User)
+
+evalAuthors :: [Select.Author] -> [Author]
+evalAuthors = map evalAuthor
 
 maybeToList :: Maybe a -> [a]
 maybeToList Nothing = []

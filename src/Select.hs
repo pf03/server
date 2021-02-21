@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -5,7 +6,7 @@
 {-# LANGUAGE RecordWildCards #-}
 module Select where
 
-import Database.PostgreSQL.Simple.FromRow
+import Database.PostgreSQL.Simple.FromRow --hiding (FromRow(..) ) 
 import Database.PostgreSQL.Simple.Time
 import GHC.Generics 
 import Data.Aeson
@@ -13,30 +14,32 @@ import Data.Aeson.Types
 import Data.Text (pack, Text(..))
 import Types (Path)
 import qualified Row
-import qualified Database.PostgreSQL.Simple.Types as SQL
+import Database.PostgreSQL.Simple.Types as SQL
 import Database.PostgreSQL.Simple.SqlQQ
 
 
 --сожет сделать тут все -таки кортежи из Row-типов??
 -------------------------Post-------------------------------------------------------------
-data Post = Post {
-    post :: Row.Post,
-    content :: Row.Content,
-    author :: Row.Author,
-    user :: Row.User,
-    tag :: Maybe Row.Tag
-} deriving (Show, Generic)
-instance ToJSON Post
+-- data Post = Post {
+--     post :: Row.Post,
+--     content :: Row.Content,
+--     author :: Row.Author,
+--     user :: Row.User,
+--     tag :: Maybe Row.Tag
+-- } deriving (Show, Generic)
+-- instance ToJSON Post
 
-instance FromRow Post where
-    fromRow = do
-        post <- fromRow
-        content <- fromRow
-        author <- fromRow
-        user <- fromRow
-        _  <- fromRow :: RowParser (Maybe Row.TagToContent) --tags_to_contents, not user
-        tag <- fromRow
-        return $ Post {..}
+type Post = Row.Post :. Row.Content :. Row.Author :. Row.User :. (Maybe Row.TagToContent) :. Maybe (Row.Tag)
+
+-- instance FromRow Post where
+--     fromRow = do
+--         post <- fromRow
+--         content <- fromRow
+--         author <- fromRow
+--         user <- fromRow
+--         _  <- fromRow :: RowParser (Maybe Row.TagToContent) --tags_to_contents, not user
+--         tag <- fromRow
+--         return $ Post {..}
 
 postQuery :: SQL.Query
 postQuery = [sql|
@@ -60,12 +63,21 @@ categoryQuery = [sql|SELECT * FROM categories|]
 -- }
 
 --проверить, будет ли это работать???
-type Author = (Row.Author, Row.User)
-instance FromRow Author where
-    fromRow = do
-        author <- fromRow
-        user <- fromRow
-        return (author, user)
+--type Author = (Row.Author, Row.User)
+type Author = Row.Author :. Row.User
+type Post666 = Row.Post :. Row.Content :. Select.Author
+
+-- instance FromRow Select.Author where
+--     fromRow = do
+--         author <- fromRow
+--         user <- fromRow
+--         return (author :. user)
+
+
+
 authorQuery = [sql|SELECT * FROM authors
         LEFT JOIN users
         ON authors.user_id = users.id|]
+
+----------------------------------
+
