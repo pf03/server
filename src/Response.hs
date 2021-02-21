@@ -33,50 +33,12 @@ import Control.Monad.Trans.Except
 --import Database.PostgreSQL.Simple
 import Network.HTTP.Types.URI
 
---all possible paths with handlers
--- getAPI :: ToJSON a => PathInfo -> API a
--- getAPI pathInfo = case pathInfo of 
---     ["users"] -> API "getUsers" pathInfo DB.getUsers
---     ["authors"] -> API "getAuthors" pathInfo DB.getAuthors
---     ["categories"] -> API "getCategories" pathInfo DB.getAuthors
---     ["posts"] -> API "getPosts" pathInfo DB.getPosts
---     ["tags"] -> API "getTags" pathInfo DB.getTags
---     _ -> throwT . RequestError $ template  "Неизвестный путь: {0}"  [show . rawPathInfo $ req]
-
--- apiList :: (ToJSON a, Show a) => [API a]
--- apiList =  [
---     API "getUsers" ["users"] DB.getUsers,
---     API "getAuthors" ["authors"] DB.getAuthors,
---     API "getCategories" ["categories"] DB.getCategories,
---     API "getPosts" ["posts"] DB.getPosts,
---     API "getTags" ["tags"] DB.getTags
---     ]
-
--- findApi :: PathInfo -> [API a] -> Maybe (API a)
--- findApi pathInfo =  find (\(API _ pi _) -> pi == pathInfo)
-
 get :: Request -> T Response
 get req = do
     Log.setSettings Color.Blue  True "Response.get"
     Log.dataT Log.Debug req
     let pathInfo = Wai.pathInfo req
     let queryString = Wai.queryString req
-    -- let mapi = Response.findApi pathInfo Response.apiList
-    -- case mapi of
-    --     Just api -> getData api
-    --     Nothing -> throwT . RequestError $ template  "Неизвестный путь: {0}"  [show . rawPathInfo $ req]
-    
-    -- undefined 
-    --let 
-    --Response.getData $ Response.getAPI pathInfo
-    -- let api = case pathInfo of 
-    --     -- ["users"] -> API "getUsers" pathInfo DB.getUsers
-    --     -- ["authors"] -> API "getAuthors" pathInfo DB.getAuthors
-    --     -- ["categories"] -> API "getCategories" pathInfo DB.getAuthors
-    --     -- ["posts"] -> API "getPosts" pathInfo DB.getPosts
-    --     -- ["tags"] -> API "getTags" pathInfo DB.getTags
-    --     _ -> throwT . RequestError $ template  "Неизвестный путь: {0}"  [show . rawPathInfo $ req]
-    --let send = Response.sendData (show . head $ pathInfo) 
     case pathInfo of 
         ["users"] -> Response.sendData DB.getUsers pathInfo queryString 
         ["authors"] -> Response.sendData DB.getAuthors pathInfo queryString 
@@ -84,10 +46,6 @@ get req = do
         ["posts"] -> Response.sendData DB.getPosts pathInfo queryString
         ["tags"] -> Response.sendData DB.getTags pathInfo queryString
         _ -> throwT . RequestError $ template  "Неизвестный путь: {0}"  [show . rawPathInfo $ req]
-    --return $ responseLBS status200 [(hContentType, "text/plain")] "Hello world!"
-    --Response.json edata
-    --["users"] -> Response.sendData (show . head $ pathInfo) DB.getUsers
-
 
 sendData :: ( ToJSON a, Show a) => (Query -> T a) -> PathInfo -> Query  -> T Response
 sendData tgetData pathInfo queryString  = do
@@ -97,68 +55,11 @@ sendData tgetData pathInfo queryString  = do
     Log.dataT Log.Info _data
     Response.json edata
 
--- ff :: ToJSON a => T a -> T Response
--- ff = undefined
-
--- getUsers :: T Response
--- getUsers = do
---     Log.setSettings Color.Blue  True "Response.getUsers"
---     users <- DB.getUsers 
---     -- let keyboard = Encode.keyboard ["Вася", "Петя", "Маша"] 
---     let eusers = encode users
---     Log.dataT Log.Info users
---     return $ Wai.responseLBS status200 [(hContentType, "text/plain")] eusers
-
--- getAuthors :: T Response
--- getAuthors = do 
---     Log.setSettings Color.Blue  True "Response.getAuthors"
---     authors <- DB.getAuthors 
---     let eauthors = encode authors
---     Log.dataT Log.Info authors
---     Response.json eauthors
-
--- getCategories :: T Response 
--- getCategories = do
---     Log.setSettings Color.Blue  True "Response.getCategories"
---     categories <- DB.getCategories
---     -- categories <- toT $ evalCategories tuples 
---     let ecategories = encode categories
---     Log.dataT Log.Info categories
---     Response.json ecategories
-
--- getTags :: T Response
--- getTags = undefined
-
--- getPosts :: T Response
--- getPosts = do 
---     Log.setSettings Color.Blue  True "Response.getUsers"
---     categories <- DB.getCategories
---     -- categories <- toT $ evalCategories tuples 
---     posts <- DB.getPosts 
---     -- posts <- toT $ mapM (evalPost  categories) posts'
---     let eposts = encode posts
---     Log.dataT Log.Info posts
---     Response.json eposts
-
-    --undefined
-    -- let eposts = encode posts
-    -- Log.dataT Log.Info posts
-    -- Response.json eposts
-
-
 
 json :: LC.ByteString -> T Response
 json = return . Wai.responseLBS status200 [(hContentType, "text/plain")] 
 
-
--- getUsersBody :: T LC.ByteString
--- getUsersBody = do
---     users <- DB.getUsers 
---     let keyboard = Encode.keyboard ["Вася", "Петя", "Маша"] 
---     let eusers = Encode.users users
---     Log.dataT Log.Info users
---     return eusers
-
+--здесь нужен другой статус, а не статус 200
 --это чистая безошибочная функция
 errorHandler :: E -> Response
 errorHandler e = do

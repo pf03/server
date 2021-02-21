@@ -13,6 +13,7 @@ import Database.PostgreSQL.Simple.Time
 import Class
 import Types
 import qualified Query 
+import Query (q, (<+>))
 -- import Data.Text
 import Control.Monad.Except
 
@@ -31,26 +32,40 @@ import qualified Select
 import JSON
 import Database.PostgreSQL.Simple
 
--- class FromDB a where 
---     get :: T [a]
-
--- instance FromDB User where
---     --get :: T [User]
---     get = do
---         Query.query_ [sql|SELECT * FROM users|]
-
-
-q :: Convert a => a -> SQL.Query 
-q = SQL.Query . convert
-
-(<+>) :: SQL.Query -> SQL.Query -> SQL.Query
-(<+>) q1 q2 = q1 <> " " <> q2
--- (<+>) = Query.<+>
-
 testQuery :: HTTP.Query
 testQuery = [("page", Just "1"), ("tag", Just "1")]
 
 testq = showT $ DB.getPosts DB.testQuery
+
+--проверить некорректные запросы, например некорректный синтаксис запроса, или два раза и тот же параметр запроса
+getUsers :: HTTP.Query -> T [User]
+getUsers qs = do 
+    Log.debugT qs
+    let selectQ = Select.userQuery
+    let pageQ = pageQuery qs
+    tagQ <- toT $ filterTagQuery qs
+    let allQ = selectQ `Query.whereAll` [pageQ ,tagQ]
+    Log.debugT allQ
+    selectUsers <- Query.query_ allQ
+    Log.debugT selectUsers
+    return selectUsers
+
+    -- let shoulbe = [sql|
+    --     SELECT * FROM users 
+    --         WHERE id BETWEEN 1 AND 20 
+    --             AND tag = 1
+    -- |]
+    -- Log.debugT shoulbe
+    -- Query.query_ shoulbe
+
+getAuthors :: HTTP.Query -> T [Author]
+getAuthors qs = do
+    let selectQ = Select.authorQuery
+    let pageQ = pageQuery qs
+    tagQ <- toT $ filterTagQuery qs
+    let allQ = selectQ `Query.whereAll` [pageQ ,tagQ]
+    selectAuthors <- Query.query_ allQ
+    return $ evalAuthors selectAuthors
 
 getTags :: HTTP.Query -> T [Tag]
 getTags queryString = do
@@ -65,12 +80,12 @@ getTags queryString = do
 
 
 getPosts :: HTTP.Query -> T [JSON.Post]
-getPosts queryString = do
-    categories <- DB.getCategories
+getPosts qs = do
+    categories <- DB.getCategories qs
 
     let selectQ = Select.postQuery
     
-    let pageQ = pageQuery queryString
+    let pageQ = pageQuery qs
     --tagQ <- toT $ filterTagQuery queryString
     let allQ = selectQ `Query.whereAll` [pageQ]
     Log.debugT allQ
@@ -82,26 +97,7 @@ getPosts queryString = do
     --toT $ mapM (DB.evalPost categories) posts'
 
 
-getUsers_ :: T [User]
-getUsers_ = do
-    Query.query_ [sql|SELECT * FROM users|]
 
-getUsers :: HTTP.Query -> T [User]
-getUsers queryString = do 
-    Log.debugT queryString
-    
-    let selectQ = [sql|SELECT * FROM users|]
-    let pageQ = pageQuery queryString
-    tagQ <- toT $ filterTagQuery queryString
-    let allQ = selectQ `Query.whereAll` [pageQ ,tagQ]
-    Log.debugT allQ
-    let shoulbe = [sql|
-        SELECT * FROM users 
-            WHERE id BETWEEN 1 AND 20 
-                AND tag = 1
-    |]
-    Log.debugT shoulbe
-    Query.query_ shoulbe
 
 pageQuery :: HTTP.Query -> SQL.Query
 pageQuery queryString = template [sql|id BETWEEN {0} AND {1}|] [q $ (page-1)*20+1, q $ page*20] where
@@ -117,14 +113,6 @@ filterTagQuery queryString = do
         Nothing -> return mempty
         Just ("tag", tag) -> return $ template [sql|tag = {0}|] [q tag]
         Just ("tags__in", tag) -> throwE . DBError $ template "Обработка запроса {0} еще не реализована!" [show "tags__in"]
-        
-
-    --undefined
-
-    
--- lookupTag :: HTTP.Query -> Except E SQL.Query 
--- lookupTag queryString = do
-    
 
 --в первом списке должно быть ровно одно значение из второго списка
 lookupOne :: (Eq a, Show b, Show a) => [a] -> [(a, Maybe b)] -> Except E (Maybe (a, b)) 
@@ -137,37 +125,19 @@ lookupOne templates strs = do
         (r:rs) -> throwE . DBError $ template "В списке {0} должно быть не более одного значения из списка {1}" [show strs, show templates]
 
 
--- test :: T()
--- test = do
---     let a =3::Int
---     let b = 5::Int
---     let query1 = template [sql|SELECT * FROM users
---         WHERE id BETWEEN {0} AND {1}|] [q a, q b]
---     let query2 = [sql|ADD SOMETHING|]
-
---     Log.debugT $ query1<>query2
---     return()
-
-
-
-getAuthors :: HTTP.Query -> T [Author]
-getAuthors qs = do
-    let selectQ = Select.authorQuery
-    selectAuthors <- Query.query_ selectQ
-    return $ evalAuthors selectAuthors
 
 getCategories :: HTTP.Query -> T [Category]
 getCategories qs = do 
     categories' <- Query.query_ [sql|SELECT * FROM categories|]
     toT $ JSON.evalCategories categories' 
 
-getPosts_ :: HTTP.Query -> T [Post]
-getPosts_ qs = do
-    categories <- DB.getCategories qs
-    posts' <- Query.query_ [sql|SELECT * FROM posts
-        LEFT JOIN contents ON contents.id = posts.content_id
-        LEFT JOIN authors ON authors.id = contents.author_id
-        LEFT JOIN users ON users.id = authors.user_id|]
-    toT $ JSON.evalPosts categories posts'
+-- getPosts_ :: HTTP.Query -> T [Post]
+-- getPosts_ qs = do
+--     categories <- DB.getCategories qs
+--     posts' <- Query.query_ [sql|SELECT * FROM posts
+--         LEFT JOIN contents ON contents.id = posts.content_id
+--         LEFT JOIN authors ON authors.id = contents.author_id
+--         LEFT JOIN users ON users.id = authors.user_id|]
+--     toT $ JSON.evalPosts categories posts'
 
 
