@@ -14,6 +14,8 @@ import Control.Exception
 import Error
 import Database.PostgreSQL.Simple
 import Data.List
+import qualified Data.Text.Encoding as T
+import qualified Data.Text as T
 ----------------------------------ToTransformer--------------------------------------------
 --подъем до основного трасформера
 class ToTransformer m where 
@@ -39,8 +41,10 @@ instance ToTransformer IO where
         iohandler e = return . Left  . IOError . show $ e 
         sqlhandler :: SqlError -> IO (EE a)
         sqlhandler e = do
-            return . Left . DBError . show $ e 
-            --return . Left . DBError . BC.unpack . sqlErrorMsg $ e
+            --return . Left . DBError . show $ e --wrong encoding
+            --return . Left . DBError . BC.unpack . sqlErrorMsg $ e --not working
+            return . Left . DBError . T.unpack . T.decodeUtf8 . sqlErrorMsg $ e
+            
         otherhandler :: SomeException -> IO (EE a)
         otherhandler e = return . Left . SomeError . show $ e
 -- Note that we have to give a type signature to e , or the program will not 
@@ -81,6 +85,9 @@ class Identifiable a where
 
 findById :: Identifiable a => Int -> [a] -> Maybe a 
 findById wantedId  = find (\a -> getId a == wantedId )
+
+existId :: Identifiable a => Int -> [a] -> Bool
+existId wantedId = any (\a -> getId a == wantedId)
 
 setById :: Identifiable a => Int -> a -> [a] -> [a]
 setById wantedId updated = map helper where

@@ -72,6 +72,14 @@ where_ = [sql|WHERE|]
 (<+>) q1 q2|q2 == mempty  = q1
 (<+>) q1 q2 = q1 <> space <> q2
 
+--select * from users where first_name in ('Anna', 'Boris', 'Carla')
+
+inList :: Query -> [Query] -> Query
+inList field [] = "FALSE"
+inList field values = template [sql|{0} IN ({1})|] [field, Query.concat "," values] 
+
+emp = Query.query_ [sql|SELECT posts.id FROM posts WHERE FALSE|] ::T [Only Int]  --or TRUE
+
 --не очень нравится
 -- (<->) :: Convert a => a -> [Query] -> [Query]
 -- (<->) value list = (q value) : list

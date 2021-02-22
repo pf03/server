@@ -1,0 +1,135 @@
+[
+    {
+        "postContent": {
+            "contentText": "Я помню чудное мгновенье:\\nПередо мной явилась ты,\\nКак мимолетное виденье,\\nКак гений чистой красоты.",
+            "contentName": "Я помню чудное мгновенье",
+            "contentCategory": {
+                "parent": null,
+                "categoryName": "Поэзия",
+                "categoryId": 2
+            },
+            "contentId": 3,
+            "contentAuthor": {
+                "authorId": 1,
+                "authorDescription": "Алекса́ндр Серге́евич Пу́шкин — русский поэт, драматург и прозаик, заложивший основы русского реалистического направления, критик и теоретик литературы, историк, публицист; один из самых авторитетных литературных деятелей первой трети XIX века.",
+                "authorUser": {
+                    "userIsAdmin": false,
+                    "userFirstName": "Pushkin",
+                    "userLastName": "Sergey",
+                    "userLogin": "psergey",
+                    "userCreationDate": "1830-01-01",
+                    "userId": 4,
+                    "userAvatar": "Pushkin.jpg",
+                    "userPass": "0f90e1d672e3550b9fc9184a4af68715"
+                }
+            },
+            "contentCreationDate": "1825-03-20",
+            "contentPhoto": "pushkin.jpg",
+            "contentTags": []
+        },
+        "postId": 2
+    },
+    {
+        "postContent": {
+            "contentText": "Состоялся очередной релиз компилятора Glasgow Haskell Compiler.",
+            "contentName": "GHC 8.10.1",
+            "contentCategory": {
+                "parent": {
+                    "parent": {
+                        "parent": null,
+                        "categoryName": "Языки программирования",
+                        "categoryId": 1
+                    },
+                    "categoryName": "Статически типизированные ЯП",
+                    "categoryId": 5
+                },
+                "categoryName": "Haskell",
+                "categoryId": 6
+            },
+            "contentId": 1,
+            "contentAuthor": {
+                "authorId": 3,
+                "authorDescription": "Доцент кафедры математических и информационных технологий, СПбАУ РАН. Один из основателей и координаторов Санкт-Петербургской группы пользователей Haskell (SPbHUG)",
+                "authorUser": {
+                    "userIsAdmin": false,
+                    "userFirstName": "Moskvin",
+                    "userLastName": "Denis",
+                    "userLogin": "dmoskvin",
+                    "userCreationDate": "2020-03-03",
+                    "userId": 6,
+                    "userAvatar": "Moskvin.jpg",
+                    "userPass": "801820bc9239056f5ae2c9320166c23b"
+                }
+            },
+            "contentCreationDate": "2020-03-20",
+            "contentPhoto": "logo.jpg",
+            "contentTags": [
+                {
+                    "tagId": 9,
+                    "tagName": "ghc"
+                },
+                {
+                    "tagId": 9,
+                    "tagName": "ghc"
+                },
+                {
+                    "tagId": 9,
+                    "tagName": "ghc"
+                },
+                {
+                    "tagId": 9,
+                    "tagName": "ghc"
+                },
+                {
+                    "tagId": 9,
+                    "tagName": "ghc"
+                },
+                {
+                    "tagId": 9,
+                    "tagName": "ghc"
+                },
+                {
+                    "tagId": 9,
+                    "tagName": "ghc"
+                },
+                {
+                    "tagId": 9,
+                    "tagName": "ghc"
+                },
+                {
+                    "tagId": 9,
+                    "tagName": "ghc"
+                },
+                {
+                    "tagId": 9,
+                    "tagName": "ghc"
+                },
+                {
+                    "tagId": 9,
+                    "tagName": "ghc"
+                },
+                {
+                    "tagId": 9,
+                    "tagName": "ghc"
+                },
+                {
+                    "tagId": 9,
+                    "tagName": "ghc"
+                },
+                {
+                    "tagId": 9,
+                    "tagName": "ghc"
+                },
+                {
+                    "tagId": 9,
+                    "tagName": "ghc"
+                },
+                {
+                    "tagId": 9,
+                    "tagName": "ghc"
+                }
+            ]
+        },
+        "postId": 1
+    }
+]

@@ -69,12 +69,6 @@ type Tag = Row.Tag
 -- getPosts:: [Select.Post] -> [JSON.Post] 
 -- getPosts = undefined
 
-
-
-
-
-
-
 ----------EVALUATE--------------
 --такой ответ кажется избыточный, но по условиям УЧЕБНОГО проекта требуются именно вложенные сущности.
 
@@ -98,23 +92,26 @@ evalCategory  childs rcs categoryId = do
                         return $ Category categoryId (Just parentCategory) name 
 
 evalPosts :: [Category] -> [Select.Post] -> Except E [Post]
-evalPosts cs = mapM (evalPost cs)
+evalPosts cs = mapM (evalPost cs) 
+
+evalUnitedPosts::[Category] -> [Select.Post] -> Except E [Post]
+evalUnitedPosts cs l = unitePosts <$> mapM (evalPost cs) l  
 
 --unite equal posts with different tags
 unitePosts :: [Post] -> [Post]
-unitePosts = foldl helper [] where
-    helper :: [Post] -> Post -> [Post]
-    helper acc post = undefined where 
-        curId = getId post;
-        munitePost = findById curId acc;
-        res = case munitePost of 
-            Nothing -> post : acc
-            Just unitePost -> updateById curId (uniteTwoPosts unitePost) acc
+unitePosts = foldr helper [] where
+    helper :: Post -> [Post] -> [Post]
+    helper curPost unitedPosts  = res where 
+        curId = getId curPost;
+        --munitedPost = findById curId unitedPosts;
+        res = if existId curId unitedPosts 
+            then updateById curId (uniteTwoPosts curPost) unitedPosts 
+            else curPost : unitedPosts
         uniteTwoPosts :: Post -> Post -> Post
         uniteTwoPosts post1 post2 = setPostTags post1 (getPostTags post1 <> getPostTags post2)
 
-        
-
+-- tag1 = Row.Tag 1 "tag1"
+-- tag2 = Row.Tag 2 "tag2"
 
 evalPost :: [Category] -> Select.Post -> Except E Post
 evalPost cs (rpost :. rcontent :. rauthor :. user :. _ :. mtag)  = do

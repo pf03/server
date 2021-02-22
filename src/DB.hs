@@ -33,9 +33,9 @@ import JSON
 import Database.PostgreSQL.Simple
 
 testQuery :: HTTP.Query
-testQuery = [("page", Just "1"), ("page", Just "1")]
+testQuery = [("page", Just "1"), ("tag", Just "3")]
 
-testq = showT $ DB.getCategories DB.testQuery
+testq = runT $ DB.getPosts DB.testQuery
 
 --проверить некорректные запросы, например некорректный синтаксис запроса, или два раза и тот же параметр запроса
 --в выходном json убрать префиксы с названиями таблиц бд
@@ -48,7 +48,7 @@ getUsers qs = do
     let allQ = selectQ `Query.whereAll` [pageQ]
     Log.debugT allQ
     select <- Query.query_ allQ
-    Log.debugT select
+    --Log.debugT select
     return select
 
     -- let shoulbe = [sql|
@@ -81,6 +81,16 @@ getCategories qs = do
     Log.debugT select
     toT $ evalCategories select
 
+getAllCategories :: T [Category]
+getAllCategories = do
+    let tname = "categories"
+    let selectQ = Select.categoriesQuery
+    Log.debugT selectQ
+    select <- Query.query_ selectQ
+    Log.debugT select
+    toT $ evalCategories select
+
+
 
 getTags :: HTTP.Query -> T [Tag]
 getTags qs = do
@@ -93,25 +103,41 @@ getTags qs = do
     Log.debugT tags
     return tags 
 
-getPosts :: HTTP.Query -> T [JSON.Post]
+
+--как-то повысить читаемость кода
+--сделать отдельную функцию для формирования запроса
+getPosts :: HTTP.Query -> T [Post]
 getPosts qs = do
+    
     let tname ="posts"
-    categories <- DB.getCategories qs
-    let selectQ = Select.postsQuery
+
+
+    categories <- DB.getAllCategories
     let pageQ = pageQuery qs tname
+
     tagQ <- toT $ filterTagQuery qs
-    let allQ = selectQ `Query.whereAll` [pageQ, tagQ]
+    let postIdsQ = Select.postIdsQuery `Query.whereAll` [tagQ]
+    Log.debugT postIdsQ
+    postOnlyIds <- Query.query_ postIdsQ  ::T [Only Int]
+    let postIds = map fromOnly postOnlyIds
+    Log.debugT postIds
+
+    let selectQ = Select.postsQuery
+    let idsQ = Query.inList "posts.id" $ map q postIds
+    let allQ = selectQ `Query.whereAll` [idsQ]
     Log.debugT allQ
-
-
-    selectPosts <- Query.query_ selectQ
-    jsonPosts <- toT $ JSON.evalPosts categories selectPosts
+    selectPosts <- Query.query_ allQ
+    jsonPosts <- toT $ JSON.evalUnitedPosts categories selectPosts
+    writeResponse jsonPosts --убрать после отладки
     return jsonPosts
     --toT $ mapM (DB.evalPost categories) posts'
 
+
+--здесь нужно более хитрое ограничение на количество возвращаемых строк c уникальным id, а не просто по id!!!
 pageQuery :: HTTP.Query -> String -> SQL.Query
-pageQuery qs tname = template [sql|{2}.id BETWEEN {0} AND {1}|] [q $ (page-1)*20+1, q $ page*20, q tname] where
+pageQuery qs tname = template [sql|{2}.id BETWEEN {0} AND {1}|] [q $ (page-1)*quantity+1, q $ page*quantity, q tname] where
         page = read . BC.unpack. fromMaybe "1" . fromMaybe (Just "1") . lookup "page" $ qs :: Int
+        quantity = 20
 
 
 --tagList = ["tag", "tags__in", "tags__all"]

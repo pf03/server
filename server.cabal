@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: e98eaec44f941a9ffc011cce91766183f3546b15e200826d662ee3744ea8622f
+-- hash: 49d68aa559f83bf6bd5a4aa4f2302b8f107d3fbfb84d201959379a06dac58072
 
 name:           server
 version:        0.1.0.0
@@ -54,6 +54,7 @@ library
   build-depends:
       QuickCheck
     , aeson
+    , aeson-pretty
     , ansi-terminal
     , base >=4.7 && <5
     , bytestring
@@ -82,6 +83,7 @@ executable server-exe
   build-depends:
       QuickCheck
     , aeson
+    , aeson-pretty
     , ansi-terminal
     , base >=4.7 && <5
     , bytestring
@@ -112,6 +114,7 @@ test-suite server-test
   build-depends:
       QuickCheck
     , aeson
+    , aeson-pretty
     , ansi-terminal
     , base >=4.7 && <5
     , bytestring

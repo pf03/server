@@ -44,6 +44,15 @@ postsQuery = [sql|
             LEFT JOIN tags ON tags.id = tags_to_contents.tag_id
         |]
 
+--определям post_ids постов, в которых есть данный тег
+postIdsQuery :: SQL.Query
+postIdsQuery = [sql|
+        SELECT posts.id FROM posts
+            LEFT JOIN contents ON contents.id = posts.content_id
+            LEFT JOIN tags_to_contents ON contents.id = tags_to_contents.content_id
+            LEFT JOIN tags ON tags.id = tags_to_contents.tag_id
+        |]
+
 -------------------------Tag-------------------------------------------------------------
 type Tag = Row.Tag 
 

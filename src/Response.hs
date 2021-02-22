@@ -52,7 +52,7 @@ sendData tgetData pathInfo queryString  = do
     Log.setSettings Color.Blue  True $ template "sendData: {0}" [show . head $ pathInfo] 
     _data <- tgetData queryString
     let edata = encode _data
-    Log.dataT Log.Info _data
+    --Log.dataT Log.Info _data
     Response.json edata
 
 

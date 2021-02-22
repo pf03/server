@@ -36,6 +36,8 @@ import System.Environment
 import qualified Log
 import Control.Applicative ((<|>))
 import Common
+import Data.Aeson
+import qualified Data.Aeson.Encode.Pretty as Aeson
 
 
 --Пользователи ничего не должны знать о внутренней структуре нашего трансформера.
@@ -237,3 +239,9 @@ readFile path = do
         handler e
             | isDoesNotExistError e = return $ Left $ IOError $ template  "Файл \"{0}\" не найден!" [path]
             | otherwise = return $ Left  $ IOError  $ template "Ошибка чтения файла \"{0}\"" [path]
+
+writeResponse :: (ToJSON a) => a -> T()
+writeResponse json = do
+    Log.colorTextT Color.Yellow Log.Warning "Запись ответа в файл в целях отладки..."
+    liftIO $ B.writeFile "response.json" $ convert . Aeson.encodePretty $ json --строгая версия
+    --liftIO $ B.appendFile "log.txt" $ convert ("\n" :: String)  --строгая версия

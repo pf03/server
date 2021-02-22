@@ -40,6 +40,7 @@ dependencies:
 - hspec
 - QuickCheck
 - containers
+- aeson-pretty
 library:
   source-dirs: src
 
