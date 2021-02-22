@@ -13,6 +13,7 @@ import qualified State as S
 import Control.Exception
 import Error
 import Database.PostgreSQL.Simple
+import Data.List
 ----------------------------------ToTransformer--------------------------------------------
 --подъем до основного трасформера
 class ToTransformer m where 
@@ -74,6 +75,24 @@ instance Log.MonadLog T where
   getSettings = S.getLogSettings
   setSettings = S.setLogSettings
   getConfig = S.getLogConfig
+
+class Identifiable a where
+    getId :: a -> Int
+
+findById :: Identifiable a => Int -> [a] -> Maybe a 
+findById wantedId  = find (\a -> getId a == wantedId )
+
+setById :: Identifiable a => Int -> a -> [a] -> [a]
+setById wantedId updated = map helper where
+    helper curValue = if getId curValue == wantedId then updated else curValue
+
+updateById :: Identifiable a => Int -> (a -> a) -> [a] -> [a]
+updateById wantedId func = map helper where
+    helper curValue = if getId curValue == wantedId then func curValue else curValue
+
+    
+
+
 
 
 

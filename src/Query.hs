@@ -72,6 +72,20 @@ where_ = [sql|WHERE|]
 (<+>) q1 q2|q2 == mempty  = q1
 (<+>) q1 q2 = q1 <> space <> q2
 
+--не очень нравится
+-- (<->) :: Convert a => a -> [Query] -> [Query]
+-- (<->) value list = (q value) : list
+-- infixr 1 <->
+
+-- (<-->) :: Convert a, Convert b => a -> b -> [Query]
+-- (<-->) value1 value2 = [q value1, q value2]
+-- infixr 2 <-->
+
+-- que :: Query
+-- que = template [sql|{2}.id BETWEEN {0} AND {1}|] $ (page-1)*20+1 <-> page*20 <--> tname  where
+--     page= 7::Int;
+--     tname ="table"::String
+
 test1 :: Query
 test1 = "id=1"
 test2 :: Query

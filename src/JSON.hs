@@ -20,8 +20,7 @@ import Common
 import Data.List
 import Control.Monad.Trans.Except
 import Database.PostgreSQL.Simple
-
-
+import Class
 
 
 data Post = Post {
@@ -29,6 +28,8 @@ data Post = Post {
     postContent :: Content
 } deriving (Show, Generic)
 instance ToJSON Post
+instance Identifiable Post where
+    getId = postId
 
 data Content = Content {
     contentId :: Int,
@@ -41,6 +42,8 @@ data Content = Content {
     contentTags :: [Tag]
 } deriving (Show, Generic)
 instance ToJSON Content
+instance Identifiable Content where
+    getId = contentId
 
 data Author = Author {
     authorId :: Int,
@@ -48,6 +51,8 @@ data Author = Author {
     authorDescription :: String
 } deriving (Show, Generic)
 instance ToJSON Author
+instance Identifiable Author where
+    getId = authorId
 
 data Category = Category{
     categoryId :: Int,
@@ -55,12 +60,17 @@ data Category = Category{
     categoryName :: String
 } deriving (Show, Generic)
 instance ToJSON Category
+instance Identifiable Category where
+    getId = categoryId
 
 type User = Row.User
 type Tag = Row.Tag
 
 -- getPosts:: [Select.Post] -> [JSON.Post] 
 -- getPosts = undefined
+
+
+
 
 
 
@@ -77,7 +87,7 @@ evalCategory  childs rcs categoryId = do
     if categoryId `elem` childs then do
         throwE . DBError $ template "Обнаружена циклическая категория {0}, которая является своим же родителем" [show categoryId]
     else do
-        let mrc = find (\(Row.Category cid _ _) -> cid == categoryId) rcs --двух категорий с одинаковым первичным ключом быть не может. Но может быть Nothing
+        let mrc = findById categoryId rcs --двух категорий с одинаковым первичным ключом быть не может. Но может быть Nothing
         case mrc of 
             Nothing -> throwE . DBError $ template "Отсутствует категория {0}" [show categoryId]
             Just (Row.Category categoryId mparentId name) -> do
@@ -90,11 +100,27 @@ evalCategory  childs rcs categoryId = do
 evalPosts :: [Category] -> [Select.Post] -> Except E [Post]
 evalPosts cs = mapM (evalPost cs)
 
+--unite equal posts with different tags
+unitePosts :: [Post] -> [Post]
+unitePosts = foldl helper [] where
+    helper :: [Post] -> Post -> [Post]
+    helper acc post = undefined where 
+        curId = getId post;
+        munitePost = findById curId acc;
+        res = case munitePost of 
+            Nothing -> post : acc
+            Just unitePost -> updateById curId (uniteTwoPosts unitePost) acc
+        uniteTwoPosts :: Post -> Post -> Post
+        uniteTwoPosts post1 post2 = setPostTags post1 (getPostTags post1 <> getPostTags post2)
+
+        
+
+
 evalPost :: [Category] -> Select.Post -> Except E Post
 evalPost cs (rpost :. rcontent :. rauthor :. user :. _ :. mtag)  = do
     let postId = Row.postId rpost
     let categoryId = Row.contentCategoryId rcontent
-    let mcategory = find (\(Category cid _ _) -> cid == categoryId) cs
+    let mcategory = findById categoryId cs
     case mcategory of
         Nothing -> do
             throwE . DBError $ template "Пост {0} принадлежит к несуществующей категории {1}" [show postId, show categoryId]
@@ -122,6 +148,19 @@ turnContent (Row.Content a _ c d _ f g) author category tags  = Content a author
 
 turnAuthor :: Row.Author -> User -> Author
 turnAuthor (Row.Author a _ c) user = Author a user c 
+
+---------GET-------------------
+getPostTags :: Post -> [Tag]
+getPostTags = contentTags . postContent
+
+---------SET-------------------
+setPostTags :: Post -> [Tag] -> Post
+setPostTags post tags = post {postContent = newContent} where
+    content = postContent post;
+    newContent = content {contentTags = tags}
+
+
+
 
 
 

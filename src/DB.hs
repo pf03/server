@@ -33,22 +33,23 @@ import JSON
 import Database.PostgreSQL.Simple
 
 testQuery :: HTTP.Query
-testQuery = [("page", Just "1"), ("tag", Just "1")]
+testQuery = [("page", Just "1"), ("page", Just "1")]
 
-testq = showT $ DB.getPosts DB.testQuery
+testq = showT $ DB.getCategories DB.testQuery
 
 --проверить некорректные запросы, например некорректный синтаксис запроса, или два раза и тот же параметр запроса
+--в выходном json убрать префиксы с названиями таблиц бд
 getUsers :: HTTP.Query -> T [User]
 getUsers qs = do 
+    let tname = "users"
     Log.debugT qs
-    let selectQ = Select.userQuery
-    let pageQ = pageQuery qs
-    tagQ <- toT $ filterTagQuery qs
-    let allQ = selectQ `Query.whereAll` [pageQ ,tagQ]
+    let selectQ = Select.usersQuery
+    let pageQ = pageQuery qs tname
+    let allQ = selectQ `Query.whereAll` [pageQ]
     Log.debugT allQ
-    selectUsers <- Query.query_ allQ
-    Log.debugT selectUsers
-    return selectUsers
+    select <- Query.query_ allQ
+    Log.debugT select
+    return select
 
     -- let shoulbe = [sql|
     --     SELECT * FROM users 
@@ -60,34 +61,46 @@ getUsers qs = do
 
 getAuthors :: HTTP.Query -> T [Author]
 getAuthors qs = do
-    let selectQ = Select.authorQuery
-    let pageQ = pageQuery qs
-    tagQ <- toT $ filterTagQuery qs
-    let allQ = selectQ `Query.whereAll` [pageQ ,tagQ]
-    selectAuthors <- Query.query_ allQ
-    return $ evalAuthors selectAuthors
+    let tname = "authors"
+    let selectQ = Select.authorsQuery
+    let pageQ = pageQuery qs tname
+    let allQ = selectQ `Query.whereAll` [pageQ]
+    Log.debugT allQ
+    select <- Query.query_ allQ
+    Log.debugT select
+    return $ evalAuthors select
+
+getCategories :: HTTP.Query -> T [Category]
+getCategories qs = do 
+    let tname = "categories"
+    let selectQ = Select.categoriesQuery
+    let pageQ = pageQuery qs tname
+    let allQ = selectQ `Query.whereAll` [pageQ]
+    Log.debugT allQ
+    select <- Query.query_ allQ
+    Log.debugT select
+    toT $ evalCategories select
+
 
 getTags :: HTTP.Query -> T [Tag]
-getTags queryString = do
-    let selectQ = [sql|SELECT * FROM tags|]
-    let pageQ = pageQuery queryString
+getTags qs = do
+    let tname ="tags"
+    let selectQ = Select.tagsQuery
+    let pageQ = pageQuery qs tname
     let allQ = selectQ `Query.whereAll` [pageQ]
     Log.debugT allQ
     tags <- Query.query_ allQ
     Log.debugT tags
     return tags 
 
-
-
 getPosts :: HTTP.Query -> T [JSON.Post]
 getPosts qs = do
+    let tname ="posts"
     categories <- DB.getCategories qs
-
-    let selectQ = Select.postQuery
-    
-    let pageQ = pageQuery qs
-    --tagQ <- toT $ filterTagQuery queryString
-    let allQ = selectQ `Query.whereAll` [pageQ]
+    let selectQ = Select.postsQuery
+    let pageQ = pageQuery qs tname
+    tagQ <- toT $ filterTagQuery qs
+    let allQ = selectQ `Query.whereAll` [pageQ, tagQ]
     Log.debugT allQ
 
 
@@ -96,12 +109,9 @@ getPosts qs = do
     return jsonPosts
     --toT $ mapM (DB.evalPost categories) posts'
 
-
-
-
-pageQuery :: HTTP.Query -> SQL.Query
-pageQuery queryString = template [sql|id BETWEEN {0} AND {1}|] [q $ (page-1)*20+1, q $ page*20] where
-        page = read . BC.unpack. fromMaybe "1" . fromMaybe (Just "1") . lookup "page" $ queryString :: Int
+pageQuery :: HTTP.Query -> String -> SQL.Query
+pageQuery qs tname = template [sql|{2}.id BETWEEN {0} AND {1}|] [q $ (page-1)*20+1, q $ page*20, q tname] where
+        page = read . BC.unpack. fromMaybe "1" . fromMaybe (Just "1") . lookup "page" $ qs :: Int
 
 
 --tagList = ["tag", "tags__in", "tags__all"]
@@ -111,8 +121,9 @@ filterTagQuery queryString = do
     mtagQuery <- lookupOne ["tag", "tags__in", "tags__all"] queryString
     case mtagQuery of 
         Nothing -> return mempty
-        Just ("tag", tag) -> return $ template [sql|tag = {0}|] [q tag]
+        Just ("tag", tag) -> return $ template [sql|tag_id = {0}|] [q tag]
         Just ("tags__in", tag) -> throwE . DBError $ template "Обработка запроса {0} еще не реализована!" [show "tags__in"]
+        Just ("tags__all", tag) -> throwE . DBError $ template "Обработка запроса {0} еще не реализована!" [show "tags__all"]
 
 --в первом списке должно быть ровно одно значение из второго списка
 lookupOne :: (Eq a, Show b, Show a) => [a] -> [(a, Maybe b)] -> Except E (Maybe (a, b)) 
@@ -124,20 +135,5 @@ lookupOne templates strs = do
         [(a, Just b)] -> return . Just $ (a, b)
         (r:rs) -> throwE . DBError $ template "В списке {0} должно быть не более одного значения из списка {1}" [show strs, show templates]
 
-
-
-getCategories :: HTTP.Query -> T [Category]
-getCategories qs = do 
-    categories' <- Query.query_ [sql|SELECT * FROM categories|]
-    toT $ JSON.evalCategories categories' 
-
--- getPosts_ :: HTTP.Query -> T [Post]
--- getPosts_ qs = do
---     categories <- DB.getCategories qs
---     posts' <- Query.query_ [sql|SELECT * FROM posts
---         LEFT JOIN contents ON contents.id = posts.content_id
---         LEFT JOIN authors ON authors.id = contents.author_id
---         LEFT JOIN users ON users.id = authors.user_id|]
---     toT $ JSON.evalPosts categories posts'
 
 

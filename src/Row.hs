@@ -11,6 +11,7 @@ import Data.Aeson
 import Data.Aeson.Types
 import Data.Text (pack, Text(..))
 import Types (Path)
+import Class
 
 data User = User {
     userId :: Int, --snake case for table name
@@ -23,6 +24,8 @@ data User = User {
     userIsAdmin :: Bool
 } deriving (Show, Generic, FromRow)
 instance ToJSON User
+instance Identifiable User where
+    getId = userId
 
 data Author = Author {
     authorId :: Int,
@@ -30,6 +33,8 @@ data Author = Author {
     authorDescription :: String
 } deriving (Show, Generic, FromRow)
 instance ToJSON Author
+instance Identifiable Author where
+    getId = authorId
 
 data Category = Category{
     categoryId :: Int,
@@ -37,12 +42,16 @@ data Category = Category{
     categoryName :: String
 } deriving (Show, Generic, FromRow)
 instance ToJSON Category
+instance Identifiable Category where
+    getId = categoryId
 
 data Tag = Tag {
     tagId :: Int,
     tagName :: String
 } deriving (Show, Generic, FromRow)
 instance ToJSON Tag
+instance Identifiable Tag where
+    getId = tagId
 
 data Content = Content {
     contentId :: Int,
@@ -54,12 +63,16 @@ data Content = Content {
     contentPhoto :: Path
 } deriving (Show, Generic, FromRow)
 instance ToJSON Content
+instance Identifiable Content where
+    getId = contentId
 
 data Post = Post {
     postId :: Int,
     postContentId :: Int
 } deriving (Show, Generic, FromRow)
 instance ToJSON Post
+instance Identifiable Post where
+    getId = postId
 
 data Draft = Draft {
     draftId :: Int,
@@ -67,6 +80,8 @@ data Draft = Draft {
     draftPostId :: Int
 } deriving (Show, Generic, FromRow)
 instance ToJSON Draft
+instance Identifiable Draft where
+    getId = draftId
 
 data TagToContent = TagToContent{
     tagToContentId :: Int,
@@ -74,6 +89,8 @@ data TagToContent = TagToContent{
     tagToContentTagId :: Int
 }deriving (Show, Generic, FromRow)
 instance ToJSON TagToContent
+instance Identifiable TagToContent where
+    getId = tagToContentId
 
 instance FromRow (Maybe Tag) where
     fromRow = do
@@ -87,8 +104,6 @@ instance FromRow (Maybe TagToContent) where
         b <- field
         c <- field
         return $ TagToContent <$> a <*> b <*> c
-
-
 
 instance ToJSON Date where
   toJSON = String . pack . show
