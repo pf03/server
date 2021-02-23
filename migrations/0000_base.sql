@@ -172,7 +172,7 @@ INSERT INTO drafts (content_id, news_id) VALUES (2, null);
 
 
 INSERT INTO tags_to_contents (content_id, tag_id) VALUES
-    (1,1),(1,2),(1,5),(1,6),(1,9),(2,3);
+    (1,1),(1,2),(1,5),(1,6),(1,9),(2,3),(3,3);
 
 
 INSERT INTO photos (photo, content_id) VALUES

@@ -125,6 +125,9 @@ type FuncName = String
 
 ----------------------------------DB------------------------------------------------------------------------------
 
+--параметры строки запроса, например tags_in, tags_all. tag=3 соответствует tags_in = [3], хотя и tags_all= [3] подходит
+data Params a = ParamsIn [a] | ParamsAll [a] | ParamsEmpty
+
 -- ?? ByteString??  --aeson не работает с ByteString
 -- data User = User {
 --     userId :: Int,
@@ -223,7 +226,6 @@ type FuncName = String
 --     tags :: [Tag]
 -- } deriving (Show, Generic)
 -- instance ToJSON Content
-
 
 
 

@@ -32,6 +32,7 @@ import Data.List
 import Control.Monad.Trans.Except
 --import Database.PostgreSQL.Simple
 import Network.HTTP.Types.URI
+import Data.Aeson.Encode.Pretty
 
 get :: Request -> T Response
 get req = do
@@ -51,7 +52,7 @@ sendData :: ( ToJSON a, Show a) => (Query -> T a) -> PathInfo -> Query  -> T Res
 sendData tgetData pathInfo queryString  = do
     Log.setSettings Color.Blue  True $ template "sendData: {0}" [show . head $ pathInfo] 
     _data <- tgetData queryString
-    let edata = encode _data
+    let edata = encodePretty _data
     --Log.dataT Log.Info _data
     Response.json edata
 

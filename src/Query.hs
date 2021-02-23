@@ -74,9 +74,12 @@ where_ = [sql|WHERE|]
 
 --select * from users where first_name in ('Anna', 'Boris', 'Carla')
 
-inList :: Query -> [Query] -> Query
+inList :: Convert a => Query -> [a] -> Query
 inList field [] = "FALSE"
-inList field values = template [sql|{0} IN ({1})|] [field, Query.concat "," values] 
+inList field values = template [sql|{0} IN ({1})|] [field, Query.concat "," $ map q values] 
+
+exists :: Query -> Query
+exists q = template [sql|EXISTS ({0})|] [q]
 
 emp = Query.query_ [sql|SELECT posts.id FROM posts WHERE FALSE|] ::T [Only Int]  --or TRUE
 
