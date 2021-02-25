@@ -35,6 +35,8 @@ import Error
 import Parse
 import qualified Data.Text.Encoding as T
 import qualified Data.Text as T
+import NeatInterpolation
+import qualified Data.Text.IO as T
 
 testQuery :: HTTP.Query
 --testQuery = [("page", Just "1"), ("tags__in", Just "[1,2,3]"),("category", Just "1")]
@@ -57,14 +59,6 @@ getUsers qs = do
     select <- Query.query_ allQ
     --Log.debugT select
     return select
-
-    -- let shoulbe = [sql|
-    --     SELECT * FROM users 
-    --         WHERE id BETWEEN 1 AND 20 
-    --             AND tag = 1
-    -- |]
-    -- Log.debugT shoulbe
-    -- Query.query_ shoulbe
 
 getAuthors :: HTTP.Query -> T [Author]
 getAuthors qs = do
@@ -124,8 +118,8 @@ getPosts qs = do
     let textParam = getTextParam qs
     let textParam1 = getTextParam1 qs  
 
-    -- ifJust textParam (putStrLnT . fromJust $ textParam)  --это выводит на консоль корректно, а запрос в дб некорректный
-    -- ifJust textParam (putStrLnT . fromJust $ textParam1) --вообще виснет
+    -- ifJust textParam (putStrLnT . fromJust $ textParam)  --это выводит на консоль корректно, а запрос в бд некорректный
+    -- ifJust textParam (putStrLnT . fromJust $ textParam1) --вообще виснет, а запрос в бд корректный
 
     --Если новость принадлежит к некоторой категории, то она принадлежит также и ко всем родительским категориям
     let categoryWithChildsParams = JSON.getChildCategories categoryParams categories
@@ -136,21 +130,37 @@ getPosts qs = do
 
     Log.debugT categoryParams
     let query = Select.postsNewQuery pageParam tagParams categoryWithChildsParams textParam
-    Log.debugT query
+    --Log.debugT query
 
 
     --это работает!!!!!!! подумать, как вывести на консоль
     let query1 = Select.postsNewQuery pageParam tagParams categoryWithChildsParams textParam1
-    Log.debugT query1
-    selected <- Query.query_ query1
+    --Log.debugT query1
+    selected <- Query.query_ cyr1
     --Log.debugT selected
-    
+    Query.showQ cyr1
+    Log.textT Log.Data (T.unpack . T.decodeUtf8 . SQL.fromQuery $ cyr1)
     json <- toT $ JSON.evalUnitedPosts categories selected
     --Log.debugT json
     writeResponse json
     return json
 
+--это работает
+cyr1 = [sql|SELECT * FROM posts 
+    LEFT JOIN contents ON contents.id = posts.content_id 
+    LEFT JOIN authors ON authors.id = contents.author_id 
+    LEFT JOIN users ON users.id = authors.user_id 
+    LEFT JOIN tags_to_contents ON contents.id = tags_to_contents.content_id 
+    LEFT JOIN tags ON tags.id = tags_to_contents.tag_id 
+        WHERE TRUE AND TRUE AND contents.text ILIKE '%релиз%' 
+    LIMIT 20 OFFSET 0|]
 
+
+
+
+
+
+-- ff = T.putStrLn $ f "1" "2"
 
 
 
@@ -274,3 +284,19 @@ lookupOne templates strs = do
 
 --многострочные запросы некорректно выводятся на консоль
 --их нужно выводить куда-нибудь в файл
+
+
+--такое sql не понимает!!!
+--то есть нужно разделять отображение и исполение, это сложно
+-- f :: T.Text -> T.Text -> SQL.Query
+-- f a b =
+--     q . show $ [text|
+--     SELECT * FROM posts 
+--         LEFT JOIN contents ON contents.id = posts.content_id 
+--         LEFT JOIN authors ON authors.id = contents.author_id 
+--         LEFT JOIN users ON users.id = authors.user_id 
+--         LEFT JOIN tags_to_contents ON contents.id = tags_to_contents.content_id 
+--         LEFT JOIN tags ON tags.id = tags_to_contents.tag_id 
+--             WHERE TRUE AND TRUE AND contents.text ILIKE '%релиз%' 
+--         LIMIT 20 OFFSET 0
+--    |]

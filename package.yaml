@@ -41,6 +41,7 @@ dependencies:
 - QuickCheck
 - containers
 - aeson-pretty
+- neat-interpolation
 library:
   source-dirs: src
 

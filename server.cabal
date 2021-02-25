@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 49d68aa559f83bf6bd5a4aa4f2302b8f107d3fbfb84d201959379a06dac58072
+-- hash: 66c7de059de0f3174b74a0ee8ea2a610b5643a7381eb1a24a3c52c623bdb8604
 
 name:           server
 version:        0.1.0.0
@@ -63,6 +63,7 @@ library
     , hspec
     , http-types
     , mtl
+    , neat-interpolation
     , postgresql-simple
     , postgresql-simple-migration
     , split
@@ -92,6 +93,7 @@ executable server-exe
     , hspec
     , http-types
     , mtl
+    , neat-interpolation
     , postgresql-simple
     , postgresql-simple-migration
     , server
@@ -123,6 +125,7 @@ test-suite server-test
     , hspec
     , http-types
     , mtl
+    , neat-interpolation
     , postgresql-simple
     , postgresql-simple-migration
     , server

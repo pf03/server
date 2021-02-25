@@ -7,8 +7,10 @@ import qualified State as S
 import Data.Int
 import qualified Data.ByteString as B
 import Database.PostgreSQL.Simple.SqlQQ
-import Database.PostgreSQL.Simple.Types
+import Database.PostgreSQL.Simple.Types hiding (Show (..) )
 import Common
+import qualified Data.Text.Encoding as T
+import qualified Data.Text as T
 
 query_ :: FromRow r => Query -> T [r]
 query_ q = do
@@ -62,6 +64,11 @@ space :: Query
 -- space = [sql| |]
 space = " "
 
+--MonadIO m =>
+showQ :: SQL.Query -> T()
+showQ = putStrLnT . T.unpack . T.decodeUtf8 . fromQuery
+
+showQ1 = show . T.unpack . T.decodeUtf8 . fromQuery
 
 where_ :: Query
 where_ = [sql|WHERE|]
