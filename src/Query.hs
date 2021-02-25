@@ -78,6 +78,9 @@ inList :: Convert a => Query -> [a] -> Query
 inList field [] = "FALSE"
 inList field values = template [sql|{0} IN ({1})|] [field, Query.concat "," $ map q values] 
 
+inSubquery :: Query -> Query -> Query
+inSubquery field subquery  = template [sql|{0} IN ({1})|] [field, subquery] 
+
 exists :: Query -> Query
 exists q = template [sql|EXISTS ({0})|] [q]
 

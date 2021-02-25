@@ -79,6 +79,7 @@ evalCategories rcs = mapM (evalCategory [] rcs . Row.categoryId) rcs
 evalCategory :: [Int] -> [Select.Category] -> Int -> Except E Category
 evalCategory  childs rcs categoryId = do
     if categoryId `elem` childs then do
+        --циклическая категория повесит наш сервак при формировании json, поэтому выкинем ошибку
         throwE . DBError $ template "Обнаружена циклическая категория {0}, которая является своим же родителем" [show categoryId]
     else do
         let mrc = findById categoryId rcs --двух категорий с одинаковым первичным ключом быть не может. Но может быть Nothing
@@ -156,9 +157,16 @@ setPostTags post tags = post {postContent = newContent} where
     content = postContent post;
     newContent = content {contentTags = tags}
 
-
-
-
-
-
+-------Data manipaltion-------------------
+--здесь используется тип Category, который уже проверен на цикличность и корректность в evalCategory
+getChildCategories :: Params Int -> [Category] -> Params Int
+getChildCategories (ParamsIn cids) cs  = if length filtered == length cs then ParamsAny else ParamsIn . map getId $ filtered where
+    filtered = filter (helper cids) cs
+    helper :: [Int] -> Category ->  Bool
+    helper cids c  = if (getId c) `elem` cids then True else 
+        case parent c of
+            Nothing -> False 
+            Just p -> helper cids p
+getChildCategories (ParamsAll cids) cs = error "this pattern should not occur!" 
+getChildCategories ParamsAny cs = ParamsAny
     

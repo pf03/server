@@ -33,10 +33,15 @@ import JSON
 import Database.PostgreSQL.Simple
 import Error 
 import Parse
+import qualified Data.Text.Encoding as T
+import qualified Data.Text as T
 
 testQuery :: HTTP.Query
-testQuery = [("page", Just "foo"), ("tags__in", Just "[1,2,3]")]
+--testQuery = [("page", Just "1"), ("tags__in", Just "[1,2,3]"),("category", Just "1")]
+--testQuery = [("page", Just "1"), ("categories__in", Just "[1]")]
+testQuery = [("page", Just "1"), ("tags__in", Just "[1,2,3]"),("category", Just "1"), ("text", Just "очередной")]
 
+testq :: IO ()
 testq = runT $ DB.getPosts DB.testQuery
 
 --проверить некорректные запросы, например некорректный синтаксис запроса, или два раза и тот же параметр запроса
@@ -106,18 +111,42 @@ getTags qs = do
     return tags 
 
 
-
+-- нужно добавить также новости в дочерних категориях!!
+--а также конкретизировать ошибки, например ошибка при парсинге page
+--вывести на консоль query в корректной кодировке
+--сделать Query экземпляром convert
 getPosts :: HTTP.Query -> T [Post]
 getPosts qs = do
     categories <- DB.getAllCategories
+    pageParam <- toT $ getPageParam qs
     tagParams <- toT $ getTagParams qs
-    let pageParam = getPageParam qs
-    let allQ = Select.postsNewQuery pageParam tagParams
-    Log.debugT allQ
-    selected <- Query.query_ allQ
-    Log.debugT selected
+    categoryParams <- toT $ getCategoryParams qs
+    let textParam = getTextParam qs
+    let textParam1 = getTextParam1 qs  
+
+    -- ifJust textParam (putStrLnT . fromJust $ textParam)  --это выводит на консоль корректно, а запрос в дб некорректный
+    -- ifJust textParam (putStrLnT . fromJust $ textParam1) --вообще виснет
+
+    --Если новость принадлежит к некоторой категории, то она принадлежит также и ко всем родительским категориям
+    let categoryWithChildsParams = JSON.getChildCategories categoryParams categories
+    
+    
+    
+
+
+    Log.debugT categoryParams
+    let query = Select.postsNewQuery pageParam tagParams categoryWithChildsParams textParam
+    Log.debugT query
+
+
+    --это работает!!!!!!! подумать, как вывести на консоль
+    let query1 = Select.postsNewQuery pageParam tagParams categoryWithChildsParams textParam1
+    Log.debugT query1
+    selected <- Query.query_ query1
+    --Log.debugT selected
+    
     json <- toT $ JSON.evalUnitedPosts categories selected
-    Log.debugT json
+    --Log.debugT json
     writeResponse json
     return json
 
@@ -162,17 +191,20 @@ getPosts qs = do
 -- pageQuery qs tname = template [sql|{2}.id BETWEEN {0} AND {1}|] [q $ (page-1)*quantity+1, q $ page*quantity, q tname] where
 --         page = read . BC.unpack. fromMaybe "1" . fromMaybe (Just "1") . lookup "page" $ qs :: Int
 --         quantity = 20
+--это удалить
 
-pageQuery :: HTTP.Query -> String -> SQL.Query
+--можно упростить и использовать eitherRead вместо eDecode!
+pageQuery :: HTTP.Query -> String ->  SQL.Query 
 pageQuery qs _ = template [sql|LIMIT {0} OFFSET {1}|] [q quantity, q $ (page-1)*quantity] where
         page = read . BC.unpack. fromMaybe "1" . fromMaybe (Just "1") . lookup "page" $ qs :: Int
         quantity = 20
 
 --рассмотреть вариант ошибки, типа page="foo"
-getPageParam :: HTTP.Query -> Int
-getPageParam qs = page where
-        page = read . BC.unpack. fromMaybe "1" . fromMaybe (Just "1") . lookup "page" $ qs :: Int
-        quantity = 20
+getPageParam :: HTTP.Query -> Except E Int
+getPageParam qs = do
+        let quantity = 20
+        page <- eDecode . convertL . fromMaybe "1" . fromMaybe (Just "1") . lookup "page" $ qs
+        return page
 
 
 --tagList = ["tag", "tags__in", "tags__all"]
@@ -196,7 +228,7 @@ getTagParams :: HTTP.Query -> Except E (Params Int)
 getTagParams qs = do
     mtagQuery <- lookupOne ["tag", "tags__in", "tags__all"] qs
     case mtagQuery of 
-        Nothing -> return ParamsEmpty
+        Nothing -> return ParamsAny
         Just ("tag", value) -> do
             tagInt <- eDecode . convertL $ value
             return $ ParamsIn [tagInt]
@@ -207,13 +239,22 @@ getTagParams qs = do
             tagsList <- eDecode . convertL $ list
             return $ ParamsAll tagsList
 
+--unpack нужен, чтобы потом сделать encodeUtf8 для кириллицы
+getTextParam :: HTTP.Query -> Maybe String
+getTextParam =  fmap (BC.unpack) . fromMaybe Nothing . lookup "text"
 
---универсализировать
+
+--не работает для кириллицы
+getTextParam1 :: HTTP.Query -> Maybe String
+getTextParam1 = fmap ( T.unpack . T.decodeUtf8 ) . fromMaybe Nothing . lookup "text"
+
+
+--универсализировать, выкинуть ошибку при categories__all
 getCategoryParams :: HTTP.Query -> Except E (Params Int)
 getCategoryParams qs = do
     mtagQuery <- lookupOne ["category", "categories__in"] qs
     case mtagQuery of 
-        Nothing -> return ParamsEmpty
+        Nothing -> return ParamsAny
         Just ("category", value) -> do
             valueInt <- eDecode . convertL $ value
             return $ ParamsIn [valueInt]
