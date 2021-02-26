@@ -77,8 +77,9 @@ type Post = Row.Post :. Row.Content :. Row.Author :. Row.User :. Maybe Row.TagTo
 --localhost/posts?tags_in=[1,2,5]
 --type PostParams = Int :. Params Int  :. Params Int :. Params Date :. Maybe String :. Maybe String
 --попробовать сделать корректный перевод строки в запросе и табуляцию
-postsNewQuery :: Int -> Params Int  -> Params Int -> Params Date -> Maybe String -> Maybe String -> Identity SQL.Query
-postsNewQuery page tag category createdAt mauthorName mtext = return res where
+--более универсальный тип для параметра, чтобы представить это в виде списка
+postsNewQuery :: Int -> Params Int  -> Params Int -> Params Date -> Maybe String -> Maybe String -> Maybe String -> Identity SQL.Query
+postsNewQuery page tag category createdAt mname mauthorName mtext = return res where
         res:: SQL.Query
         res = selectQuery `whereAll` conditions <+> pagination page
         
@@ -97,6 +98,7 @@ postsNewQuery page tag category createdAt mauthorName mtext = return res where
                 postIdsSubquery tag,
                 categoriesCond category,
                 createdAtCond createdAt,
+                nameCond mname,
                 authorNameCond mauthorName,
                 textCond mtext
                 ]
@@ -130,10 +132,14 @@ postsNewQuery page tag category createdAt mauthorName mtext = return res where
         -- createdAtCondTempl :: Date -> SQL.Query -> SQL.Query
         -- createdAtCondTempl date sign = template [sql|contents.creation_date {1} '{0}'|] [q date, sign]
 
+        nameCond :: Maybe String -> SQL.Query
+        nameCond Nothing = [sql|TRUE|]
+        --authorNameCond (Just text) = template [sql|users.first_name + ' ' + users.last_name ILIKE '%{0}%'|] [q text]
+        nameCond (Just name) = template [sql|contents.name ILIKE '%{0}%'|] [q name]
+
         authorNameCond :: Maybe String -> SQL.Query
         authorNameCond Nothing = [sql|TRUE|]
-        --authorNameCond (Just text) = template [sql|users.first_name + ' ' + users.last_name ILIKE '%{0}%'|] [q text]
-        authorNameCond (Just text) = template [sql|CONCAT_WS(' ', users.last_name, users.first_name) ILIKE '%{0}%'|] [q text]
+        authorNameCond (Just authorName) = template [sql|CONCAT_WS(' ', users.last_name, users.first_name) ILIKE '%{0}%'|] [q authorName]
 
         
 

@@ -75,24 +75,37 @@ createdAt qs = do
 -- getTextParam =  fmap (BC.unpack) . fromMaybe Nothing . lookup "text"
 
 
+strParam :: BC.ByteString -> Query -> Except E (Maybe String)
+strParam paramName qs  = do
+    mparamQuery <- lookupOne [paramName] qs
+    case mparamQuery of 
+        Nothing -> return Nothing
+        Just (p, bs) -> return . Just . unpackString $ bs
+
 --вообще виснет при выводе на консоль, а запрос в бд корректный
 --перекодировка в string нужна для корректной обработки кириллицы
-text :: Query -> Except E (Maybe String)
---text = return . fmap ( T.unpack . T.decodeUtf8 ) . fromMaybe Nothing . lookup "text"
-text qs = do
-    mparamQuery <- lookupOne ["text"] qs
-    case mparamQuery of 
-        Nothing -> return Nothing
-        Just ("text", bs) -> return . Just . unpackString $ bs
+-- text :: Query -> Except E (Maybe String)
+-- --text = return . fmap ( T.unpack . T.decodeUtf8 ) . fromMaybe Nothing . lookup "text"
+-- text qs = do
+--     mparamQuery <- lookupOne ["text"] qs
+--     case mparamQuery of 
+--         Nothing -> return Nothing
+--         Just ("text", bs) -> return . Just . unpackString $ bs
+
+-- authorName :: Query -> Except E (Maybe String)
+-- --text = return . fmap ( T.unpack . T.decodeUtf8 ) . fromMaybe Nothing . lookup "text"
+-- authorName qs = do
+--     mparamQuery <- lookupOne ["author_name"] qs
+--     case mparamQuery of 
+--         Nothing -> return Nothing
+--         Just ("author_name", bs) -> return . Just . unpackString $ bs
 
 authorName :: Query -> Except E (Maybe String)
---text = return . fmap ( T.unpack . T.decodeUtf8 ) . fromMaybe Nothing . lookup "text"
-authorName qs = do
-    mparamQuery <- lookupOne ["author_name"] qs
-    case mparamQuery of 
-        Nothing -> return Nothing
-        Just ("author_name", bs) -> return . Just . unpackString $ bs
-
+authorName = strParam "author_name"
+text :: Query -> Except E (Maybe String)
+text = strParam "text"
+name :: Query -> Except E (Maybe String)
+name  = strParam "name"
 
 --тут должен быть тип ошибки RequestError
 --универсализировать, выкинуть ошибку при categories__all

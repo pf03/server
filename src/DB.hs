@@ -43,13 +43,14 @@ testQuery :: HTTP.Query
 --testQuery = [("page", Just "1"), ("tags__in", Just "[1,2,3]"),("category", Just "1")]
 --testQuery = [("page", Just "1"), ("categories__in", Just "[1]")]
 --testQuery = [("page", Just "1"), ("tags__in", Just "[1,2,3]"),("category", Just "1"), ("text", Just "очередной")]
-testQuery = [("page", Just "1"),
-    ("tags__in", Just "[1,2,3]"),
+testQuery = [("tags__in", Just "[1,2,3]"),
     --("categories__in", Just "[1,2,3]"), 
     --("text", Just "glasgow"), 
     --("created_at__lt", Just "2018-05-21"),
     --("created_at__lt", Just "1925-03-20"),
-    ("author_name", Just "Денис")
+    ("name", Just "мгновенье"),
+    --("author_name", Just "Денис") --кириллица здесь не работает, но в постмане работает
+    ("page", Just "1")
     ]
 
 testq :: IO ()
@@ -109,7 +110,8 @@ getPosts qs = do
     tagParams <- toT $ Params.tag qs
     categoryParams <- toT $ Params.category qs
     textParam1 <- toT $ Params.text qs  
-    authorName <- toT $ Params.authorName qs  
+    mauthorName <- toT $ Params.authorName qs  
+    mname <- toT $ Params.name qs
     createdAtParam <- logT $ Params.createdAt qs
 
     -- ifJust textParam (putStrLnT . fromJust $ textParam)  --это выводит на консоль корректно, а запрос в бд некорректный
@@ -121,7 +123,7 @@ getPosts qs = do
     --let query = Select.postsNewQuery pageParam tagParams categoryWithChildsParams textParam
     --Log.debugT query
     --это работает!!!!!!! подумать, как вывести на консоль
-    query1 <- logT $ Select.postsNewQuery pageParam tagParams categoryWithChildsParams createdAtParam authorName textParam1
+    query1 <- logT $ Select.postsNewQuery pageParam tagParams categoryWithChildsParams createdAtParam mname mauthorName textParam1
     selected <- Query.query_ query1
     json <- logT $ JSON.evalUnitedPosts categories selected
     writeResponse json
