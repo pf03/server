@@ -3,7 +3,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 
 module DB where
-
 import Database.PostgreSQL.Simple.FromRow
 import Database.PostgreSQL.Simple.SqlQQ
 import  qualified Data.ByteString.Char8 as BC
@@ -16,7 +15,6 @@ import qualified Query
 import Query (q, (<+>), whereAll, inList)
 -- import Data.Text
 import Control.Monad.Except
-
 import Control.Monad.Trans.Except
 import Common
 import Data.List
@@ -39,12 +37,17 @@ import NeatInterpolation
 import qualified Data.Text.IO as T
 import qualified System.Console.ANSI as Color
 import Text.Read
+import qualified Params
 
 testQuery :: HTTP.Query
 --testQuery = [("page", Just "1"), ("tags__in", Just "[1,2,3]"),("category", Just "1")]
 --testQuery = [("page", Just "1"), ("categories__in", Just "[1]")]
 --testQuery = [("page", Just "1"), ("tags__in", Just "[1,2,3]"),("category", Just "1"), ("text", Just "очередной")]
-testQuery = [("page", Just "1"), ("tags__in", Just "[1,2,3]"),("category", Just "1"), ("text", Just "glasgow"), ("created_at__lt", Just "2018-05-21")]
+testQuery = [("page", Just "1"),
+    ("tags__in", Just "[1,2,3]"),
+    ("category", Just "1"), 
+    ("text", Just "glasgow"), 
+    ("created_at__lt", Just "2018-05-21")]
 
 testq :: IO ()
 testq = runT $ DB.getPosts DB.testQuery
@@ -55,7 +58,7 @@ getUsers :: HTTP.Query -> T [User]
 getUsers qs = do 
     Log.setSettings Color.Blue True "getUsers" 
     Log.funcT Log.Debug "..."
-    pageParam <- logT $ getPageParam qs
+    pageParam <- logT $ Params.page qs
     query <- logT $ Select.usersQuery pageParam
     Query.query_ query
 
@@ -63,7 +66,7 @@ getAuthors :: HTTP.Query -> T [Author]
 getAuthors qs = do
     Log.setSettings Color.Blue True "getAuthors"
     Log.funcT Log.Debug "..."
-    pageParam <- logT $ getPageParam qs
+    pageParam <- logT $ Params.page qs
     query <- logT $ Select.authorsQuery pageParam
     selected <- Query.query_ query
     return $ evalAuthors selected
@@ -83,7 +86,7 @@ getTags :: HTTP.Query -> T [Tag]
 getTags qs = do
     Log.setSettings Color.Blue False "getTags" 
     Log.funcT Log.Debug "..."
-    pageParam <- logT $ getPageParam qs
+    pageParam <- logT $ Params.page qs
     query <- logT $ Select.tagsQuery pageParam
     Query.query_ query
 
@@ -98,11 +101,11 @@ getPosts qs = do
     categories <- DB.getAllCategories
     Log.setSettings Color.Blue True "getPosts" 
     Log.funcT Log.Debug "..."
-    pageParam <- toT $ getPageParam qs
-    tagParams <- toT $ getTagParams qs
-    categoryParams <- toT $ getCategoryParams qs
-    textParam1 <- toT $ getTextParam1 qs  
-    createdAtParam <- logT $ getCreatedAtParam qs
+    pageParam <- toT $ Params.page qs
+    tagParams <- toT $ Params.tag qs
+    categoryParams <- toT $ Params.category qs
+    textParam1 <- toT $ Params.text qs  
+    createdAtParam <- logT $ Params.createdAt qs
 
     -- ifJust textParam (putStrLnT . fromJust $ textParam)  --это выводит на консоль корректно, а запрос в бд некорректный
     -- ifJust textParam (putStrLnT . fromJust $ textParam1) --вообще виснет, а запрос в бд корректный
@@ -115,81 +118,11 @@ getPosts qs = do
     --это работает!!!!!!! подумать, как вывести на консоль
     query1 <- logT $ Select.postsNewQuery pageParam tagParams categoryWithChildsParams textParam1
     selected <- Query.query_ query1
-    json <- toT $ JSON.evalUnitedPosts categories selected
-    writeResponse json
+    json <- logT $ JSON.evalUnitedPosts categories selected
+    --writeResponse json
     return json
 
-date :: Either String Date
-date = readEither "2020-03-20"
 
---можно упростить и использовать eitherRead вместо eDecode!
-getPageParam :: HTTP.Query -> Except E Int
-getPageParam qs = do
-        let quantity = 20
-        page <- eDecode . convertL . fromMaybe "1" . fromMaybe (Just "1") . lookup "page" $ qs
-        return page
-
-getTagParams :: HTTP.Query -> Except E (Params Int)
-getTagParams qs = do
-    mtagQuery <- lookupOne ["tag", "tags__in", "tags__all"] qs
-    case mtagQuery of 
-        Nothing -> return ParamsAny
-        Just ("tag", value) -> do
-            tagInt <- eDecode . convertL $ value
-            return $ ParamsIn [tagInt]
-        Just ("tags__in", list) -> do
-            tagsList <- eDecode . convertL $ list
-            return $ ParamsIn tagsList
-        Just ("tags__all", list) -> do
-            tagsList <- eDecode . convertL $ list
-            return $ ParamsAll tagsList
-
-getCreatedAtParam :: HTTP.Query -> Except E (Params Date)
-getCreatedAtParam qs = do
-    mparamQuery <- lookupOne ["created_at", "created_at__lt", "created_at__gt"] qs
-    case mparamQuery of 
-        Nothing -> return ParamsAny
-        Just (field, value) -> do
-            value <- except . typeError RequestError . readEither . BC.unpack $ value
-            case field of 
-                "created_at" -> return $ ParamsIn [value]
-                "created_at__lt" -> return $ ParamsLT value
-                "created_at__gt" -> return $ ParamsGT value
-
---unpack нужен, чтобы потом сделать encodeUtf8 для кириллицы
---это выводит на консоль корректно, а запрос в бд некорректный
--- getTextParam :: HTTP.Query -> Maybe String
--- getTextParam =  fmap (BC.unpack) . fromMaybe Nothing . lookup "text"
-
-
---вообще виснет при выводе на консоль, а запрос в бд корректный
-getTextParam1 :: HTTP.Query -> Identity (Maybe String)
-getTextParam1 = return . fmap ( T.unpack . T.decodeUtf8 ) . fromMaybe Nothing . lookup "text"
-
-
---тут должен быть тип ошибки RequestError
---универсализировать, выкинуть ошибку при categories__all
-getCategoryParams :: HTTP.Query -> Except E (Params Int)
-getCategoryParams qs = do
-    mtagQuery <- lookupOne ["category", "categories__in"] qs
-    case mtagQuery of 
-        Nothing -> return ParamsAny
-        Just ("category", value) -> do
-            valueInt <- eDecode . convertL $ value
-            return $ ParamsIn [valueInt]
-        Just ("categories__in", list) -> do
-            valuesList <- eDecode . convertL $ list
-            return $ ParamsIn valuesList
-
---в первом списке должно быть ровно одно значение из второго списка
-lookupOne :: (Eq a, Show b, Show a) => [a] -> [(a, Maybe b)] -> Except E (Maybe (a, b)) 
-lookupOne templates strs = do
-    let results = map (\(a,b) -> (a, fromJust b)). filter (isJust . snd) . map (\t -> (t, lookup t strs)) $  templates
-    case results of
-        [] -> return Nothing 
-        [(a, Nothing)] -> throwE . RequestError $ template "Не указано значение параметра {0}" [show a]
-        [(a, Just b)] -> return . Just $ (a, b)
-        (r:rs) -> throwE . RequestError $ template "В списке {0} должно быть не более одного значения из списка {1}" [show strs, show templates]
 
 --многострочные запросы некорректно выводятся на консоль
 --их нужно выводить куда-нибудь в файл

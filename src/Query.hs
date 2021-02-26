@@ -15,7 +15,8 @@ import qualified Data.Text as T
 query_ :: (Show r, FromRow r) => Query -> T [r]
 query_ q = do
     conn <- S.getConnection
-    logT $ SQL.query_ conn q
+    --logT $ SQL.query_ conn q
+    toT $ SQL.query_ conn q
 
 query :: (ToRow q, FromRow r) => Query -> q -> T [r]
 query query q = do

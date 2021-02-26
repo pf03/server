@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 66c7de059de0f3174b74a0ee8ea2a610b5643a7381eb1a24a3c52c623bdb8604
+-- hash: a078b3840bb90cf023b159281604c3722181bb3864ff0a2d056fe6124169c173
 
 name:           server
 version:        0.1.0.0
@@ -38,6 +38,7 @@ library
       Log.Color
       Log.Types
       Migrations
+      Params
       Parse
       Query
       Response
