@@ -18,6 +18,7 @@ import Database.PostgreSQL.Simple.Types
 
 import qualified Data.Text.Lazy as L
 import Data.String
+import Database.PostgreSQL.Simple.Time
 
 
 ----------------вспомогательные монадические функции -------------------------------------
@@ -128,6 +129,9 @@ instance Convert Value where
 
 instance Convert Object where 
      convert = convert . encode 
+
+instance Convert Date where 
+     convert = BC.pack . show 
 
 --lazy version
 class ConvertL a where

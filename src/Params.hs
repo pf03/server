@@ -18,7 +18,7 @@ import Error
 -- templates :: BC.ByteString -> [BC.ByteString]
 -- templates field = map (field <>) ["", "__in", "__all", "__lt", "__gt"]
 
-
+--конвертация из bs в типы haskell нужна хотя бы для проверки данных на корректность
 --можно упростить и использовать eitherRead вместо eDecode!
 page :: Query -> Except E Int
 page qs = do
@@ -52,8 +52,7 @@ tag qs = do
                 throwE . RequestError $ template "Параметр запроса {0} должен быть массивом, состоящим из целых чисел" [show "tags__all"]
             return $ ParamsAll paramList where 
 
-eread :: Read a => BC.ByteString -> Except String a 
-eread bs = except . readEither . BC.unpack $ bs
+
 
 
 createdAt :: Query -> Except E (Params Date)
@@ -77,13 +76,22 @@ createdAt qs = do
 
 
 --вообще виснет при выводе на консоль, а запрос в бд корректный
+--перекодировка в string нужна для корректной обработки кириллицы
 text :: Query -> Except E (Maybe String)
 --text = return . fmap ( T.unpack . T.decodeUtf8 ) . fromMaybe Nothing . lookup "text"
 text qs = do
     mparamQuery <- lookupOne ["text"] qs
     case mparamQuery of 
         Nothing -> return Nothing
-        Just ("text", bs) -> return . Just . T.unpack . T.decodeUtf8 $ bs
+        Just ("text", bs) -> return . Just . unpackString $ bs
+
+authorName :: Query -> Except E (Maybe String)
+--text = return . fmap ( T.unpack . T.decodeUtf8 ) . fromMaybe Nothing . lookup "text"
+authorName qs = do
+    mparamQuery <- lookupOne ["author_name"] qs
+    case mparamQuery of 
+        Nothing -> return Nothing
+        Just ("author_name", bs) -> return . Just . unpackString $ bs
 
 
 --тут должен быть тип ошибки RequestError
@@ -122,3 +130,9 @@ lookupOne templates strs = do
     --     [(a, Nothing)] -> throwE . RequestError $ template "Не указано значение параметра {0}" [show a]
     --     [(a, Just b)] -> return . Just $ (a, b)
     --     (r:rs) -> throwE . RequestError $ template "В списке параметров запроса {0} должно быть не более одного значения из списка {1}" [show strs, show templates]
+
+eread :: Read a => BC.ByteString -> Except String a 
+eread = except . readEither . BC.unpack
+
+unpackString :: BC.ByteString -> String
+unpackString = T.unpack . T.decodeUtf8 

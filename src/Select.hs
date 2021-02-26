@@ -62,6 +62,8 @@ categoriesQuery = return [sql|SELECT * FROM categories|]
 -------------------------Post-------------------------------------------------------------
 type Post = Row.Post :. Row.Content :. Row.Author :. Row.User :. Maybe Row.TagToContent :. Maybe Row.Tag
 
+
+
 -- postsQuery :: Identity SQL.Query
 -- postsQuery = return [sql|
 --         SELECT * FROM posts
@@ -73,10 +75,10 @@ type Post = Row.Post :. Row.Content :. Row.Author :. Row.User :. Maybe Row.TagTo
 --         |]
 
 --localhost/posts?tags_in=[1,2,5]
-
+--type PostParams = Int :. Params Int  :. Params Int :. Params Date :. Maybe String :. Maybe String
 --попробовать сделать корректный перевод строки в запросе и табуляцию
-postsNewQuery :: Int -> Params Int  -> Params Int -> Maybe String -> Identity SQL.Query
-postsNewQuery page tagParams categoryParams text = return res where
+postsNewQuery :: Int -> Params Int  -> Params Int -> Params Date -> Maybe String -> Maybe String -> Identity SQL.Query
+postsNewQuery page tag category createdAt mauthorName mtext = return res where
         res:: SQL.Query
         res = selectQuery `whereAll` conditions <+> pagination page
         
@@ -89,11 +91,14 @@ postsNewQuery page tagParams categoryParams text = return res where
                 LEFT JOIN tags_to_contents ON contents.id = tags_to_contents.content_id
                 LEFT JOIN tags ON tags.id = tags_to_contents.tag_id|]
 
+        --исключить из результирующего запроса лишние TRUE в функции whereAll ?
         conditions :: [SQL.Query]
         conditions = [
-                postIdsSubquery tagParams,
-                categoriesCond categoryParams,
-                textCond text
+                postIdsSubquery tag,
+                categoriesCond category,
+                createdAtCond createdAt,
+                authorNameCond mauthorName,
+                textCond mtext
                 ]
 
         postIdsSubquery :: Params Int -> SQL.Query
@@ -116,12 +121,28 @@ postsNewQuery page tagParams categoryParams text = return res where
         categoriesCond (ParamsIn categoryIds) = [sql|contents.category_id|] `inList` categoryIds
         categoriesCond (ParamsAll categoryIds) =  error "this pattern should not occur!" 
 
+        --добавить еще паттерн ParamsEQ для удобства
+        createdAtCond :: Params Date -> SQL.Query
+        createdAtCond ParamsAny = [sql|TRUE|]
+        createdAtCond (ParamsIn [date]) = template [sql|contents.creation_date = '{0}'|] [q date]
+        createdAtCond (ParamsGT date) = template [sql|contents.creation_date > '{0}'|] [q date]
+        createdAtCond (ParamsLT date) = template [sql|contents.creation_date < '{0}'|] [q date]
+        -- createdAtCondTempl :: Date -> SQL.Query -> SQL.Query
+        -- createdAtCondTempl date sign = template [sql|contents.creation_date {1} '{0}'|] [q date, sign]
+
+        authorNameCond :: Maybe String -> SQL.Query
+        authorNameCond Nothing = [sql|TRUE|]
+        --authorNameCond (Just text) = template [sql|users.first_name + ' ' + users.last_name ILIKE '%{0}%'|] [q text]
+        authorNameCond (Just text) = template [sql|CONCAT_WS(' ', users.last_name, users.first_name) ILIKE '%{0}%'|] [q text]
+
+        
+
+
         textCond :: Maybe String -> SQL.Query
         textCond Nothing = [sql|TRUE|]
         textCond (Just text) = template [sql|contents.text ILIKE '%{0}%'|] [q text]
 
 
-        
 
 
 -------------------------Tag-------------------------------------------------------------
