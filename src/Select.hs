@@ -19,42 +19,64 @@ import Database.PostgreSQL.Simple.SqlQQ
 import Common
 import Query
 import qualified Data.ByteString as BC
+import Control.Monad.Identity
 
 ----------------------------------User-----------------------------------------------------------
-type User = Row.User 
-usersQuery = [sql|SELECT * FROM users|]
+type User =  Row.User 
+usersQuery :: Int -> Identity Query
+usersQuery page = return res where
+        res:: SQL.Query
+        res = selectQuery `whereAll` conditions <+> pagination page
+
+        selectQuery :: SQL.Query
+        selectQuery = [sql|SELECT * FROM users|]
+
+        conditions :: [SQL.Query]
+        conditions = []
 
 --универсальный тип, подходящий для любого select
 --type Select = undefined
 
 -------------------------------Author---------------------------------------------------------
 type Author = Row.Author :. Row.User
-authorsQuery = [sql|SELECT * FROM authors
-        LEFT JOIN users
-        ON authors.user_id = users.id|]
+
+authorsQuery :: Int -> Identity Query
+authorsQuery page = return res where
+        res:: SQL.Query
+        res = selectQuery `whereAll` conditions <+> pagination page
+
+        selectQuery :: SQL.Query
+        selectQuery = [sql|SELECT * FROM authors
+                LEFT JOIN users
+                ON authors.user_id = users.id|] 
+
+        conditions :: [SQL.Query]
+        conditions = []
 
 ----------------------------Category-----------------------------------------------------------
+--категории возвращаются все без пагинации, считается, что их немного
 type Category = Row.Category 
-categoriesQuery = [sql|SELECT * FROM categories|]
+categoriesQuery :: Identity Query
+categoriesQuery = return [sql|SELECT * FROM categories|] 
 
 -------------------------Post-------------------------------------------------------------
 type Post = Row.Post :. Row.Content :. Row.Author :. Row.User :. Maybe Row.TagToContent :. Maybe Row.Tag
 
-postsQuery :: SQL.Query
-postsQuery = [sql|
-        SELECT * FROM posts
-            LEFT JOIN contents ON contents.id = posts.content_id
-            LEFT JOIN authors ON authors.id = contents.author_id
-            LEFT JOIN users ON users.id = authors.user_id
-            LEFT JOIN tags_to_contents ON contents.id = tags_to_contents.content_id
-            LEFT JOIN tags ON tags.id = tags_to_contents.tag_id
-        |]
+-- postsQuery :: Identity SQL.Query
+-- postsQuery = return [sql|
+--         SELECT * FROM posts
+--             LEFT JOIN contents ON contents.id = posts.content_id
+--             LEFT JOIN authors ON authors.id = contents.author_id
+--             LEFT JOIN users ON users.id = authors.user_id
+--             LEFT JOIN tags_to_contents ON contents.id = tags_to_contents.content_id
+--             LEFT JOIN tags ON tags.id = tags_to_contents.tag_id
+--         |]
 
 --localhost/posts?tags_in=[1,2,5]
 
 --попробовать сделать корректный перевод строки в запросе и табуляцию
-postsNewQuery :: Int -> Params Int  -> Params Int -> Maybe String -> SQL.Query
-postsNewQuery page tagParams categoryParams text = res where
+postsNewQuery :: Int -> Params Int  -> Params Int -> Maybe String -> Identity SQL.Query
+postsNewQuery page tagParams categoryParams text = return res where
         res:: SQL.Query
         res = selectQuery `whereAll` conditions <+> pagination page
         
@@ -105,8 +127,16 @@ postsNewQuery page tagParams categoryParams text = res where
 -------------------------Tag-------------------------------------------------------------
 type Tag = Row.Tag 
 
-tagsQuery :: SQL.Query
-tagsQuery = [sql|SELECT * FROM tags|]
+tagsQuery :: Int -> Identity Query
+tagsQuery page = return res where
+        res:: SQL.Query
+        res = selectQuery `whereAll` conditions <+> pagination page
+
+        selectQuery :: SQL.Query
+        selectQuery = [sql|SELECT * FROM tags|]
+
+        conditions :: [SQL.Query]
+        conditions = []
 
 -------------------------Pagination------------------------------------------------------
 pagination :: Int -> SQL.Query

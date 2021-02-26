@@ -16,6 +16,7 @@ import Database.PostgreSQL.Simple
 import Data.List
 import qualified Data.Text.Encoding as T
 import qualified Data.Text as T
+import Control.Monad.Identity
 ----------------------------------ToTransformer--------------------------------------------
 --подъем до основного трасформера
 class ToTransformer m where 
@@ -29,6 +30,9 @@ instance ToTransformer (Except E) where
 
 instance ToTransformer (ExceptT E IO) where
     toT = lift
+
+instance ToTransformer Identity where
+    toT = return . runIdentity
 
 --эту идею обработки ошибок перенести в бота и в другие инстансы
 --иначе зачем нам вообще Except
@@ -51,6 +55,20 @@ instance ToTransformer IO where
 -- typecheck as the type is ambiguous. While it is possible to catch exceptions of 
 -- any type, see the section "Catching all exceptions" (in Control.Exception ) for an explanation of the problems with doing so.
 
+--toT++log
+logT :: (ToTransformer m, Show a)  => m a -> T a 
+logT m = do
+    a <- toT m
+    Log.debugT a
+    return a 
+
+--костыль для Query, пока не придумал ничего получше
+--один хрен нормально не работает, например когда queryString хардкодится с кириллицей
+-- logqT :: (ToTransformer m) => m Query -> T Query
+-- logqT m = do
+--     a <- toT m
+--     Log.queryT a
+--     return a 
 
 --фантазия на тему обработки ошибок
 --возможно инфиксная функция

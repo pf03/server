@@ -1,3 +1,6 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
+--{-# LANGUAGE OverlappingInstances #-}
 module Log(
     module Log.Types,
     MonadLog (..),
@@ -11,6 +14,8 @@ module Log(
     textT,
     debugT,
     dataT,
+    --prettyT,
+    --queryT,
     convertDataT,
     resetSettings,
     error,
@@ -20,7 +25,9 @@ module Log(
     defaultSettings,
     defaultConfig,
     file,
-    clearFile) 
+    clearFile,
+    --Pretty(..) 
+    ) 
 where 
 
 import Log.Types
@@ -41,12 +48,54 @@ import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Lazy.Char8 as LC
+import Database.PostgreSQL.Simple
+import qualified Data.Text.Encoding as T
+import qualified Data.Text as T
+import Database.PostgreSQL.Simple.Types
+
 
 class MonadIO m => MonadLog m where
   getSettings :: m LogSettings
   setSettings :: ColorScheme -> Enable -> FuncName -> m ()
   getConfig :: m ConfigLog
 
+--это для возможного переопределения класса show
+-- class Show a => Pretty a where
+--     show' :: a -> String 
+--     --show' = show
+
+-- --такое не работает
+-- instance  Show a => Pretty a where
+--     show' = show
+
+-- instance  Pretty Query where
+--     show' = T.unpack . T.decodeUtf8 . fromQuery
+
+-- logg:: Pretty a => a -> IO()
+-- logg a = putStrLn $ pretty a
+
+    --MonadIO m =>
+-- showQ :: SQL.Query -> T()
+-- showQ = putStrLnT . T.unpack . T.decodeUtf8 . fromQuery
+
+
+-- instance Show Query where
+--     show = T.unpack . T.decodeUtf8 . fromQuery
+
+
+--подскажите, как переопределить экземпляр класса Show? Допустим я хочу для некоторых типов переопределить экземпляр класса Show,
+-- а для остальных типов оставить как есть
+-- instance Show Query where
+--     show = T.unpack . T.decodeUtf8 . fromQuery
+
+-- log:: Show a => a -> IO()
+-- log a = putStrLn $ show a
+
+
+
+
+
+showQ = T.unpack . T.decodeUtf8 . fromQuery
 
 sendT :: MonadLog m => m ()
 sendT = do
@@ -88,6 +137,16 @@ colorTextT colorScheme level text = do
 
 debugT :: MonadLog m => (MonadLog m, Show a) => a -> m ()
 debugT = Log.dataT Debug
+
+-- prettyT :: MonadLog m => (MonadLog m, Pretty a) => a -> m ()
+-- prettyT dataValue = do 
+--     (config, settings) <- Log.getConfigSettings
+--     liftIO $ Log.pretty config settings dataValue
+
+-- queryT :: MonadLog m => (MonadLog m) => Query -> m ()
+-- queryT dataValue = do 
+--     (config, settings) <- Log.getConfigSettings
+--     liftIO $ Log.query config settings dataValue
 
 textT :: MonadLog m => LogLevel -> String -> m ()
 textT level text = do
@@ -136,14 +195,26 @@ text (ConfigLog color terminal file minLevel) (LogSettings colorScheme enable _ 
         when file $ Log.file text
         when (color && terminal) Color.resetColorSchemeT 
 
+-- pretty :: (MonadIO m, Pretty a) => ConfigLog -> LogSettings -> a -> m ()
+-- pretty cl ls dataValue = _ldata cl ls Debug (show' dataValue)
+
+-- query :: (MonadIO m) => ConfigLog -> LogSettings -> Query -> m ()
+-- query cl ls dataValue = _ldata cl ls Debug (showQ dataValue)
+
+
 --Данные с цветом, зависяцим от LogLevel--logData не зависит от настроек цвета, только logText зависит
 ldata :: (MonadIO m,Show a) => ConfigLog -> LogSettings -> LogLevel -> a -> m ()
-ldata (ConfigLog color terminal file minLevel) (LogSettings colorScheme enable _ ) level dataValue = do
+ldata cl ls level dataValue = _ldata cl ls level (show dataValue)
+
+_ldata :: (MonadIO m) => ConfigLog -> LogSettings -> LogLevel -> String -> m ()
+_ldata (ConfigLog color terminal file minLevel) (LogSettings colorScheme enable _ ) level str = do
     if not $ level >= toEnum minLevel && enable then return () else do
         when (color && terminal) $ Color.setColorT $ Log.getColor level
-        when terminal $ printT dataValue
-        when file $ Log.file $ show dataValue
+        when terminal $ putStrLnT str
+        when file $ Log.file str
         when (color && terminal) Color.resetColorSchemeT 
+
+
 -------------эти две функции объединить в одну----------------------------------------------------------------
 convertData :: (MonadIO m, ToJSON a, Show a) => ConfigLog -> LogSettings -> LogLevel -> a -> m ()
 convertData (ConfigLog color terminal file minLevel) (LogSettings colorScheme enable _ ) level dataValue = do

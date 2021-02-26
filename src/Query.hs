@@ -12,10 +12,10 @@ import Common
 import qualified Data.Text.Encoding as T
 import qualified Data.Text as T
 
-query_ :: FromRow r => Query -> T [r]
+query_ :: (Show r, FromRow r) => Query -> T [r]
 query_ q = do
     conn <- S.getConnection
-    toT $ SQL.query_ conn q
+    logT $ SQL.query_ conn q
 
 query :: (ToRow q, FromRow r) => Query -> q -> T [r]
 query query q = do
@@ -64,11 +64,9 @@ space :: Query
 -- space = [sql| |]
 space = " "
 
---MonadIO m =>
-showQ :: SQL.Query -> T()
-showQ = putStrLnT . T.unpack . T.decodeUtf8 . fromQuery
 
-showQ1 = show . T.unpack . T.decodeUtf8 . fromQuery
+
+--showQ1 = show . T.unpack . T.decodeUtf8 . fromQuery
 
 where_ :: Query
 where_ = [sql|WHERE|]
