@@ -107,3 +107,6 @@ instance FromRow (Maybe TagToContent) where
 
 instance ToJSON Date where
   toJSON = String . pack . show
+
+-- instance FromJSON Date where
+--   toJSON = String . pack . show

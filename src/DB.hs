@@ -38,11 +38,13 @@ import qualified Data.Text as T
 import NeatInterpolation
 import qualified Data.Text.IO as T
 import qualified System.Console.ANSI as Color
+import Text.Read
 
 testQuery :: HTTP.Query
 --testQuery = [("page", Just "1"), ("tags__in", Just "[1,2,3]"),("category", Just "1")]
 --testQuery = [("page", Just "1"), ("categories__in", Just "[1]")]
-testQuery = [("page", Just "1"), ("tags__in", Just "[1,2,3]"),("category", Just "1"), ("text", Just "очередной")]
+--testQuery = [("page", Just "1"), ("tags__in", Just "[1,2,3]"),("category", Just "1"), ("text", Just "очередной")]
+testQuery = [("page", Just "1"), ("tags__in", Just "[1,2,3]"),("category", Just "1"), ("text", Just "glasgow"), ("created_at__lt", Just "2018-05-21")]
 
 testq :: IO ()
 testq = runT $ DB.getPosts DB.testQuery
@@ -100,6 +102,7 @@ getPosts qs = do
     tagParams <- toT $ getTagParams qs
     categoryParams <- toT $ getCategoryParams qs
     textParam1 <- toT $ getTextParam1 qs  
+    createdAtParam <- logT $ getCreatedAtParam qs
 
     -- ifJust textParam (putStrLnT . fromJust $ textParam)  --это выводит на консоль корректно, а запрос в бд некорректный
     -- ifJust textParam (putStrLnT . fromJust $ textParam1) --вообще виснет, а запрос в бд корректный
@@ -116,6 +119,8 @@ getPosts qs = do
     writeResponse json
     return json
 
+date :: Either String Date
+date = readEither "2020-03-20"
 
 --можно упростить и использовать eitherRead вместо eDecode!
 getPageParam :: HTTP.Query -> Except E Int
@@ -139,6 +144,18 @@ getTagParams qs = do
             tagsList <- eDecode . convertL $ list
             return $ ParamsAll tagsList
 
+getCreatedAtParam :: HTTP.Query -> Except E (Params Date)
+getCreatedAtParam qs = do
+    mparamQuery <- lookupOne ["created_at", "created_at__lt", "created_at__gt"] qs
+    case mparamQuery of 
+        Nothing -> return ParamsAny
+        Just (field, value) -> do
+            value <- except . typeError RequestError . readEither . BC.unpack $ value
+            case field of 
+                "created_at" -> return $ ParamsIn [value]
+                "created_at__lt" -> return $ ParamsLT value
+                "created_at__gt" -> return $ ParamsGT value
+
 --unpack нужен, чтобы потом сделать encodeUtf8 для кириллицы
 --это выводит на консоль корректно, а запрос в бд некорректный
 -- getTextParam :: HTTP.Query -> Maybe String
@@ -150,6 +167,7 @@ getTextParam1 :: HTTP.Query -> Identity (Maybe String)
 getTextParam1 = return . fmap ( T.unpack . T.decodeUtf8 ) . fromMaybe Nothing . lookup "text"
 
 
+--тут должен быть тип ошибки RequestError
 --универсализировать, выкинуть ошибку при categories__all
 getCategoryParams :: HTTP.Query -> Except E (Params Int)
 getCategoryParams qs = do
@@ -169,9 +187,9 @@ lookupOne templates strs = do
     let results = map (\(a,b) -> (a, fromJust b)). filter (isJust . snd) . map (\t -> (t, lookup t strs)) $  templates
     case results of
         [] -> return Nothing 
-        [(a, Nothing)] -> throwE . DBError $ template "Не указано значение параметра {0}" [show a]
+        [(a, Nothing)] -> throwE . RequestError $ template "Не указано значение параметра {0}" [show a]
         [(a, Just b)] -> return . Just $ (a, b)
-        (r:rs) -> throwE . DBError $ template "В списке {0} должно быть не более одного значения из списка {1}" [show strs, show templates]
+        (r:rs) -> throwE . RequestError $ template "В списке {0} должно быть не более одного значения из списка {1}" [show strs, show templates]
 
 --многострочные запросы некорректно выводятся на консоль
 --их нужно выводить куда-нибудь в файл

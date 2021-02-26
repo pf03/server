@@ -20,3 +20,4 @@ type ColorScheme = Color
 type Enable= Bool
 type FuncName = String
 data LogSettings = LogSettings {colorScheme:: ColorScheme, logEnable :: Enable, funcName :: FuncName} deriving Show
+
