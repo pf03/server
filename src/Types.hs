@@ -126,7 +126,10 @@ type FuncName = String
 ----------------------------------DB------------------------------------------------------------------------------
 
 --параметры строки запроса, например tags_in, tags_all. tag=3 соответствует tags_in = [3], хотя и tags_all= [3] подходит
-data Params a = ParamsIn [a] | ParamsAll [a]  | ParamsLT a | ParamsGT a | ParamsAny deriving (Show)
+--data Params a = ParamsIn [a] | ParamsAll [a]  | ParamsLT a | ParamsGT a | ParamsLike a | ParamsAny deriving (Show)
+data Templ = Eq | In | All | Lt | Gt | Like  deriving (Show, Eq)  
+data Param = Param Templ Val | ParamAny deriving Show
+data Val = Str String| Int Int | List [Int] | Date Date deriving Show
 --data Order a = OrderEq a | OrderLT a | OrderGT a | OrderAny
 
 -- ?? ByteString??  --aeson не работает с ByteString
