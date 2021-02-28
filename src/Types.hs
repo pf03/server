@@ -127,10 +127,24 @@ type FuncName = String
 
 --параметры строки запроса, например tags_in, tags_all. tag=3 соответствует tags_in = [3], хотя и tags_all= [3] подходит
 --data Params a = ParamsIn [a] | ParamsAll [a]  | ParamsLT a | ParamsGT a | ParamsLike a | ParamsAny deriving (Show)
-data Templ = Eq | In | All | Lt | Gt | Like  deriving (Show, Eq)  
-data Param = Param Templ Val | ParamAny deriving Show
-data Val = Str String| Int Int | List [Int] | Date Date deriving Show
+-- data Templ = Eq | In | All | Lt | Gt | Like  deriving (Show, Eq)  
+-- data Param = Param Templ Val | ParamAny deriving Show
+-- data Val = Str String| Int Int | List [Int] | Date Date deriving Show
+
+
+--новая версия
+data Templ = Eq | In | All | Lt | Gt | Bt | Like  deriving (Show, Eq)  
+data Param = ParamEq Val | ParamIn [Val] | ParamAll [Val] | ParamLt Val | ParamGt Val | ParamBt (Val, Val) | ParamLike Val | ParamNo  deriving Show
+data Val = Str String | Int Int | Date Date deriving Show
+
+data ParamType = ParamTypePage | ParamTypeStr | ParamTypeInt | ParamTypeDate deriving Show
 --data Order a = OrderEq a | OrderLT a | OrderGT a | OrderAny
+
+
+--  ???
+-- constructParam :: Templ -> Val -> Param
+-- constructParam Eq val = ParamEq
+
 
 -- ?? ByteString??  --aeson не работает с ByteString
 -- data User = User {

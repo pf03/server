@@ -30,17 +30,17 @@ for = flip map
 
 -----------------------------GLOBAL CONSTANTS, used in other functions-----------------------------------------------------
 templates :: [(Templ, ByteString)]
-templates = [(Eq ,""), (In, "__in"), (All, "__all"), (Lt, "__lt"), (Gt, "__gt"), (Like, "__like")]
+templates = [(Eq ,""), (In, "__in"), (All, "__all"), (Lt, "__lt"), (Gt, "__gt"), (Bt, "__bt"), (Like, "__like")]
 
-possibleTemplsWithHandlers :: [(ByteString, [Templ], Maybe (Templ, BS, BS) -> Except E Param)]
+possibleTemplsWithHandlers :: [(ByteString, [Templ], ParamType)]
 possibleTemplsWithHandlers = [
-    ("page", [Eq], page),
-    ("tag", [Eq, In, All], tag),
-    ("tag_id", [Eq, In, All], tagId),
-    ("created_at", [Eq, Lt, Gt], createdAt),
-    ("author_name", [Eq, Like], strParam),
-    ("text", [Like], strParam),
-    ("name", [Eq, Like], strParam)
+    ("page", [Eq], ParamTypePage),  --учесть здесь значение 1 по умолчанию
+    ("tag", [Eq, In, All], ParamTypeStr),
+    ("tag_id", [Eq, In, All], ParamTypeInt),
+    ("created_at", [Eq, Lt, Gt], ParamTypeDate),
+    ("author_name", [Eq, Like], ParamTypeStr),
+    ("text", [Like], ParamTypeStr),
+    ("name", [Eq, Like], ParamTypeStr)
     ];
 
 possibleHandlers :: [Maybe (Templ, BS, BS) -> Except E Param]
@@ -61,8 +61,66 @@ concatParams = concatMap snd possibleParams
 
 --------------------------------------PARAMS HANDLERS--------------------------------------------------------------------
 
+(<<$>>) :: (Monad m, Monad n) => (a -> b) -> m (n a) -> m (n b)
+(<<$>>) f mna = do
+    na <- mna
+    return $ f <$> na 
+infixl 4 <<$>>
+
+--продумать, какие ограничения есть для каждой из трех функций
+readParamPage :: Maybe (Templ, BS, BS) -> Except E Param
+readParamPage mtuple = undefined
+
+readParamInt :: Maybe (Templ, BS, BS) -> Except E Param
+readParamInt mtuple = case mtuple of
+    Just (Like, param, bs) -> throwE . RequestError $ template "Шаблон param__like допустим только для строковых параметров: {0}" [show param] 
+    _ -> readParam Int "Int" mtuple
+
+readParamStr :: Maybe (Templ, BS, BS) -> Except E Param
+readParamStr = readParam Str "Str"
+
+readParamDate :: Maybe (Templ, BS, BS) -> Except E Param
+readParamDate mtuple = case mtuple of
+    Just (Like, param, bs) -> throwE . RequestError $ template "Шаблон param__like допустим только для строковых параметров: {0}" [show param] 
+    _ -> readParam Date "Date" mtuple
+
+
+readParam :: Read a => (a -> Val) -> String -> Maybe (Templ, BS, BS) -> Except E Param
+readParam cons consStr mtuple = do
+    let paramType = consStr
+    let listType = template "[{0}]" [paramType]
+    let tupleType = template "({0},{0})" [paramType]
+
+    let cons = Int
+    case mtuple of
+        Nothing -> return ParamNo 
+        Just (templ, param, bs) -> case templ of
+            Eq -> ParamEq . cons <$> ereadMap paramType bs param
+            In -> ParamIn <$> (cons <<$>> ereadMap listType bs param)
+            All -> ParamAll <$> (cons <<$>> ereadMap listType bs param)
+            Lt -> ParamLt . cons <$> ereadMap paramType bs param
+            Gt -> ParamGt . cons <$> ereadMap paramType bs param
+            Bt -> do
+                (val1, val2) <- ereadMap tupleType bs param
+                return $ ParamBt (cons val1, cons val2)
+            Like -> ParamLike . cons <$> ereadMap paramType bs param
+
+
+
+
 --конвертация из bs в типы haskell нужна хотя бы для проверки данных на корректность
 --можно упростить и использовать eitherRead вместо eDecode!
+
+-- page :: Maybe (Templ, BS, BS) -> Except E Param
+-- page mtuple = do
+--     case mtuple of
+--         Nothing -> return . Param Eq $ Int 1
+--         Just (templ, param, bs)|templ==Eq -> do
+--             value <- catchE (eread bs) $ \e -> do
+--                 throwE . RequestError $ template "Параметр запроса {0} должен быть целым числом" [show param]
+--             return . Param Eq $ Int value
+
+
 page :: Maybe (Templ, BS, BS) -> Except E Param
 page mtuple = do
     case mtuple of
@@ -71,6 +129,9 @@ page mtuple = do
             value <- catchE (eread bs) $ \e -> do
                 throwE . RequestError $ template "Параметр запроса {0} должен быть целым числом" [show param]
             return . Param Eq $ Int value
+
+
+
 
 tag :: Maybe (Templ, BS, BS) -> Except E Param
 tag mtuple = do
@@ -116,11 +177,32 @@ tagId = undefined
 
 
 ----------------------------------DECODING----------------------------------------------------------------------------------------------------
-eread :: Read a => BC.ByteString -> Except String a
-eread = except . readEither . BC.unpack
 
+--по сути вся эта городуха нужна только для корректных сообщений об ошибках
+ereadMap :: Read a => String -> BS -> BS -> Except E a
+ereadMap t bs param = case t of
+    "Int" -> eread bs $ template "{0}целым числом" [must]
+    "[Int]" -> eread bs $ template "{0}массивом, состоящим из целых чисел в формате [x,y,z]" [must]
+    "(Int,Int)" -> eread bs $ template "{0}парой целых чисел в формате (x,y)" [must]
+    "String" -> eread bs $ template "{0}строкой" [must]
+    "[String]" -> eread bs $ template "{0}массивом, состоящим из строк в формате [x,y,z]" [must]
+    "(String,String)" -> eread bs $ template "{0} парой строк в формате (x,y)" [must]
+    "Date" -> eread bs $ template "{0}датой в формате YYYY-MM-DD" [must]
+    "[Date]" -> eread bs $ template "{0}списком дат в формате [YYYY-MM-DD,YYYY-MM-DD,YYYY-MM-DD]" [must]
+    "(Date,Date)" -> eread bs $ template "{0}списком дат в формате (YYYY-MM-DD,YYYY-MM-DD)" [must]
+    _ -> throwE . RequestError $ template "Неизвестный тип параметра {1}: {0}" [t, show param]
+    where must = template "Параметр запроса {0} должен быть " [show param]
+
+eread :: Read a => BC.ByteString -> String -> Except E a
+eread bs error = catchE (except . readEither . unpackString $ bs) $ \e -> do
+    throwE . RequestError $ error
+
+-- eread :: Read a => BC.ByteString -> Except String a
+-- eread = except . readEither . BC.unpack
+
+--это для корректной обработки кириллицы
 unpackString :: BC.ByteString -> String
-unpackString = T.unpack . T.decodeUtf8
+unpackString = T.unpack . T.decodeUtf8  
 
 --------------------------------------------PARSE PARAMS WITH ERRORS HANDLING------------------------------------------------------------------
 
