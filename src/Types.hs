@@ -136,7 +136,8 @@ type FuncName = String
 --новая версия
 data Templ = Eq | In | All | Lt | Gt | Bt | Like  deriving (Show, Eq)  
 data Param = ParamEq Val | ParamIn [Val] | ParamAll [Val] | ParamLt Val | ParamGt Val | ParamBt (Val, Val) | ParamLike Val | ParamNo  deriving Show
-data Val = Str String | Int Int | Date Date deriving Show
+data Val = Str  String | Int Int | Date Date deriving Show
+--data Val = Str {getStr :: String} | Int {getInt :: Int} | Date {getDate :: Date} deriving Show
 
 data ParamType = ParamTypePage | ParamTypeStr | ParamTypeInt | ParamTypeDate deriving Show
 --data Order a = OrderEq a | OrderLT a | OrderGT a | OrderAny
@@ -147,6 +148,7 @@ type BSKey = BS --created_at__lt
 type BSValue = BS --"2021-01-01"
 type BSTempl = BS --"__lt"
 type ParamDesc = [(BSName, [Templ], ParamType)]
+type APIName = String
 
 
 --  ???

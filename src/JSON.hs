@@ -161,7 +161,7 @@ setPostTags post tags = post {postContent = newContent} where
 --здесь используется тип Category, который уже проверен на цикличность и корректность в evalCategory
 --возможно чистый код заменить везде на код с обработкой ошибочных паттернов!!!
 getChildCategories :: Param -> [Category] -> Param
-getChildCategories (ParamIn vals) cs  = if length filtered == length cs then ParamsAny else ParamsIn . map getId $ filtered where
+getChildCategories (ParamIn vals) cs  = if length filtered == length cs then ParamNo else ParamIn . map (Int . getId) $ filtered where
     cids = map (\(Int cid) -> cid) vals
     filtered = filter (helper cids) cs
     helper :: [Int] -> Category ->  Bool
@@ -169,6 +169,6 @@ getChildCategories (ParamIn vals) cs  = if length filtered == length cs then Par
         case parent c of
             Nothing -> False 
             Just p -> helper cids p
-getChildCategories (ParamAll cids) cs = error "this pattern should not occur!" 
 getChildCategories ParamNo cs = ParamNo
+getChildCategories param cs = error $ template "Некоректный параметр {0}" [show param]
     

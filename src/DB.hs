@@ -62,16 +62,16 @@ getUsers :: HTTP.Query -> T [User]
 getUsers qs = do 
     Log.setSettings Color.Blue True "getUsers" 
     Log.funcT Log.Debug "..."
-    pageParam <- logT $ Params.page qs
-    query <- logT $ Select.usersQuery pageParam
+    params <- logT $ Params.parseParams qs "users"
+    query <- logT $ Select.usersQuery params
     Query.query_ query
 
 getAuthors :: HTTP.Query -> T [Author]
 getAuthors qs = do
     Log.setSettings Color.Blue True "getAuthors"
     Log.funcT Log.Debug "..."
-    pageParam <- logT $ Params.page qs
-    query <- logT $ Select.authorsQuery pageParam
+    params <- logT $ Params.parseParams qs "authors"
+    query <- logT $ Select.authorsQuery params
     selected <- Query.query_ query
     return $ evalAuthors selected
 
@@ -90,8 +90,8 @@ getTags :: HTTP.Query -> T [Tag]
 getTags qs = do
     Log.setSettings Color.Blue False "getTags" 
     Log.funcT Log.Debug "..."
-    pageParam <- logT $ Params.page qs
-    query <- logT $ Select.tagsQuery pageParam
+    params <- logT $ Params.parseParams qs "tags"
+    query <- logT $ Select.tagsQuery params
     Query.query_ query
 
 
@@ -105,13 +105,13 @@ getPosts qs = do
     categories <- DB.getAllCategories
     Log.setSettings Color.Blue True "getPosts" 
     Log.funcT Log.Debug "..."
-    params <- parseParams qs
+    params <- logT $ Params.parseParams qs "posts"
 
     -- ifJust textParam (putStrLnT . fromJust $ textParam)  --это выводит на консоль корректно, а запрос в бд некорректный
     -- ifJust textParam (putStrLnT . fromJust $ textParam1) --вообще виснет, а запрос в бд корректный
 
     --Если новость принадлежит к некоторой категории, то она принадлежит также и ко всем родительским категориям
-    let categoryWithChildsParams = JSON.getChildCategories categoryParams categories
+    --let categoryWithChildsParams = JSON.getChildCategories categoryParams categories
     --ЗДЕСЬ ОБНОВИТЬ КАТЕГОРИЮ!!!
     let evalParams = undefined params
 

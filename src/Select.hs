@@ -55,8 +55,9 @@ authorsQuery params = return res where
 
 ----------------------------Category-----------------------------------------------------------
 --категории возвращаются все без пагинации, считается, что их немного
+--можно сделать запрос без пагинации для внутреннего использования и с пагинацией для внешнего
 type Category = Row.Category 
-categoriesQuery :: Identity Query
+categoriesQuery ::  Identity Query
 categoriesQuery = return [sql|SELECT * FROM categories|] 
 
 -------------------------Post-------------------------------------------------------------
@@ -156,10 +157,10 @@ postsNewQuery params = return res where
 -------------------------Tag-------------------------------------------------------------
 type Tag = Row.Tag 
 
-tagsQuery :: Param -> Identity Query
-tagsQuery page = return res where
+tagsQuery :: [(BSName, Param)] -> Identity Query
+tagsQuery params = return res where
         res:: SQL.Query
-        res = selectQuery `whereAll` conditions <+> pagination page
+        res = selectQuery `whereAll` conditions <+> pagination (jlookup "page" params)
 
         selectQuery :: SQL.Query
         selectQuery = [sql|SELECT * FROM tags|]
