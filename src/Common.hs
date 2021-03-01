@@ -19,6 +19,7 @@ import Database.PostgreSQL.Simple.Types
 import qualified Data.Text.Lazy as L
 import Data.String
 import Database.PostgreSQL.Simple.Time
+import Data.Maybe
 
 
 ----------------вспомогательные монадические функции -------------------------------------
@@ -133,6 +134,8 @@ instance Convert Object where
 instance Convert Date where 
      convert = BC.pack . show 
 
+
+
 --lazy version
 class ConvertL a where
     convertL :: a -> LC.ByteString
@@ -165,6 +168,39 @@ jc :: Convert a => a -> Maybe BC.ByteString
 jc = Just . convert
 
 
+_1of3 :: (a,b,c) -> a
+_1of3 (a,b,c) = a 
+
+_12of3 :: (a,b,c) -> (a,b)
+_12of3 (a,b,c) = (a,b)
+
+_2of3 :: (a,b,c) -> b
+_2of3 (a,b,c) = b
+
+_3of3 :: (a,b,c) -> c
+_3of3 (a,b,c) = c
+
+
+--фильтруем элементы, для которых результат Nothing
+forMaybe :: [a] -> (a -> Maybe b)  -> [b]
+forMaybe = flip mapMaybe
+
+jlookup :: Eq a => a -> [(a, b)] -> b
+jlookup key list = fromJust $ lookup key list
+
+for :: [a] -> (a -> b) -> [b]
+for = flip map
+
+(<<$>>) :: (Monad m, Monad n) => (a -> b) -> m (n a) -> m (n b)
+(<<$>>) f mna = do
+    na <- mna
+    return $ f <$> na 
+infixl 4 <<$>>
+
+
+--это zipWithM
+-- mapM2 :: (a -> b -> m c) ->  [a] ->  [b] -> m [c]
+-- mapM2 f as bs = mapM (uncurry f) $ zip as bs
 
 
 

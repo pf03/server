@@ -21,6 +21,7 @@ import Database.PostgreSQL.Simple.FromRow
 import Network.Wai.Internal ( Request, Response, ResponseReceived )
 import Database.PostgreSQL.Simple.Time
 import Data.Text (pack, Text(..))
+import qualified Data.ByteString as BC
 
 --Этот модуль содержит все типы в проекте, исключая специфические для каждого из приложений VK, Telegram
 --Специфические нужно разместить в VK.Types и Telegram.Types
@@ -139,6 +140,13 @@ data Val = Str String | Int Int | Date Date deriving Show
 
 data ParamType = ParamTypePage | ParamTypeStr | ParamTypeInt | ParamTypeDate deriving Show
 --data Order a = OrderEq a | OrderLT a | OrderGT a | OrderAny
+
+type BS = BC.ByteString
+type BSName = BS  --created_at
+type BSKey = BS --created_at__lt
+type BSValue = BS --"2021-01-01"
+type BSTempl = BS --"__lt"
+type ParamDesc = [(BSName, [Templ], ParamType)]
 
 
 --  ???
