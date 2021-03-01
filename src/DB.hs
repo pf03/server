@@ -105,25 +105,20 @@ getPosts qs = do
     categories <- DB.getAllCategories
     Log.setSettings Color.Blue True "getPosts" 
     Log.funcT Log.Debug "..."
-    --сделать более универсальный разбор параметров
-    pageParam <- toT $ Params.page qs
-    tagParams <- toT $ Params.tag qs
-    categoryParams <- toT $ Params.category qs
-    textParam1 <- toT $ Params.text qs  
-    mauthorName <- toT $ Params.authorName qs  
-    mname <- toT $ Params.name qs
-    createdAtParam <- logT $ Params.createdAt qs
+    params <- parseParams qs
 
     -- ifJust textParam (putStrLnT . fromJust $ textParam)  --это выводит на консоль корректно, а запрос в бд некорректный
     -- ifJust textParam (putStrLnT . fromJust $ textParam1) --вообще виснет, а запрос в бд корректный
 
     --Если новость принадлежит к некоторой категории, то она принадлежит также и ко всем родительским категориям
     let categoryWithChildsParams = JSON.getChildCategories categoryParams categories
+    --ЗДЕСЬ ОБНОВИТЬ КАТЕГОРИЮ!!!
+    let evalParams = undefined params
 
     --let query = Select.postsNewQuery pageParam tagParams categoryWithChildsParams textParam
     --Log.debugT query
     --это работает!!!!!!! подумать, как вывести на консоль
-    query1 <- logT $ Select.postsNewQuery pageParam tagParams categoryWithChildsParams createdAtParam mname mauthorName textParam1
+    query1 <- logT $ Select.postsNewQuery evalParams
     selected <- Query.query_ query1
     json <- logT $ JSON.evalUnitedPosts categories selected
     writeResponse json

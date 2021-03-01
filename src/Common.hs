@@ -134,6 +134,9 @@ instance Convert Object where
 instance Convert Date where 
      convert = BC.pack . show 
 
+instance Convert Query where 
+     convert (Query bs) = bs
+
 
 
 --lazy version

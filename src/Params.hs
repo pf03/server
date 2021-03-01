@@ -28,7 +28,8 @@ possibleParamDescs = [
     ("page", [Eq], ParamTypePage), 
     ("tag", [Eq, In, All], ParamTypeStr),
     ("tag_id", [Eq, In, All], ParamTypeInt),
-    ("created_at", [Eq, Lt, Gt], ParamTypeDate),
+    ("category_id", [Eq, In], ParamTypeInt),
+    ("created_at", [Eq, Lt, Gt, Bt], ParamTypeDate),
     ("author_name", [Eq, Like], ParamTypeStr),
     ("text", [Like], ParamTypeStr),
     ("name", [Eq, Like], ParamTypeStr)
@@ -134,7 +135,9 @@ readParamAny paramType = case paramType of
 
 --продумать, какие ограничения есть для каждой из трех функций
 readParamPage :: Maybe (Templ, BSKey, BSValue) -> Except E Param
-readParamPage mtuple = undefined
+readParamPage mtuple = case mtuple of
+    Nothing -> return $ ParamEq (Int 1) 
+    _ -> readParam Int "Int" mtuple
 
 readParamInt :: Maybe (Templ, BSKey, BSValue) -> Except E Param
 readParamInt mtuple = case mtuple of

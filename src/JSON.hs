@@ -159,14 +159,16 @@ setPostTags post tags = post {postContent = newContent} where
 
 -------Data manipaltion-------------------
 --здесь используется тип Category, который уже проверен на цикличность и корректность в evalCategory
-getChildCategories :: Params Int -> [Category] -> Params Int
-getChildCategories (ParamsIn cids) cs  = if length filtered == length cs then ParamsAny else ParamsIn . map getId $ filtered where
+--возможно чистый код заменить везде на код с обработкой ошибочных паттернов!!!
+getChildCategories :: Param -> [Category] -> Param
+getChildCategories (ParamIn vals) cs  = if length filtered == length cs then ParamsAny else ParamsIn . map getId $ filtered where
+    cids = map (\(Int cid) -> cid) vals
     filtered = filter (helper cids) cs
     helper :: [Int] -> Category ->  Bool
     helper cids c  = if (getId c) `elem` cids then True else 
         case parent c of
             Nothing -> False 
             Just p -> helper cids p
-getChildCategories (ParamsAll cids) cs = error "this pattern should not occur!" 
-getChildCategories ParamsAny cs = ParamsAny
+getChildCategories (ParamAll cids) cs = error "this pattern should not occur!" 
+getChildCategories ParamNo cs = ParamNo
     

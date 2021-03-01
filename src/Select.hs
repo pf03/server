@@ -23,10 +23,10 @@ import Control.Monad.Identity
 
 ----------------------------------User-----------------------------------------------------------
 type User =  Row.User 
-usersQuery :: Int -> Identity Query
-usersQuery page = return res where
+usersQuery :: [(BSName, Param)] ->  Identity Query
+usersQuery params = return res where
         res:: SQL.Query
-        res = selectQuery `whereAll` conditions <+> pagination page
+        res = selectQuery `whereAll` conditions <+> pagination (jlookup "page" params)
 
         selectQuery :: SQL.Query
         selectQuery = [sql|SELECT * FROM users|]
@@ -40,10 +40,10 @@ usersQuery page = return res where
 -------------------------------Author---------------------------------------------------------
 type Author = Row.Author :. Row.User
 
-authorsQuery :: Int -> Identity Query
-authorsQuery page = return res where
+authorsQuery :: [(BSName, Param)] ->  Identity Query
+authorsQuery params = return res where
         res:: SQL.Query
-        res = selectQuery `whereAll` conditions <+> pagination page
+        res = selectQuery `whereAll` conditions <+> pagination (jlookup "page" params)
 
         selectQuery :: SQL.Query
         selectQuery = [sql|SELECT * FROM authors
@@ -78,10 +78,11 @@ type Post = Row.Post :. Row.Content :. Row.Author :. Row.User :. Maybe Row.TagTo
 --type PostParams = Int :. Params Int  :. Params Int :. Params Date :. Maybe String :. Maybe String
 --попробовать сделать корректный перевод строки в запросе и табуляцию
 --более универсальный тип для параметра, чтобы представить это в виде списка
+--возможно сделать здесь обработку некорректных шаблонов
 postsNewQuery :: [(BSName, Param)] -> Identity SQL.Query
 postsNewQuery params = return res where
         res:: SQL.Query
-        res = selectQuery `whereAll` conditions <+> pagination page
+        res = selectQuery `whereAll` conditions <+> pagination (jlookup "page" params)
         
         selectQuery :: SQL.Query
         selectQuery = [sql|
@@ -94,32 +95,31 @@ postsNewQuery params = return res where
 
         --исключить из результирующего запроса лишние TRUE в функции whereAll ?
         conditions :: [SQL.Query]
-        conditions = map ($ params) [
-                -- postIdsSubquery $ jlookup "tag" params,
-                -- categoriesCond $ jlookup "category" params,
-                -- createdAtCond createdAt,
-                -- nameCond mname,
-                -- authorNameCond mauthorName,
-                -- textCond mtext
-                cond [sql|contents.name|] "name"
-                cond [sql|CONCAT_WS(' ', users.last_name, users.first_name)|] "author_name",
-                cond [sql|contents.text|] "text"
+        conditions =  [postIdsSubquery (jlookup "tag_id" params)] <> 
+                map ($ params) [
+                        cond [sql|contents.category_id|] "category_id",
+                        cond [sql|contents.creation_date|] "created_at",
+                        cond [sql|contents.name|] "name",
+                        cond [sql|CONCAT_WS(' ', users.last_name, users.first_name)|] "author_name",
+                        cond [sql|contents.text|] "text"
                 ]
 
-        -- postIdsSubquery :: Param -> SQL.Query
-        -- postIdsSubquery (ParamsAll tagIds) = [sql|posts.id|] `inSubquery` 
-        --         ([sql|SELECT posts.id FROM posts|] `whereAll` map (\tagId -> postTagsSubquery [tagId]) tagIds)
-        -- postIdsSubquery (ParamsIn tagIds) = [sql|posts.id|] `inSubquery`
-        --         ([sql|SELECT posts.id FROM posts|] `whereAll` [postTagsSubquery tagIds])
-        -- postIdsSubquery ParamsAny = [sql|TRUE|]
+        postIdsSubquery :: Param -> SQL.Query
+        postIdsSubquery (ParamEq val) = postIdsSubquery (ParamIn [val])
+        postIdsSubquery (ParamIn vals) = [sql|posts.id|] `inSubquery`
+                ([sql|SELECT posts.id FROM posts|] `whereAll` [postTagsSubquery vals])
+        postIdsSubquery (ParamAll vals) = [sql|posts.id|] `inSubquery` 
+                ([sql|SELECT posts.id FROM posts|] `whereAll` map (\tagId -> postTagsSubquery [tagId]) vals)
+        postIdsSubquery ParamNo = [sql|TRUE|]
 
-        -- postTagsSubquery :: [Int] -> SQL.Query
-        -- postTagsSubquery tagIds = exists $
-        --         [sql| SELECT 1 FROM contents
-        --                 LEFT JOIN tags_to_contents ON contents.id = tags_to_contents.content_id
-        --                 WHERE contents.id = posts.content_id
-        --                 AND tags_to_contents.tag_id
-        --         |] `inList` tagIds
+
+        postTagsSubquery :: [Val] -> SQL.Query
+        postTagsSubquery tagIds = exists $
+                [sql| SELECT 1 FROM contents
+                        LEFT JOIN tags_to_contents ON contents.id = tags_to_contents.content_id
+                        WHERE contents.id = posts.content_id
+                        AND tags_to_contents.tag_id
+                |] `inList` map val tagIds
         
         -- categoriesCond :: Param -> SQL.Query
         -- categoriesCond ParamsAny = [sql|TRUE|]
@@ -156,7 +156,7 @@ postsNewQuery params = return res where
 -------------------------Tag-------------------------------------------------------------
 type Tag = Row.Tag 
 
-tagsQuery :: Int -> Params -> Identity Query
+tagsQuery :: Param -> Identity Query
 tagsQuery page = return res where
         res:: SQL.Query
         res = selectQuery `whereAll` conditions <+> pagination page
@@ -168,8 +168,8 @@ tagsQuery page = return res where
         conditions = []
 
 -------------------------Pagination------------------------------------------------------
-pagination :: Int -> SQL.Query
-pagination page = template [sql|LIMIT {0} OFFSET {1}|] [q quantity, q $ (page-1)*quantity] where
+pagination :: Param -> SQL.Query
+pagination (ParamEq (Int page)) = template [sql|LIMIT {0} OFFSET {1}|] [q quantity, q $ (page-1)*quantity] where
         quantity = 20
 
 --------------------------Templates-------------------------------------------------------
