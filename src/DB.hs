@@ -39,22 +39,8 @@ import qualified System.Console.ANSI as Color
 import Text.Read
 import qualified Params
 
-testQuery :: HTTP.Query
---testQuery = [("page", Just "1"), ("tags__in", Just "[1,2,3]"),("category", Just "1")]
---testQuery = [("page", Just "1"), ("categories__in", Just "[1]")]
---testQuery = [("page", Just "1"), ("tags__in", Just "[1,2,3]"),("category", Just "1"), ("text", Just "очередной")]
-testQuery = [("tags__in", Just "[1,2,3]"),
-    --("categories__in", Just "[1,2,3]"), 
-    --("text", Just "glasgow"), 
-    --("created_at__lt", Just "2018-05-21"),
-    --("created_at__lt", Just "1925-03-20"),
-    ("name", Just "мгновенье"),
-    --("author_name", Just "Денис") --кириллица здесь не работает, но в постмане работает
-    ("page", Just "1")
-    ]
-
 testq :: IO ()
-testq = runT $ DB.getPosts DB.testQuery
+testq = runT $ DB.getPosts Params.testQuery
 
 --проверить некорректные запросы, например некорректный синтаксис запроса, или два раза и тот же параметр запроса
 --в выходном json убрать префиксы с названиями таблиц бд
@@ -111,14 +97,13 @@ getPosts qs = do
     -- ifJust textParam (putStrLnT . fromJust $ textParam1) --вообще виснет, а запрос в бд корректный
 
     --Если новость принадлежит к некоторой категории, то она принадлежит также и ко всем родительским категориям
-    --let categoryWithChildsParams = JSON.getChildCategories categoryParams categories
     --ЗДЕСЬ ОБНОВИТЬ КАТЕГОРИЮ!!!
-    let evalParams = undefined params
+    let newParams = evalParams params categories
 
     --let query = Select.postsNewQuery pageParam tagParams categoryWithChildsParams textParam
     --Log.debugT query
     --это работает!!!!!!! подумать, как вывести на консоль
-    query1 <- logT $ Select.postsNewQuery evalParams
+    query1 <- logT $ Select.postsNewQuery newParams
     selected <- Query.query_ query1
     json <- logT $ JSON.evalUnitedPosts categories selected
     writeResponse json

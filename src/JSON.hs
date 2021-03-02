@@ -115,7 +115,7 @@ unitePosts = foldr helper [] where
 -- tag2 = Row.Tag 2 "tag2"
 
 evalPost :: [Category] -> Select.Post -> Except E Post
-evalPost cs (rpost :. rcontent :. rauthor :. user :. _ :. mtag)  = do
+evalPost cs (rpost :. rcontent :. _ :.  rauthor :. user :. _ :. mtag)  = do
     let postId = Row.postId rpost
     let categoryId = Row.contentCategoryId rcontent
     let mcategory = findById categoryId cs
@@ -160,6 +160,15 @@ setPostTags post tags = post {postContent = newContent} where
 -------Data manipaltion-------------------
 --здесь используется тип Category, который уже проверен на цикличность и корректность в evalCategory
 --возможно чистый код заменить везде на код с обработкой ошибочных паттернов!!!
+
+--тут можно упростить, если использовать map вместо списка
+evalParams :: [(BSName, Param)] -> [Category] -> [(BSName, Param)]
+evalParams params categories = res where
+    categoryParam = jlookup "category" params;
+    newCategoryParam = getChildCategories categoryParam categories;
+    res = map (\(name, param) -> if name == "category" then (name, newCategoryParam) else (name,param) ) params
+
+
 getChildCategories :: Param -> [Category] -> Param
 getChildCategories (ParamIn vals) cs  = if length filtered == length cs then ParamNo else ParamIn . map (Int . getId) $ filtered where
     cids = map (\(Int cid) -> cid) vals

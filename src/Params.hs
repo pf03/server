@@ -23,23 +23,41 @@ import Data.List
 templates :: [(Templ, BSTempl)]
 templates = [(Eq ,""), (In, "__in"), (All, "__all"), (Lt, "__lt"), (Gt, "__gt"), (Bt, "__bt"), (Like, "__like")]
 
-
-
 possibleParamDescs :: APIName -> ParamDesc
 possibleParamDescs apiName = case apiName of
     "posts" -> [
-        ("page", [Eq], ParamTypePage), 
-        ("tag", [Eq, In, All], ParamTypeStr),
-        ("tag_id", [Eq, In, All], ParamTypeInt),
-        ("category_id", [Eq, In], ParamTypeInt),
         ("created_at", [Eq, Lt, Gt, Bt], ParamTypeDate),
-        ("author_name", [Eq, Like], ParamTypeStr),
-        ("text", [Like], ParamTypeStr),
-        ("name", [Eq, Like], ParamTypeStr)
-        ];
+            ("author_name", [Eq, Like], ParamTypeStr),
+            ("category_id", [Eq, In], ParamTypeInt),
+            ("tag_id", [Eq, In, All], ParamTypeInt),
+            ("name", [Eq, Like], ParamTypeStr),
+            ("text", [Like], ParamTypeStr),
+            ("contains", [Like], ParamTypeStr),  --API новостей должно поддерживать поиск по строке, которая может быть найдена либо в текстовом контенте, либо в имени автора, либо в названии категории/тега
+            ("order_by", [Eq], ParamTypeSort ["created_at", "author_name", "category_id", "photos"]), 
+            ("page", [Eq], ParamTypePage)
+        ]
+    _ | apiName `elem` ["users","authors","categories","posts","tags"] -> [("page", [Eq], ParamTypePage)]
 
-    _ -> [("page", [Eq], ParamTypePage)]
 
+testQuery :: Query
+--testQuery = [("page", Just "1"), ("tags__in", Just "[1,2,3]"),("category", Just "1")]
+--testQuery = [("page", Just "1"), ("categories__in", Just "[1]")]
+--testQuery = [("page", Just "1"), ("tags__in", Just "[1,2,3]"),("category", Just "1"), ("text", Just "очередной")]
+testQuery = [
+        --("created_at__bt", Just "(2018-05-21,2030-05-21)"),
+        --("tag_id__in", Just "[1,2,3]"),
+        --("tag__in", Just "[\"Haskell\",\"Python\"]"), --внутренние строки в кавычках. Наружные опционально (см ereadMap). Это не работает (нет в ТЗ)
+        --("categories__in", Just "[1,2,3]"),  
+        
+        --("created_at__lt", Just "1925-03-20"),
+        --("name", Just "мгновенье"),
+        --("text__like", Just "glasgow"),
+        --("author_name", Just "Денис") --кириллица здесь не работает, но в постмане работает
+        --("contains__like", Just "haskell"),
+        ("order_by", Just "category_id"),
+        ("page", Just "1")
+    ]
+    
 possibleParamNames :: APIName -> [BSName]
 possibleParamNames = map _1of3 . possibleParamDescs
 
@@ -109,6 +127,7 @@ readParamAny paramType = case paramType of
     ParamTypeInt -> readParamInt
     ParamTypeStr -> readParamStr
     ParamTypeDate -> readParamDate
+    ParamTypeSort list -> readParamSort list
 
 
 --продумать, какие ограничения есть для каждой из трех функций
@@ -123,12 +142,21 @@ readParamInt mtuple = case mtuple of
     _ -> readParam Int "Int" mtuple
 
 readParamStr :: Maybe (Templ, BSKey, BSValue) -> Except E Param
-readParamStr = readParam Str "Str"
+readParamStr = readParam Str "String"
 
 readParamDate :: Maybe (Templ, BSKey, BSValue) -> Except E Param
 readParamDate mtuple = case mtuple of
     Just (Like, param, bs) -> throwE . RequestError $ template "Шаблон param__like допустим только для строковых параметров: {0}" [show param] 
     _ -> readParam Date "Date" mtuple
+
+readParamSort :: [BSName] -> Maybe (Templ, BSKey, BSValue) -> Except E Param
+readParamSort list mtuple= do
+    case mtuple of 
+        Just (Like, param, bs)  -> if bs `elem` list 
+            then readParam Str "String" mtuple
+            else throwE . RequestError $ template "Параметр {0} должен быть элементом списка {1}" [show param, show list]
+        _ -> readParam Str "String" mtuple
+
 
 
 readParam :: Read a => (a -> Val) -> String -> Maybe (Templ, BSKey, BSValue)  -> Except E Param
@@ -157,7 +185,11 @@ ereadMap t bs param = case t of
     "Int" -> eread bs $ template "{0}целым числом" [must]
     "[Int]" -> eread bs $ template "{0}массивом, состоящим из целых чисел в формате [x,y,z]" [must]
     "(Int,Int)" -> eread bs $ template "{0}парой целых чисел в формате (x,y)" [must]
-    "String" -> eread bs $ template "{0}строкой" [must]
+    --вариант со строковым параметром без кавычек ?text__like=glasgow
+    "String" -> eread ("\"" <> bs <> "\"") $ template "{0}строкой" [must]
+    --вариант со строковым параметром в кавычках ?text__like="glasgow"
+    --"String" -> eread bs $ template "{0}строкой" [must]
+    --каждая строка внутри массива или кортежа должна быть в кавычках!!! ?tag__in=["python","haskell"]
     "[String]" -> eread bs $ template "{0}массивом, состоящим из строк в формате [x,y,z]" [must]
     "(String,String)" -> eread bs $ template "{0} парой строк в формате (x,y)" [must]
     "Date" -> eread bs $ template "{0}датой в формате YYYY-MM-DD" [must]

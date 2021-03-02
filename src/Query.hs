@@ -45,6 +45,9 @@ execute__ q = do
 whereAll :: Query -> [Query] -> Query
 whereAll q conditions = Query.concat2 Query.where_ q $ Query.all conditions
 
+any :: [Query] -> Query
+any = Query.concat [sql|OR|]
+
 all :: [Query] -> Query
 all = Query.concat Query.and
 
@@ -89,6 +92,9 @@ inSubquery field subquery  = template [sql|{0} IN ({1})|] [field, subquery]
 
 exists :: Query -> Query
 exists q = template [sql|EXISTS ({0})|] [q]
+
+brackets :: Query -> Query
+brackets q = template [sql|({0})|] [q]
 
 emp = Query.query_ [sql|SELECT posts.id FROM posts WHERE FALSE|] ::T [Only Int]  --or TRUE
 

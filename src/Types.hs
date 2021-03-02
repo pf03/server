@@ -139,7 +139,7 @@ data Param = ParamEq Val | ParamIn [Val] | ParamAll [Val] | ParamLt Val | ParamG
 data Val = Str  String | Int Int | Date Date deriving Show
 --data Val = Str {getStr :: String} | Int {getInt :: Int} | Date {getDate :: Date} deriving Show
 
-data ParamType = ParamTypePage | ParamTypeStr | ParamTypeInt | ParamTypeDate deriving Show
+data ParamType = ParamTypePage | ParamTypeStr | ParamTypeInt | ParamTypeDate | ParamTypeSort [BSName] deriving Show
 --data Order a = OrderEq a | OrderLT a | OrderGT a | OrderAny
 
 type BS = BC.ByteString
