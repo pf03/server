@@ -20,13 +20,13 @@ import Common
 import Query
 import qualified Data.ByteString as BC
 import Control.Monad.Identity
-
+import Data.Map as M ((!))
 ----------------------------------User-----------------------------------------------------------
 type User =  Row.User 
-usersQuery :: [(BSName, Param)] ->  Identity Query
+usersQuery :: ParamsMap Param ->  Identity Query
 usersQuery params = return res where
         res:: SQL.Query
-        res = selectQuery `whereAll` conditions <+> pagination (jlookup "page" params)
+        res = selectQuery `whereAll` conditions <+> pagination (params ! "page")
 
         selectQuery :: SQL.Query
         selectQuery = [sql|SELECT * FROM users|]
@@ -40,10 +40,10 @@ usersQuery params = return res where
 -------------------------------Author---------------------------------------------------------
 type Author = Row.Author :. Row.User
 
-authorsQuery :: [(BSName, Param)] ->  Identity Query
+authorsQuery :: ParamsMap Param ->  Identity Query
 authorsQuery params = return res where
         res:: SQL.Query
-        res = selectQuery `whereAll` conditions <+> pagination (jlookup "page" params)
+        res = selectQuery `whereAll` conditions <+> pagination (params ! "page")
 
         selectQuery :: SQL.Query
         selectQuery = [sql|SELECT * FROM authors
@@ -80,11 +80,11 @@ type Post = Row.Post :. Row.Content :. Row.Category :. Row.Author :. Row.User :.
 --попробовать сделать корректный перевод строки в запросе и табуляцию
 --более универсальный тип для параметра, чтобы представить это в виде списка
 --возможно сделать здесь обработку некорректных шаблонов
-postsNewQuery :: [(BSName, Param)] -> Identity SQL.Query
+postsNewQuery :: ParamsMap Param -> Identity SQL.Query
 postsNewQuery params = return res where
 
         p :: BSName -> Param
-        p name = jlookup name params
+        p name = params ! name
 
         res:: SQL.Query
         res = selectQuery `whereAll` conditions  <+> orderBy (p "order_by") <+> pagination (p "page")
@@ -200,10 +200,10 @@ postsNewQuery params = return res where
 -------------------------Tag-------------------------------------------------------------
 type Tag = Row.Tag 
 
-tagsQuery :: [(BSName, Param)] -> Identity Query
+tagsQuery :: ParamsMap Param -> Identity Query
 tagsQuery params = return res where
         res:: SQL.Query
-        res = selectQuery `whereAll` conditions <+> pagination (jlookup "page" params)
+        res = selectQuery `whereAll` conditions <+> pagination (params ! "page")
 
         selectQuery :: SQL.Query
         selectQuery = [sql|SELECT * FROM tags|]

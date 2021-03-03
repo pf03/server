@@ -20,8 +20,9 @@ import Query
 import qualified Data.ByteString as BC
 import Control.Monad.Identity
 import Select
+import Data.Map as M ((!))
 
-tag :: [(BSName, Param)] ->  Identity Query
+tag :: ParamsMap Param ->  Identity Query
 tag params = return res where
-    ParamEq v = jlookup "name" params
+    ParamEq v = params ! "name"
     res = template [sql|INSERT into tags (name) values ({0}})|] [val v]

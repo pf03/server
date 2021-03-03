@@ -21,6 +21,7 @@ import Data.List
 import Control.Monad.Trans.Except
 import Database.PostgreSQL.Simple
 import Class
+import qualified Data.Map as M
 
 
 data Post = Post {
@@ -162,11 +163,13 @@ setPostTags post tags = post {postContent = newContent} where
 --возможно чистый код заменить везде на код с обработкой ошибочных паттернов!!!
 
 --тут можно упростить, если использовать map вместо списка
-evalParams :: [(BSName, Param)] -> [Category] -> [(BSName, Param)]
+evalParams :: ParamsMap Param -> [Category] -> ParamsMap Param
 evalParams params categories = res where
-    categoryParam = jlookup "category" params;
-    newCategoryParam = getChildCategories categoryParam categories;
-    res = map (\(name, param) -> if name == "category" then (name, newCategoryParam) else (name,param) ) params
+    res = M.adjust (\oldParam  -> getChildCategories oldParam categories) "category" params
+    -- categoryParam = params ! "category" ;
+    -- newCategoryParam = getChildCategories categoryParam categories;
+    -- --res = map (\(name, param) -> if name == "category" then (name, newCategoryParam) else (name,param) ) params
+    -- res = M.insert "category" newCategoryParam 
 
 
 getChildCategories :: Param -> [Category] -> Param
