@@ -38,6 +38,8 @@ import qualified Data.Text.IO as T
 import qualified System.Console.ANSI as Color
 import Text.Read
 import qualified Params
+import qualified Insert
+import API
 
 testq :: IO ()
 testq = runT $ DB.getPosts Params.testQuery
@@ -48,7 +50,7 @@ getUsers :: HTTP.Query -> T [User]
 getUsers qs = do 
     Log.setSettings Color.Blue True "getUsers" 
     Log.funcT Log.Debug "..."
-    params <- logT $ Params.parseParams qs "users"
+    params <- logT $ Params.parseParams qs $ API API.Select API.User 
     query <- logT $ Select.usersQuery params
     Query.query_ query
 
@@ -56,7 +58,7 @@ getAuthors :: HTTP.Query -> T [Author]
 getAuthors qs = do
     Log.setSettings Color.Blue True "getAuthors"
     Log.funcT Log.Debug "..."
-    params <- logT $ Params.parseParams qs "authors"
+    params <- logT $ Params.parseParams qs $ API API.Select API.Author 
     query <- logT $ Select.authorsQuery params
     selected <- Query.query_ query
     return $ evalAuthors selected
@@ -76,7 +78,7 @@ getTags :: HTTP.Query -> T [Tag]
 getTags qs = do
     Log.setSettings Color.Blue False "getTags" 
     Log.funcT Log.Debug "..."
-    params <- logT $ Params.parseParams qs "tags"
+    params <- logT $ Params.parseParams qs $ API API.Select API.Tag 
     query <- logT $ Select.tagsQuery params
     Query.query_ query
 
@@ -91,7 +93,7 @@ getPosts qs = do
     categories <- DB.getAllCategories
     Log.setSettings Color.Blue True "getPosts" 
     Log.funcT Log.Debug "..."
-    params <- logT $ Params.parseParams qs "posts"
+    params <- logT $ Params.parseParams qs $ API API.Select API.Post 
 
     -- ifJust textParam (putStrLnT . fromJust $ textParam)  --это выводит на консоль корректно, а запрос в бд некорректный
     -- ifJust textParam (putStrLnT . fromJust $ textParam1) --вообще виснет, а запрос в бд корректный
@@ -109,7 +111,19 @@ getPosts qs = do
     writeResponse json
     return json
 
-
-
 --многострочные запросы некорректно выводятся на консоль
 --их нужно выводить куда-нибудь в файл
+
+insertTag :: HTTP.Query -> T()
+insertTag qs = do
+    Log.setSettings Color.Blue False "insertTag" 
+    Log.funcT Log.Debug "..."
+    params <- logT $ Params.parseParams qs $ API API.Insert API.Tag 
+    query <- logT $ Insert.tag params
+    Query.execute__ query
+
+editTag :: HTTP.Query -> T()
+editTag = undefined
+
+deleteTag :: HTTP.Query -> T()
+deleteTag = undefined

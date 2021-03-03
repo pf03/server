@@ -205,5 +205,8 @@ infixl 4 <<$>>
 -- mapM2 :: (a -> b -> m c) ->  [a] ->  [b] -> m [c]
 -- mapM2 f as bs = mapM (uncurry f) $ zip as bs
 
+-- forM2 :: (a -> b -> m c) ->  [a] ->  [b] -> m [c]
+-- forM2 f as bs = mapM (uncurry f) $ zip as bs
+
 
 

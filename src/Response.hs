@@ -46,6 +46,10 @@ get req = do
         ["categories"] -> Response.sendData DB.getCategories pathInfo queryString 
         ["posts"] -> Response.sendData DB.getPosts pathInfo queryString
         ["tags"] -> Response.sendData DB.getTags pathInfo queryString
+        ["insert_tag"] -> Response.sendData DB.insertTag pathInfo queryString
+        ["edit_tag"] -> Response.sendData DB.editTag pathInfo queryString
+        ["delete_tag"] -> Response.sendData DB.deleteTag pathInfo queryString
+
         _ -> throwT . RequestError $ template  "Неизвестный путь: {0}"  [show . rawPathInfo $ req]
 
 sendData :: ( ToJSON a, Show a) => (Query -> T a) -> PathInfo -> Query  -> T Response

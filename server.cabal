@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: a078b3840bb90cf023b159281604c3722181bb3864ff0a2d056fe6124169c173
+-- hash: 1718196261d7eb1c4758edb6876b9d2cb0f68ebedb7497a169f247e1e70fa4ad
 
 name:           server
 version:        0.1.0.0
@@ -27,12 +27,14 @@ source-repository head
 
 library
   exposed-modules:
+      API
       Class
       Common
       Config
       DB
       Encode
       Error
+      Insert
       JSON
       Log
       Log.Color

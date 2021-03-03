@@ -22,6 +22,7 @@ import Network.Wai.Internal ( Request, Response, ResponseReceived )
 import Database.PostgreSQL.Simple.Time
 import Data.Text (pack, Text(..))
 import qualified Data.ByteString as BC
+import qualified Data.Map as M
 
 --Этот модуль содержит все типы в проекте, исключая специфические для каждого из приложений VK, Telegram
 --Специфические нужно разместить в VK.Types и Telegram.Types
@@ -92,11 +93,11 @@ instance ToJSON ConnectInfo
 
 ---------------------------------------API-------------------------------------------------------------
 
-data API a  = API {
-    funcName :: FuncName,
-    pathInfo :: PathInfo,
-    handler :: T [a]
-}
+-- data API a  = API {
+--     funcName :: FuncName,
+--     pathInfo :: PathInfo,
+--     handler :: T [a]
+-- }
 
 --------------------------------Parse && Logic----------------------------------------------------------
 type Token = String
@@ -147,9 +148,28 @@ type BSName = BS  --created_at
 type BSKey = BS --created_at__lt
 type BSValue = BS --"2021-01-01"
 type BSTempl = BS --"__lt"
-type ParamDesc = [(BSName, [Templ], ParamType)]
+type ParamsMap = M.Map BSName
+--type ParamDesc = [(BSName, [Templ], ParamType)]
+--type ParamDesc2 = [(BSName, [Templ], ParamType, Bool)] --последнее - обязательность --использовать адт здесь       
+
+--это потом тоже под мап переделаем
+-- data ParamDesc = ParamDesc {
+--     bsname :: BSName,
+--     templs :: [Templ],
+--     paramType :: ParamType,
+--     must :: Bool
+-- } 
+
+data ParamDesc = ParamDesc {
+    templs :: [Templ],
+    paramType :: ParamType,
+    must :: Bool
+}      
 type APIName = String
 
+
+
+--"users","authors","categories","tags
 
 --  ???
 -- constructParam :: Templ -> Val -> Param
