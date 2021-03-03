@@ -191,6 +191,9 @@ forMaybe = flip mapMaybe
 jlookup :: Eq a => a -> [(a, b)] -> b
 jlookup key list = fromJust $ lookup key list
 
+-- jlookup :: Map k v -> v
+-- jlookup key list = fromJust $ lookup key list
+
 for :: [a] -> (a -> b) -> [b]
 for = flip map
 

@@ -81,33 +81,46 @@ testQuery = [
         ("page", Just "1")
     ]
     
-possibleParamNames :: API -> [BSName]
-possibleParamNames = map bsname . possibleParamDescs
+-- possibleParamNames :: ParamDesc -> [BSName]
+-- possibleParamNames = map bsname . possibleParamDescs
 
-possibleParamTempls :: API -> [(BSName, [Templ])]
-possibleParamTempls = map (\paramDesc -> (bsname paramDesc, templs paramDesc)) . possibleParamDescs
+-- possibleParamTempls :: API -> [(BSName, [Templ])]
+-- possibleParamTempls = map (\paramDesc -> (bsname paramDesc, templs paramDesc)) . possibleParamDescs
 
-possibleParams :: API -> [(BSName, [BSKey])]
-possibleParams api = for (possibleParamDescs api) $ \(ParamDesc name tpls _ _) ->
-        (name, for tpls $ \tpl -> name <> jlookup tpl templates)
+-- possibleParams :: API -> [(BSName, [BSKey])]
+-- possibleParams api = for (possibleParamDescs api) $ \(ParamDesc name tpls _ _) ->
+--         (name, for tpls $ \tpl -> name <> jlookup tpl templates)
 
-concatParams :: API -> [BSKey]
-concatParams = concatMap snd . possibleParams 
+possibleParams :: BSName -> ParamDesc -> [BSKey]
+possibleParams bsname (ParamDesc templs _ _) = for templs $ \templ -> bsname <> jlookup templ templates
+
+concatParams :: ParamsMap ParamDesc -> [BSKey]
+concatParams = undefined --concatMap snd . possibleParams 
 
 --------------------------------------------PARSE PARAMS WITH ERRORS HANDLING------------------------------------------------------------------
 
 
+forMapM :: Monad m => M.Map k v -> (k -> m w) -> m (M.Map k w)
+forMapM mp f = sequence $ M.mapWithKey (\k _ -> f k) mp
+
+
+
 parseParams :: Query -> API.API -> Except E (ParamsMap Param)
 parseParams qs api = do
-    checkParams api (map fst qs)
-    tuples <- groupParams api qs
-    let names = map bsname $ possibleParamDescs api
-    let paramTypes = map paramType $ possibleParamDescs api
-    params <- forM (possibleParamNames api) $ \name -> do
-        readParamAny (jlookup name paramTypes) (jlookup name tuples)
-        undefined --forM2?
-    return $ zip (possibleParamNames api) params
-    undefined
+    let paramDescs = possibleParamDescs api
+    let names = M.keys paramDescs
+    checkParams paramDescs (map fst qs)
+    tuples <- groupParams qs paramDescs
+    --let names = map bsname $ possibleParamDescs api
+    --let paramTypes = map paramType $ possibleParamDescs api
+    -- params <- forM (possibleParamNames api) $ \name -> do
+    --     readParamAny (jlookup name paramTypes) (jlookup name tuples)
+    --     undefined --forM2?
+    --сделать функцию для каждого элемента Map
+    params <- forMapM paramDescs $ \name -> do 
+        readParamAny  (paramType $ paramDescs M.! name)  (tuples M.!? name)
+    -- return $ zip (possibleParamNames api) params
+    return params
 
 -- parseParams :: Query -> APIName -> Except E [(BSName, Param)]
 -- parseParams qs apiName = do
@@ -124,7 +137,7 @@ parseParams qs api = do
 --     if param `elem` concatParams apiName then return () else
 --         throwE . RequestError $ template "Недопустимый параметр запроса: {0}" [show param]
 
-checkParams :: API.API -> [BS] -> Except E ()
+checkParams :: ParamsMap ParamDesc -> [BS] -> Except E ()
 checkParams api params  = do 
     --проверка на лишние параметры
     forM_ params $ \param -> do 
@@ -135,49 +148,53 @@ checkParams api params  = do
 --слишком запутанный код, нужен рефакторинг
 --сделать единообразные типы Map BSName
 --type BSMap = Map BSName
-checkMustParams :: API.API -> ParamsMap (Templ, BSKey, BSValue)-> Except E ()
-checkMustParams api pmap = do 
-    --проверка на на необходимые параметры
-    forM_ (possibleParamDescs api) $ \(ParamDesc bsname _ _ must)  -> when must $ do
-            case M.lookup bsname pmap of
-                Just _ -> return ()
-                Nothing -> throwE . RequestError $ template "Отсутствует обязательный параметр запроса: {0}" [show bsname]
+-- checkMustParams :: API.API -> ParamsMap (Templ, BSKey, BSValue)-> Except E ()
+-- checkMustParams api pmap = do 
+--     --проверка на на необходимые параметры
+--     forM_ (possibleParamDescs api) $ \(ParamDesc bsname _ _ must)  -> when must $ do
+--             case M.lookup bsname pmap of
+--                 Just _ -> return ()
+--                 Nothing -> throwE . RequestError $ template "Отсутствует обязательный параметр запроса: {0}" [show bsname]
     
 
 
-
+forWithKey f = flip M.mapWithKey
 
 --выбираем не более одного из возможных шаблонов для кажого возможного параметра
-groupParams :: API -> Query-> Except E ( ParamsMap (Templ, BSKey, BSValue) )
-groupParams api qs = do
-    let names = map bsname $ possibleParamDescs api
-    list <- forM names $ \name -> do
-        mtuple <- findTemplate api qs name 
-        case mtuple of
-            Just tuple -> return [(name, tuple)]
-            Nothing -> return []
-    return $M.fromList $ concat list
+groupParams :: Query -> ParamsMap ParamDesc-> Except E ( ParamsMap (Templ, BSKey, BSValue) )
+groupParams qs paramDescs = do
+
+    M.map fromJust . M.filter isJust <$> sequence (M.mapWithKey (findTemplate qs) paramDescs)
+
+    --let names = map bsname $ possibleParamDescs api
+    -- list <- (flip mapWithKey)  paramDescs $ \name paramDesc -> do
+    --     mtuple <- findTemplate api qs name 
+    --     case mtuple of
+    --         Just tuple -> return [(name, tuple)]
+    --         Nothing -> return []
+    -- return $M.fromList $ concat list
 
 --сложноватый код
 --проверка всей строки запроса
 
-findTemplate :: API -> [(BS, Maybe BS)] -> BSName -> Except E (Maybe (Templ, BSKey, BSValue))
-findTemplate api qs name = do
-    let tmpls = jlookup name $ possibleParamTempls api
-    let pp = jlookup name $ possibleParams api
-    let filtered = forMaybe qs $ \q -> checkParam api q name
+--проверка на дублирующие, взаимоисключающие, обязательные параметры и параметры без значения (все проверки, кроме проверки на лишние параметры)
+findTemplate :: [(BS, Maybe BS)] -> BSName -> ParamDesc -> Except E (Maybe (Templ, BSKey, BSValue))
+findTemplate qs name paramDesc@(ParamDesc templs paramType must) = do
+    let pp = possibleParams name paramDesc
+    let filtered = forMaybe qs $ \q -> checkParam q name paramDesc
     case filtered of
-        [] -> return Nothing
+        [] -> case  must of
+            False ->  return Nothing
+            True -> throwE . RequestError $ template "Не указан обязательный параметр {0}" [show name]
         [(tmpl, param, Nothing)] -> throwE . RequestError $ template "Не указано значение параметра {0}" [show param]
         [(tmpl, param, Just value)] -> return . Just $ (tmpl, param, value)
         (r:rs) -> throwE . RequestError $ template "В списке параметров запроса должно быть не более одного значения из списка {0}, а их {1}: {2}"
             [show pp, show. length $ filtered, show filtered]
 
 --проверка одного элемента строки запроса
-checkParam :: API -> (BS, Maybe BS) -> BS -> Maybe (Templ, BS, Maybe BS)
-checkParam api (param, mvalue) name = res where
-    tmpls = jlookup name $ possibleParamTempls api
-    mtmpl = find (\tpl -> param == name <> jlookup tpl templates ) tmpls
+checkParam :: (BS, Maybe BS) -> BSName -> ParamDesc -> Maybe (Templ, BSKey, Maybe BSValue)
+checkParam (param, mvalue) name (ParamDesc templs _ _) = res where
+    mtmpl = find (\tpl -> param == name <> jlookup tpl templates ) templs
     res = case mtmpl of 
         Nothing -> Nothing 
         Just tmpl -> Just (tmpl, param, mvalue)
