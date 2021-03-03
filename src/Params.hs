@@ -25,21 +25,6 @@ import qualified Data.Map as M
 templates :: [(Templ, BSTempl)]
 templates = [(Eq ,""), (In, "__in"), (All, "__all"), (Lt, "__lt"), (Gt, "__gt"), (Bt, "__bt"), (Like, "__like")]
 
--- possibleParamDescs :: APIName -> ParamDesc
--- possibleParamDescs apiName = case apiName of
---     "posts" -> [
---         ("created_at", [Eq, Lt, Gt, Bt], ParamTypeDate),
---             ("author_name", [Eq, Like], ParamTypeStr),
---             ("category_id", [Eq, In], ParamTypeInt),
---             ("tag_id", [Eq, In, All], ParamTypeInt),
---             ("name", [Eq, Like], ParamTypeStr),
---             ("text", [Like], ParamTypeStr),
---             ("contains", [Like], ParamTypeStr),  --API новостей должно поддерживать поиск по строке, которая может быть найдена либо в текстовом контенте, либо в имени автора, либо в названии категории/тега
---             ("order_by", [Eq], ParamTypeSort ["created_at", "author_name", "category_id", "photos"]), 
---             ("page", [Eq], ParamTypePage)
---         ]
---     _ | apiName `elem` ["users","authors","categories","tags"] -> [("page", [Eq], ParamTypePage)]
-
 possibleParamDescs :: API.API -> ParamsMap ParamDesc
 possibleParamDescs (API.API queryType apiType) = M.fromList list where
     param a b c d = (a, ParamDesc b c d)
@@ -60,36 +45,6 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
         API.Insert -> case apiType of 
             API.Tag -> [param "name" [Eq] ParamTypeStr True]
 
-
-testQuery :: Query
---testQuery = [("page", Just "1"), ("tags__in", Just "[1,2,3]"),("category", Just "1")]
---testQuery = [("page", Just "1"), ("categories__in", Just "[1]")]
---testQuery = [("page", Just "1"), ("tags__in", Just "[1,2,3]"),("category", Just "1"), ("text", Just "очередной")]
-testQuery = [
-        --("created_at__bt", Just "(2018-05-21,2030-05-21)"),
-        --("tag_id__in", Just "[1,2,3]"),
-        --("tag__in", Just "[\"Haskell\",\"Python\"]"), --внутренние строки в кавычках. Наружные опционально (см ereadMap). Это не работает (нет в ТЗ)
-        --("categories__in", Just "[1,2,3]"),  
-        
-        --("created_at__lt", Just "1925-03-20"),
-        --("name", Just "мгновенье"),
-        --("text__like", Just "glasgow"),
-        --("author_name", Just "Денис") --кириллица здесь не работает, но в постмане работает
-        --("contains__like", Just "haskell"),
-        ("order_by", Just "category_id"),
-        ("page", Just "1")
-    ]
-    
--- possibleParamNames :: ParamDesc -> [BSName]
--- possibleParamNames = map bsname . possibleParamDescs
-
--- possibleParamTempls :: API -> [(BSName, [Templ])]
--- possibleParamTempls = map (\paramDesc -> (bsname paramDesc, templs paramDesc)) . possibleParamDescs
-
--- possibleParams :: API -> [(BSName, [BSKey])]
--- possibleParams api = for (possibleParamDescs api) $ \(ParamDesc name tpls _ _) ->
---         (name, for tpls $ \tpl -> name <> jlookup tpl templates)
-
 possibleParams :: BSName -> ParamDesc -> [BSKey]
 possibleParams bsname (ParamDesc templs _ _) = for templs $ \templ -> bsname <> jlookup templ templates
 
@@ -98,52 +53,12 @@ concatParams = concat . M.mapWithKey possibleParams
 
 --------------------------------------------PARSE PARAMS WITH ERRORS HANDLING------------------------------------------------------------------
 
-
-forMapM :: Monad m => M.Map k v -> (k -> m w) -> m (M.Map k w)
-forMapM mp f = sequence $ M.mapWithKey (\k _ -> f k) mp
-
-forMapWithKeyM :: Monad m => M.Map k v -> (k -> v -> m w) -> m (M.Map k w)
-forMapWithKeyM mp f = sequence $ M.mapWithKey f mp
-
-forMap :: M.Map k v -> (k -> w) -> M.Map k w
-forMap mp f = M.mapWithKey (\k _ -> f k) mp
-
-
-
 parseParams :: Query -> API.API -> Except E (ParamsMap Param)
 parseParams qs api = do
     let paramDescs = possibleParamDescs api
     let names = M.keys paramDescs
     checkParams qs paramDescs
     forMapWithKeyM paramDescs $ parseParam qs
-
-
-    -- tuples <- groupParams qs paramDescs
-    --let names = map bsname $ possibleParamDescs api
-    --let paramTypes = map paramType $ possibleParamDescs api
-    -- params <- forM (possibleParamNames api) $ \name -> do
-    --     readParamAny (jlookup name paramTypes) (jlookup name tuples)
-    --     undefined --forM2?
-    --сделать функцию для каждого элемента Map
-    -- params <- forMapM paramDescs $ \name -> do 
-    --     readParamAny  (paramType $ paramDescs M.! name)  (tuples M.!? name)
-    -- -- return $ zip (possibleParamNames api) params
-    -- return params
-
--- parseParams :: Query -> APIName -> Except E [(BSName, Param)]
--- parseParams qs apiName = do
---     checkParams apiName (map fst qs)
---     tuples <- groupParams apiName qs
---     let paramTypes = map _3of3 $ possibleParamDescs apiName
---     params <- zipWithM readParamAny paramTypes tuples
---     return $ zip (possibleParamNames apiName) params
-
---проверка параметров на предмет лишних
-
--- checkParams :: APIName -> [BS] -> Except E ()
--- checkParams apiName params  = forM_ params $ \param -> do 
---     if param `elem` concatParams apiName then return () else
---         throwE . RequestError $ template "Недопустимый параметр запроса: {0}" [show param]
 
 checkParams :: Query -> ParamsMap ParamDesc -> Except E ()
 checkParams qs paramDesc  = do 
@@ -153,43 +68,13 @@ checkParams qs paramDesc  = do
     forM_ params $ \param -> do 
     if param `elem` cp then return () else
         throwE . RequestError $ template "Недопустимый параметр запроса: {0}" [show param]
-
-
---слишком запутанный код, нужен рефакторинг
---сделать единообразные типы Map BSName
---type BSMap = Map BSName
--- checkMustParams :: API.API -> ParamsMap (Templ, BSKey, BSValue)-> Except E ()
--- checkMustParams api pmap = do 
---     --проверка на на необходимые параметры
---     forM_ (possibleParamDescs api) $ \(ParamDesc bsname _ _ must)  -> when must $ do
---             case M.lookup bsname pmap of
---                 Just _ -> return ()
---                 Nothing -> throwE . RequestError $ template "Отсутствует обязательный параметр запроса: {0}" [show bsname]
     
 parseParam :: Query -> BSName -> ParamDesc -> Except E Param
 parseParam qs bsname paramDesc@(ParamDesc _ paramType _)  = do
     mtuple <- findTemplate qs bsname paramDesc
     readParamAny paramType mtuple
 
-forWithKey f = flip M.mapWithKey
-
---выбираем не более одного из возможных шаблонов для кажого возможного параметра
--- groupParams :: Query -> ParamsMap ParamDesc-> Except E ( ParamsMap (Templ, BSKey, BSValue) )
--- groupParams qs paramDescs = do
-
---     M.map fromJust . M.filter isJust <$> sequence (M.mapWithKey (findTemplate qs) paramDescs)
-
-    --let names = map bsname $ possibleParamDescs api
-    -- list <- (flip mapWithKey)  paramDescs $ \name paramDesc -> do
-    --     mtuple <- findTemplate api qs name 
-    --     case mtuple of
-    --         Just tuple -> return [(name, tuple)]
-    --         Nothing -> return []
-    -- return $M.fromList $ concat list
-
---сложноватый код
 --проверка всей строки запроса
-
 --проверка на дублирующие, взаимоисключающие, обязательные параметры и параметры без значения (все проверки, кроме проверки на лишние параметры)
 findTemplate :: [(BS, Maybe BS)] -> BSName -> ParamDesc -> Except E (Maybe (Templ, BSKey, BSValue))
 findTemplate qs name paramDesc@(ParamDesc templs paramType must) = do
@@ -211,8 +96,6 @@ checkParam (param, mvalue) name (ParamDesc templs _ _) = res where
     res = case mtmpl of 
         Nothing -> Nothing 
         Just tmpl -> Just (tmpl, param, mvalue)
-
-
 
 --------------------------------------PARAMS HANDLERS--------------------------------------------------------------------
 

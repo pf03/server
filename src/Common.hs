@@ -20,6 +20,7 @@ import qualified Data.Text.Lazy as L
 import Data.String
 import Database.PostgreSQL.Simple.Time
 import Data.Maybe
+import qualified Data.Map as M
 
 
 ----------------вспомогательные монадические функции -------------------------------------
@@ -211,5 +212,16 @@ infixl 4 <<$>>
 -- forM2 :: (a -> b -> m c) ->  [a] ->  [b] -> m [c]
 -- forM2 f as bs = mapM (uncurry f) $ zip as bs
 
+forMapM :: Monad m => M.Map k v -> (k -> m w) -> m (M.Map k w)
+forMapM mp f = sequence $ M.mapWithKey (\k _ -> f k) mp
+
+forMapWithKeyM :: Monad m => M.Map k v -> (k -> v -> m w) -> m (M.Map k w)
+forMapWithKeyM mp f = sequence $ M.mapWithKey f mp
+
+forMap :: M.Map k v -> (k -> w) -> M.Map k w
+forMap mp f = M.mapWithKey (\k _ -> f k) mp
+
+forWithKey :: p -> M.Map k a -> (k -> a -> b) -> M.Map k b
+forWithKey f = flip M.mapWithKey
 
 

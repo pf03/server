@@ -11,6 +11,7 @@ import Database.PostgreSQL.Simple.Types hiding (Show (..) )
 import Common
 import qualified Data.Text.Encoding as T
 import qualified Data.Text as T
+import qualified Log
 
 query_ :: (Show r, FromRow r) => Query -> T [r]
 query_ q = do
@@ -35,7 +36,8 @@ execute_ q = do
 
 execute__ :: Query -> T ()
 execute__ q = do
-    Query.execute_ q
+    n <- Query.execute_ q
+    Log.textT Log.Debug $ template "Выполнен запрос, изменено {0} строк" [show n]
     return()
 
 -- q :: Convert a => a -> SQL.Query 

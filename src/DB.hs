@@ -42,7 +42,28 @@ import qualified Insert
 import API
 
 testq :: IO ()
-testq = runT $ DB.getPosts Params.testQuery
+testq = runT $ DB.insertTag DB.testQueryInsert
+
+testQueryInsert :: HTTP.Query
+testQueryInsert = [
+        ("name", Just "c#")
+    ]
+
+testQuery :: HTTP.Query
+testQuery = [
+        --("created_at__bt", Just "(2018-05-21,2030-05-21)"),
+        --("tag_id__in", Just "[1,2,3]"),
+        --("tag__in", Just "[\"Haskell\",\"Python\"]"), --внутренние строки в кавычках. Наружные опционально (см ereadMap). Это не работает (нет в ТЗ)
+        --("categories__in", Just "[1,2,3]"),  
+        
+        --("created_at__lt", Just "1925-03-20"),
+        --("name", Just "мгновенье"),
+        --("text__like", Just "glasgow"),
+        --("author_name", Just "Денис") --кириллица здесь не работает, но в постмане работает
+        --("contains__like", Just "haskell"),
+        ("order_by", Just "category_id"),
+        ("page", Just "1")
+    ]
 
 --проверить некорректные запросы, например некорректный синтаксис запроса, или два раза и тот же параметр запроса
 --в выходном json убрать префиксы с названиями таблиц бд
@@ -116,7 +137,7 @@ getPosts qs = do
 
 insertTag :: HTTP.Query -> T()
 insertTag qs = do
-    Log.setSettings Color.Blue False "insertTag" 
+    Log.setSettings Color.Blue True "insertTag" 
     Log.funcT Log.Debug "..."
     params <- logT $ Params.parseParams qs $ API API.Insert API.Tag 
     query <- logT $ Insert.tag params

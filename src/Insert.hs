@@ -25,4 +25,4 @@ import Data.Map as M ((!))
 tag :: ParamsMap Param ->  Identity Query
 tag params = return res where
     ParamEq v = params ! "name"
-    res = template [sql|INSERT into tags (name) values ({0}})|] [val v]
+    res = template [sql|INSERT into tags (name) values ({0})|] [val v]
