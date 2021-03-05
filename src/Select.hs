@@ -21,6 +21,7 @@ import Query
 import qualified Data.ByteString as BC
 import Control.Monad.Identity
 import Data.Map as M ((!))
+import Data.Maybe
 ----------------------------------User-----------------------------------------------------------
 type User =  Row.User 
 usersQuery :: ParamsMap Param ->  Identity Query
@@ -59,6 +60,14 @@ authorsQuery params = return res where
 type Category = Row.Category 
 categoriesQuery ::  Identity Query
 categoriesQuery = return [sql|SELECT * FROM categories|] 
+
+--возможно здесь передать просто номер категории вместо сложного объекта? тогда нарушится универсальность
+--и сложно будет вызывать из модуля db, будут костыли
+category::  ParamsMap Param -> T (Maybe Row.Category)
+category params = listToMaybe <$> query_ query where
+        query =  template [sql|SELECT * FROM categories WHERE categories.id = {0}|] [p $ params ! "id"]
+
+
 
 -------------------------Post-------------------------------------------------------------
 type Post = Row.Post :. Row.Content :. Row.Category :. Row.Author :. Row.User :. Maybe Row.TagToContent :. Maybe Row.Tag
@@ -223,6 +232,11 @@ pagination (ParamEq (Int page)) = template [sql|LIMIT {0} OFFSET {1}|] [q quanti
 
 
 --------------------------Templates-------------------------------------------------------
+-- c этой функцией нужно осторожно, так как она работает только для ParamEq
+--возможно здесь сделать обработку ошибок для некорректных паттернов??
+p :: Param -> Query
+p (ParamEq v) = val v
+p _ = error "Функция p работает только для ParamEq"
 
 val :: Val -> Query 
 val (Int a) = q a

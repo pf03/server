@@ -42,11 +42,12 @@ import qualified Insert
 import API
 
 testq :: IO ()
-testq = runT $ DB.insertTag DB.testQueryInsert
+testq = runT $ DB.insertCategory DB.testQueryInsert
 
 testQueryInsert :: HTTP.Query
 testQueryInsert = [
-        ("name", Just "c#")
+        ("parent_id", Just "66"),
+        ("category_name", Just "Unknown category")
     ]
 
 testQuery :: HTTP.Query
@@ -61,9 +62,14 @@ testQuery = [
         --("text__like", Just "glasgow"),
         --("author_name", Just "Денис") --кириллица здесь не работает, но в постмане работает
         --("contains__like", Just "haskell"),
-        ("order_by", Just "category_id"),
-        ("page", Just "1")
+        ("user_id", Just "5"),
+        ("description", Just "Unknown author")
     ]
+
+
+--ВМЕСТО ВСЕГО ЭТОГО БЕЗОБРАЗИЯ МОЖНО СДЕЛАТЬ УНИВЕРСАЛЬНУЮ ФУНКЦИЮ, НО УЧЕСТЬ, ЧТО ОНА НЕ МОЖЕТ ВОЗВРАЩАТЬ РЕЗУЛЬТАТ РАЗНЫХ  ТИПОВ.
+--ТАК ЧТО ОНА БУДЕТ ВОЗВРАЩАТЬ СРАЗУ json!!!
+--ИЛИ НЕКОЛЬКО ФУНКЦИЙ НА РАЗНЫЕ ТИПЫ ЗАПРОСОВ
 
 --проверить некорректные запросы, например некорректный синтаксис запроса, или два раза и тот же параметр запроса
 --в выходном json убрать префиксы с названиями таблиц бд
@@ -140,8 +146,25 @@ insertTag qs = do
     Log.setSettings Color.Blue True "insertTag" 
     Log.funcT Log.Debug "..."
     params <- logT $ Params.parseParams qs $ API API.Insert API.Tag 
-    query <- logT $ Insert.tag params
-    Query.execute__ query
+    Insert.tag params
+    -- Query.execute__ query
+
+insertAuthor :: HTTP.Query -> T()
+insertAuthor qs = do
+    Log.setSettings Color.Blue True "insertAuthor" 
+    Log.funcT Log.Debug "..."
+    params <- logT $ Params.parseParams qs $ API API.Insert API.Author 
+    Insert.author params
+    -- Query.execute__ query
+
+insertCategory :: HTTP.Query -> T()
+insertCategory qs = do
+    Log.setSettings Color.Blue True "insertCategory" 
+    Log.funcT Log.Debug "..."
+    params <- logT $ Params.parseParams qs $ API API.Insert API.Category 
+    Insert.category params
+    -- Query.execute__ query
+
 
 editTag :: HTTP.Query -> T()
 editTag = undefined

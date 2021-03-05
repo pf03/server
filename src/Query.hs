@@ -36,8 +36,9 @@ execute_ q = do
 
 execute__ :: Query -> T ()
 execute__ q = do
+    Log.debugT q --это добавить во все функции
     n <- Query.execute_ q
-    Log.textT Log.Debug $ template "Выполнен запрос, изменено {0} строк" [show n]
+    Log.textT Log.Debug $ template "Выполнен запрос, изменено {0} строк" [show n] --и это, т .е результат выполнения
     return()
 
 -- q :: Convert a => a -> SQL.Query 
@@ -97,6 +98,9 @@ exists q = template [sql|EXISTS ({0})|] [q]
 
 brackets :: Query -> Query
 brackets q = template [sql|({0})|] [q]
+
+list :: [Query] -> Query
+list qs = template [sql|({0})|] [Query.concat "," qs] 
 
 emp = Query.query_ [sql|SELECT posts.id FROM posts WHERE FALSE|] ::T [Only Int]  --or TRUE
 
