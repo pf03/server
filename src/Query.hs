@@ -16,27 +16,30 @@ import qualified Log
 query_ :: (Show r, FromRow r) => Query -> T [r]
 query_ q = do
     conn <- S.getConnection
-    --logT $ SQL.query_ conn q
+    Log.debugT q
     toT $ SQL.query_ conn q
 
 query :: (ToRow q, FromRow r) => Query -> q -> T [r]
 query query q = do
+    Log.debugT query 
     conn <- S.getConnection
     toT $ SQL.query conn query q
 
 executeMany :: ToRow q => Query -> [q] -> T Int64
 executeMany q list = do 
+    Log.debugT q 
     conn <- S.getConnection
     toT $ SQL.executeMany conn q list
 
 execute_ :: Query -> T Int64
 execute_ q = do
+    Log.debugT q 
     conn <- S.getConnection
     toT $ SQL.execute_ conn q
 
 execute__ :: Query -> T ()
 execute__ q = do
-    Log.debugT q --это добавить во все функции
+    -- Log.debugT q --это добавить во все функции
     n <- Query.execute_ q
     Log.textT Log.Debug $ template "Выполнен запрос, изменено {0} строк" [show n] --и это, т .е результат выполнения
     return()

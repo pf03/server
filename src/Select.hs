@@ -24,16 +24,26 @@ import Data.Map as M ((!))
 import Data.Maybe
 ----------------------------------User-----------------------------------------------------------
 type User =  Row.User 
+
+usersQuery1 :: Query 
+usersQuery1 = [sql|SELECT * FROM users|]
+
+--будте просто users
 usersQuery :: ParamsMap Param ->  Identity Query
 usersQuery params = return res where
         res:: SQL.Query
-        res = selectQuery `whereAll` conditions <+> pagination (params ! "page")
-
-        selectQuery :: SQL.Query
-        selectQuery = [sql|SELECT * FROM users|]
+        res = usersQuery1 `whereAll` conditions <+> pagination (params ! "page")
 
         conditions :: [SQL.Query]
         conditions = []
+
+--это будет отдельная api
+user :: Param -> T (Maybe Row.User)
+user param = listToMaybe <$> query_ query where
+        query =  usersQuery1 <+> template [sql|SELECT * FROM users WHERE users.id = {0}|] [p param]
+
+-- checkUser :: Param -> T Bool
+-- checkUser param = isJust <$> Select.user param
 
 --универсальный тип, подходящий для любого select
 --type Select = undefined
@@ -63,9 +73,11 @@ categoriesQuery = return [sql|SELECT * FROM categories|]
 
 --возможно здесь передать просто номер категории вместо сложного объекта? тогда нарушится универсальность
 --и сложно будет вызывать из модуля db, будут костыли
-category::  ParamsMap Param -> T (Maybe Row.Category)
-category params = listToMaybe <$> query_ query where
-        query =  template [sql|SELECT * FROM categories WHERE categories.id = {0}|] [p $ params ! "id"]
+category::  Param -> T (Maybe Row.Category)
+category param = listToMaybe <$> query_ query where
+        query =  template [sql|SELECT * FROM categories WHERE categories.id = {0}|] [p param]
+
+
 
 
 

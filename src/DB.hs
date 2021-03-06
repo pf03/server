@@ -42,11 +42,14 @@ import qualified Insert
 import API
 
 testq :: IO ()
-testq = runT $ DB.insertCategory DB.testQueryInsert
+testq = runT $ DB.insertAuthor DB.testQueryInsert
 
 testQueryInsert :: HTTP.Query
 testQueryInsert = [
-        ("parent_id", Just "66"),
+        ("user_id", Just "666"),
+        ("description", Just "Unknown author"),
+
+        --("parent_id", Just "1"),
         ("category_name", Just "Unknown category")
     ]
 

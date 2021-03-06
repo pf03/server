@@ -44,13 +44,13 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
             _ -> map ($ False) [param "page" [Eq] ParamTypePage]
         API.Insert -> case apiType of 
             API.Tag -> map ($ True)[param "name" [Eq] ParamTypeStr]
-            API.Author -> map ($ True)[
-                param "user_id" [Eq] ParamTypeInt,
-                param "description" [Eq] ParamTypeStr
+            API.Author -> [
+                param "user_id" [Eq] ParamTypeInt True,
+                param "description" [Eq] ParamTypeStr True
                 ]
-            API.Category -> map ($ True)[
-                param "parent_id" [Eq] ParamTypeInt,
-                param "category_name" [Eq] ParamTypeStr
+            API.Category -> [
+                param "parent_id" [Eq] ParamTypeInt False,
+                param "category_name" [Eq] ParamTypeStr True
                 ]
 
 possibleParams :: BSName -> ParamDesc -> [BSKey]
