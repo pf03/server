@@ -35,6 +35,8 @@ dependencies:
 - text
 - aeson
 - split
+# - exceptions
+# - exception-transformers
 - transformers
 - mtl
 - hspec

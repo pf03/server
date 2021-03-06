@@ -42,8 +42,7 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
                 param "page" [Eq] ParamTypePage
                 ]
             _ -> map ($ False) [param "page" [Eq] ParamTypePage]
-        API.Insert -> case apiType of 
-            API.Tag -> map ($ True)[param "name" [Eq] ParamTypeStr]
+        API.Insert -> case apiType of
             API.Author -> [
                 param "user_id" [Eq] ParamTypeInt True,
                 param "description" [Eq] ParamTypeStr True
@@ -52,6 +51,17 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
                 param "parent_id" [Eq] ParamTypeInt False,
                 param "category_name" [Eq] ParamTypeStr True
                 ]
+            API.Tag -> [param "name" [Eq] ParamTypeStr True]
+            API.Draft -> [
+                param "author_id" [Eq] ParamTypeInt True,
+                param "name" [Eq] ParamTypeStr True,
+                param "creation_date" [Eq] ParamTypeStr True,
+                param "category_id" [Eq] ParamTypeInt True,
+                param "text" [Eq] ParamTypeStr True,
+                param "photo" [Eq] ParamTypeStr True,
+                param "news_id" [Eq] ParamTypeInt False
+                ]
+            API.Publish -> [param "draft_id" [Eq] ParamTypeInt True]
 
 possibleParams :: BSName -> ParamDesc -> [BSKey]
 possibleParams bsname (ParamDesc templs _ _) = for templs $ \templ -> bsname <> jlookup templ templates
@@ -74,8 +84,8 @@ checkParams qs paramDesc  = do
     let params = map fst qs
     let cp = concatParams paramDesc
     forM_ params $ \param -> do 
-    if param `elem` cp then return () else
-        throwE . RequestError $ template "Недопустимый параметр запроса: {0}" [show param]
+        if param `elem` cp then return () else
+            throwE . RequestError $ template "Недопустимый параметр запроса: {0}" [show param]
     
 parseParam :: Query -> BSName -> ParamDesc -> Except E Param
 parseParam qs bsname paramDesc@(ParamDesc _ paramType _)  = do

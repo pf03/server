@@ -1,8 +1,9 @@
 module API where
 
 data API = API QueryType APIType
-data QueryType = Select | Insert | Edit | Delete deriving (Show, Read, Eq)  
-data APIType = Post | User | Author | Category | Tag deriving (Show, Read, Eq)  
+data QueryType = Select | Insert | Update | Delete deriving (Show, Read, Eq)  
+data APIType = Post | User | Author | Category | Tag | Draft | Publish deriving (Show, Read, Eq)  
+-- publish это синоним для insertPost
 
 
 --надо ли это?
@@ -17,5 +18,5 @@ data APIType = Post | User | Author | Category | Tag deriving (Show, Read, Eq)
 --             _ -> apitype <> "s"
 --         lower (x:xs) = toLower x <> xs
 
-instance Read API where
-    readsPrec  = undefined --надо разобраться
+-- instance Read API where
+--     readsPrec  = undefined --надо разобраться

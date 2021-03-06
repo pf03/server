@@ -25,7 +25,7 @@ module Log(
     defaultSettings,
     defaultConfig,
     file,
-    clearFile,
+    clearFile, off, on
     --Pretty(..) 
     ) 
 where 
@@ -58,6 +58,16 @@ class MonadIO m => MonadLog m where
   getSettings :: m LogSettings
   setSettings :: ColorScheme -> Enable -> FuncName -> m ()
   getConfig :: m ConfigLog
+
+off :: MonadLog m => m ()
+off = do
+    LogSettings cs le fn  <- Log.getSettings
+    Log.setSettings cs False fn
+
+on :: MonadLog m => m ()
+on = do
+    LogSettings cs le fn  <- Log.getSettings
+    Log.setSettings cs True fn
 
 --это для возможного переопределения класса show
 -- class Show a => Pretty a where
@@ -245,6 +255,8 @@ getColor  Info = Blue
 getColor  Error = Red
 getColor  Warning = Yellow
 getColor  Debug = Magenta 
+
+
 
 -- getfname :: LogSettings -> String 
 -- -- getfname Nothing = "?"

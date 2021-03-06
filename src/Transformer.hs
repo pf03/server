@@ -46,6 +46,8 @@ import qualified Data.Aeson.Encode.Pretty as Aeson
 throwT :: E -> T a
 throwT e  = toT (throwE e::Except E a)  
 
+catchT :: T a -> (E -> T a) -> T a
+catchT ta f  = StateT $ \s -> catchE (runStateT ta s) $ \e -> runStateT (f e) s
 
 ------------------------------------------IO---------------------------------------------------------------------------
 

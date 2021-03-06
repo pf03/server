@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 1718196261d7eb1c4758edb6876b9d2cb0f68ebedb7497a169f247e1e70fa4ad
+-- hash: 483dd49852e461ac0592f3121762827f64b77abf4853a98942adfcd372083262
 
 name:           server
 version:        0.1.0.0
@@ -47,6 +47,7 @@ library
       Row
       Select
       State
+      Test
       Transformer
       Types
   other-modules:

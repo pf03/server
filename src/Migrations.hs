@@ -49,14 +49,16 @@ all = do
 allForce :: T()
 allForce = do
     Log.colorTextT Color.Blue Log.Info "Производятся миграции..."
+    Log.off
     mapM_ Migrations.wrapper Migrations.list
+    Log.on
     Log.colorTextT Color.Green Log.Info "Все миграции выполнены успешно."
 
 wrapper :: (String, T()) -> T()
 wrapper (name, func) = do
     Log.colorTextT Color.Blue Log.Info "Производится следующая миграция:"
     Log.colorTextT Color.Cyan Log.Info name
-    Log.setSettings Color.Cyan True name 
+    Log.setSettings Color.Cyan False name 
     func
     Log.colorTextT Color.Green Log.Info "Миграция окончена успешно"
 
@@ -99,6 +101,27 @@ renameNewsToPosts = do
         ALTER TABLE comments RENAME COLUMN news_id TO post_id;
     |]
 
+--Было
+-- CREATE TABLE posts (
+--     id SERIAL PRIMARY KEY,
+--     content_id INTEGER not null
+-- );
+-- CREATE TABLE drafts (
+--     id SERIAL PRIMARY KEY,
+--     content_id INTEGER not null,
+--     posts_id INTEGER
+-- );
+--стало
+-- CREATE TABLE posts (
+--     id SERIAL PRIMARY KEY,
+--     content_id INTEGER not null
+--     draft_id INTEGER not null
+-- );
+-- CREATE TABLE drafts (
+--     id SERIAL PRIMARY KEY,
+--     content_id INTEGER not null,
+-- );
+--они могут ссылаться на разный контент, так как черновик возможно отредактировали, но не опубликовали
 
 
 
