@@ -4,7 +4,7 @@ module Response where
 
 import qualified Network.Wai as Wai
 import Network.Wai.Internal as Wai
-import Network.HTTP.Types (status200)
+import Network.HTTP.Types
 import Network.HTTP.Types.Header (hContentType)
 import qualified System.Console.ANSI as Color
 
@@ -31,7 +31,7 @@ import Control.Monad.Except
 import Data.List
 import Control.Monad.Trans.Except
 --import Database.PostgreSQL.Simple
-import Network.HTTP.Types.URI
+--import Network.HTTP.Types.URI
 import Data.Aeson.Encode.Pretty
 
 get :: Request -> T Response
@@ -70,3 +70,4 @@ errorHandler :: E -> Response
 errorHandler e = do
     --let err = convertL ("Ошибочка вышла"::String)
     Wai.responseLBS status200 [(hContentType, "text/plain")] (convertL . show $ e)
+

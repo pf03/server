@@ -19,6 +19,7 @@ import Types
 --так убьем двух зайцев - и тестирование, и ревью, как для себя так и по тз
 --тесты базируются на изначальном состоянии бд
 --тестирование не только запроса, но и роутера
+--проверка значений на уникальность, например тегов
 
 --можно сначала отправить по одному параметру, а потом все сразу (они все необязательные)
 selectPostQuery :: Query
@@ -67,6 +68,19 @@ insertAuthorQueries = [
         [("user_id", Just "1"),
         ("description", Just "description2 for user_id=1")]
     ]
+insertTagQueries :: [Query]
+insertTagQueries = [
+        --некорректные запросы
+        [],
+        [("name", Nothing)],
+
+        --корректный запрос
+        [("name", Just "some_tag")],
+
+        --повторный запрос, должна выскочить ошибка
+        [("name", Just "some_tag")]
+    ]
+
 insertCategoryQueries :: [Query]
 insertCategoryQueries = [
         --некорректные запросы

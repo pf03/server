@@ -1,8 +1,17 @@
 module API where
 
-data API = API QueryType APIType
-data QueryType = Select | Insert | Update | Delete deriving (Show, Read, Eq)  
-data APIType = Post | User | Author | Category | Tag | Draft | Publish deriving (Show, Read, Eq)  
+
+
+--в будущем router объединить с api, и избежать циклических импортов
+
+-- data API = API QueryType APIType
+-- data QueryType = Select | Insert | Update | Delete deriving (Show, Read, Eq)  --это соответствует модулю
+-- data APIType = Post | User | Author | Category | Tag | Draft | Publish deriving (Show, Read, Eq)  --это соответствует таблице в бд или id
+
+data API = API QueryType [APIType]
+data QueryType = Select | Insert | Update | Delete deriving (Show, Read, Eq)  --это соответствует модулю
+data APIType = Post | User | Author | Category | Tag | Draft | Id Int deriving (Show, Read, Eq)  --это соответствует таблице в бд или id
+
 -- publish это синоним для insertPost
 
 
