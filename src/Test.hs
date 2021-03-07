@@ -109,7 +109,7 @@ insertCategoryQueries = [
 cases :: [(String, [Query], Query -> T())]
 cases = [
     --("insertAuthor", insertAuthorQueries, DB.insertAuthor), 
-    ("insertCategory", insertCategoryQueries, DB.insertCategory)
+    ("insertCategory", insertCategoryQueries, DB.execute "rowPathInfo" ["categories", "create"] )
     ]
 
 --ВНИМАНИЕ!!! Данная функция для корректного тестирования сбрасывает БД до изначального состояния!

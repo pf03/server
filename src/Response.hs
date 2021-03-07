@@ -40,17 +40,19 @@ get req = do
     Log.dataT Log.Debug req
     let pathInfo = Wai.pathInfo req
     let queryString = Wai.queryString req
-    case pathInfo of 
-        ["users"] -> Response.sendData DB.getUsers pathInfo queryString 
-        ["authors"] -> Response.sendData DB.getAuthors pathInfo queryString 
-        ["categories"] -> Response.sendData DB.getCategories pathInfo queryString 
-        ["posts"] -> Response.sendData DB.getPosts pathInfo queryString
-        ["tags"] -> Response.sendData DB.getTags pathInfo queryString
-        ["insert_tag"] -> Response.sendData DB.insertTag pathInfo queryString
-        ["edit_tag"] -> Response.sendData DB.editTag pathInfo queryString
-        ["delete_tag"] -> Response.sendData DB.deleteTag pathInfo queryString
+    Response.sendData (DB.execute (rawPathInfo req) pathInfo) pathInfo queryString 
+    
+    -- case pathInfo of 
+    --     ["users"] -> Response.sendData DB.getUsers pathInfo queryString 
+    --     ["authors"] -> Response.sendData DB.getAuthors pathInfo queryString 
+    --     ["categories"] -> Response.sendData DB.getCategories pathInfo queryString 
+    --     ["posts"] -> Response.sendData DB.getPosts pathInfo queryString
+    --     ["tags"] -> Response.sendData DB.getTags pathInfo queryString
+    --     ["insert_tag"] -> Response.sendData DB.insertTag pathInfo queryString
+    --     ["edit_tag"] -> Response.sendData DB.editTag pathInfo queryString
+    --     ["delete_tag"] -> Response.sendData DB.deleteTag pathInfo queryString
 
-        _ -> throwT . RequestError $ template  "Неизвестный путь: {0}"  [show . rawPathInfo $ req]
+        -- _ -> throwT . RequestError $ template  "Неизвестный путь: {0}"  [show . rawPathInfo $ req]
 
 sendData :: ( ToJSON a, Show a) => (Query -> T a) -> PathInfo -> Query  -> T Response
 sendData tgetData pathInfo queryString  = do

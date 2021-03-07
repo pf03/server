@@ -3,62 +3,68 @@ module Router where
 import Types
 import Network.HTTP.Types
 import qualified Data.Map as M
-import Data.Text
+import Data.Text ( Text, unpack )
 import Control.Monad.Except
-import Text.Read
+import Text.Read 
 import Control.Monad.Trans.Except
 import API
-import Params
 import qualified Data.ByteString as B
 import Common
 
-
-routerWithParams :: B.ByteString -> PathInfo -> Query -> (API, ParamsMap Param)
-routerWithParams rawPathInfo = undefined
-
--- router :: PathInfo -> (API, ParamsMap Param) 
--- router ["users"] = (API Select User, M.empty)
-
-router :: B.ByteString -> PathInfo -> Except E (API, ParamsMap Param)
----SELECT MANY---
-router _ ["users"] = e $ API Select User
-router _ ["authors"] = e $ API Select Author
-router _ ["categories"] = e $ API Select Category
-router _ ["tags"] = e $ API Select Tag
-router _ ["posts"] = e $ API Select Post
-
---SELECT BY ID---
-router _ ["user", n ] = helper (API Select User) "user_id" n
-router _ ["author", n] = helper (API Select User) "user_id" n
-router _ ["category", n] = helper (API Select User) "user_id" n
-router _ ["tag", n] = helper (API Select User) "user_id" n
-router _ ["post", n] = helper (API Select User) "user_id" n
+router :: B.ByteString -> PathInfo -> Except E API
 
 ---INSERT---
-router _ ["create", "author"] = e $ API Insert Author
-router _ ["create", "category"] = e $ API Insert Category
-router _ ["create", "Tag"] = e $ API Insert Tag
-router _ ["create", "Draft"] = e $ API Insert Draft
-router _ ["publish"] = e $ API Insert Publish
+router _ ["users", "create"] = return $ API Insert [User]
+router _ ["authors", "create"] = return $ API Insert [Author]
+router _ ["categories", "create"] = return $ API Insert [Category]
+router _ ["tags", "create"] = return $ API Insert [Tag]
+router _ ["drafts", "create"] = return $ API Insert [Draft]
+router _ ["drafts", n, "publish"] = withInt "post_id" n $ \pid -> API Insert [Draft, Id pid, Post] --метод drafts publish заменяет posts create и posts edit и подчеркивает, что новость нельзя опубликовать напрямую без черновика (премодерации)
+router _ ["posts", n, "comments", "create"] = withInt "post_id" n $ \pid -> API Insert [Post, Id pid, Comment]
 
 ---UPDATE---
-router _ ["edit", "tag", n] = helper (API Update Tag) "tag_id" n
+router _ ["users", n, "edit"] = withInt "user_id" n $ \pid -> API Update [User, Id pid]
+router _ ["authors", n, "edit"] = withInt "author_id" n $ \pid -> API Update [Author, Id pid]
+router _ ["categories", n, "edit"] = withInt "category_id" n $ \pid -> API Update [Category, Id pid]
+router _ ["tags", n, "edit"] = withInt "tag_id" n $ \pid -> API Update [Tag, Id pid]
+router _ ["drafts", n, "edit"] = withInt "draft_id" n $ \pid -> API Update [Draft, Id pid]
+-- router _ ["posts", n, "edit"] = withInt "post_id" n $ \pid -> API Update [Post, Id pid]  --не то же, что publish?
 
 ---DELETE---
-router _ ["delete", "tag", n] = helper (API Delete Tag) "tag_id" n
+router _ ["users", n, "delete"] = withInt "user_id" n $ \pid -> API Delete [User, Id pid]
+router _ ["authors", n, "delete"] = withInt "author_id" n $ \pid -> API Delete [Author, Id pid]
+router _ ["categories", n, "delete"] = withInt "category_id" n $ \pid -> API Delete [Category, Id pid]
+router _ ["tags", n, "delete"] = withInt "tag_id" n $ \pid -> API Delete [Tag, Id pid]
+router _ ["drafts", n, "delete"] = withInt "draft_id" n $ \pid -> API Delete [Draft, Id pid]
+router _ ["posts", n, "delete"] = withInt "post_id" n $ \pid -> API Delete [Post, Id pid]  --не то же, что publish?
+router _ ["comments", n, "delete"] = withInt "comment_id" n $ \pid -> API Delete [Comment, Id pid] 
+
+--у новости также есть еще фотографии
+---SELECT MANY---
+router _ ["users"] = return $ API Select [User]
+router _ ["authors"] = return $ API Select [Author]
+router _ ["categories"] = return $ API Select [Category]
+router _ ["tags"] = return $ API Select [Tag]
+router _ ["posts"] = return $ API Select [Post]
+router _ ["posts", n, "comments"] = withInt "post_id" n $ \pid -> API Select [Post, Id pid, Comment]
+
+--SELECT BY ID---
+router _ ["users", n ] = withInt "user_id" n $ \pid -> API SelectById [User, Id pid]
+router _ ["authors", n] = withInt "author_id" n $ \pid -> API SelectById [Author, Id pid]
+router _ ["categories", n] = withInt "category_id" n $ \pid -> API SelectById [Category, Id pid]
+router _ ["tags", n] = withInt "tag_id" n $ \pid -> API SelectById [Tag, Id pid]
+router _ ["posts", n] = withInt "post_id" n $ \pid -> API SelectById [Post, Id pid]
+router _ ["drafts", n] = withInt "draft_id" n $ \pid -> API SelectById [Draft, Id pid]
 
 --UNKNOWN---
 router rawPathInfo _ = throwE . RequestError $ template "Неизвестный путь: {0}" [show rawPathInfo]
 
+-- routerById name text apiType = withInt name text $ \pid -> API Select [User, Id pid]
 
---вспомогательные функции
-e ::  API -> Except E (API, ParamsMap Param)
-e api = return (api, M.empty)
-
-helper ::  API -> BS -> Text -> Except E (API, ParamsMap Param)
-helper api name text = do
-    int <- ereadInt (show name) text
-    return (API Update Tag, M.fromList [(name, ParamEq (Int int))])
+-- helper ::  API -> BS -> Text -> Except E (API, ParamsMap Param)
+-- helper api name text = do
+--     int <- ereadInt (show name) text
+--     return (API Update Tag, M.fromList [(name, ParamEq (Int int))])
 
 ereadInt :: String -> Text -> Except E Int 
 ereadInt name text = do
@@ -66,5 +72,12 @@ ereadInt name text = do
     catchE (except . readEither $ str) $ \e -> do
         throwE . RequestError $ "Значение {0} в роутере должно быть целым числом"
 
+withInt :: String -> Text -> (Int -> API) -> Except E API
+withInt name text f = do
+    pid <- ereadInt name text
+    return $ f pid
+
+
 --типы ошибок:
 --в запросах к бд должны быть ошибки бд
+

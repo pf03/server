@@ -25,12 +25,14 @@ import qualified Data.Map as M
 templates :: [(Templ, BSTempl)]
 templates = [(Eq ,""), (In, "__in"), (All, "__all"), (Lt, "__lt"), (Gt, "__gt"), (Bt, "__bt"), (Like, "__like")]
 
+
+--возможно перенести в роутер???
 possibleParamDescs :: API.API -> ParamsMap ParamDesc
 possibleParamDescs (API.API queryType apiType) = M.fromList list where
     param a b c d = (a, ParamDesc b c d)
     list = case queryType of
         API.Select -> case apiType of 
-            API.Post -> map ($ False) [
+            [API.Post] -> map ($ False) [
                 param "created_at" [Eq, Lt, Gt, Bt] ParamTypeDate,
                 param "author_name" [Eq, Like] ParamTypeStr,
                 param "category_id" [Eq, In] ParamTypeInt,
@@ -41,18 +43,19 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
                 param "order_by" [Eq] $ ParamTypeSort ["created_at", "author_name", "category_id", "photos"], 
                 param "page" [Eq] ParamTypePage
                 ]
-            _ -> map ($ False) [param "page" [Eq] ParamTypePage]
+            [_] -> map ($ False) [param "page" [Eq] ParamTypePage] --в тз про фильтры для других функций кроме posts ничего не сказано
+        API.SelectById -> []
         API.Insert -> case apiType of
-            API.Author -> [
+            [API.Author] -> [
                 param "user_id" [Eq] ParamTypeInt True,
                 param "description" [Eq] ParamTypeStr True
                 ]
-            API.Category -> [
+            [API.Category] -> [
                 param "parent_id" [Eq] ParamTypeInt False,
                 param "category_name" [Eq] ParamTypeStr True
                 ]
-            API.Tag -> [param "name" [Eq] ParamTypeStr True]
-            API.Draft -> [
+            [API.Tag] -> [param "name" [Eq] ParamTypeStr True]
+            [API.Draft] -> [
                 param "author_id" [Eq] ParamTypeInt True,
                 param "name" [Eq] ParamTypeStr True,
                 param "creation_date" [Eq] ParamTypeStr True,
@@ -61,7 +64,9 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
                 param "photo" [Eq] ParamTypeStr True,
                 param "news_id" [Eq] ParamTypeInt False
                 ]
-            API.Publish -> [param "draft_id" [Eq] ParamTypeInt True]
+            [API.Post] -> [] --[param "draft_id" [Eq] ParamTypeInt True] --draft_id уже в роутере
+        API.Update -> undefined --скорей всего параметры те же, что и у insert 
+        API.Delete -> []
 
 possibleParams :: BSName -> ParamDesc -> [BSKey]
 possibleParams bsname (ParamDesc templs _ _) = for templs $ \templ -> bsname <> jlookup templ templates
@@ -80,12 +85,15 @@ parseParams qs api = do
 
 checkParams :: Query -> ParamsMap ParamDesc -> Except E ()
 checkParams qs paramDesc  = do 
-    --проверка на лишние параметры
-    let params = map fst qs
-    let cp = concatParams paramDesc
-    forM_ params $ \param -> do 
-        if param `elem` cp then return () else
-            throwE . RequestError $ template "Недопустимый параметр запроса: {0}" [show param]
+    if M.null paramDesc && not (null qs) then do
+        throwE . RequestError $ "Данная api-функция не имеет параметров"
+        else do
+            --проверка на лишние параметры
+            let params = map fst qs
+            let cp = concatParams paramDesc
+            forM_ params $ \param -> do 
+                if param `elem` cp then return () else
+                    throwE . RequestError $ template "Недопустимый параметр запроса: {0}" [show param]
     
 parseParam :: Query -> BSName -> ParamDesc -> Except E Param
 parseParam qs bsname paramDesc@(ParamDesc _ paramType _)  = do

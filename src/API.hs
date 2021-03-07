@@ -8,9 +8,11 @@ module API where
 -- data QueryType = Select | Insert | Update | Delete deriving (Show, Read, Eq)  --это соответствует модулю
 -- data APIType = Post | User | Author | Category | Tag | Draft | Publish deriving (Show, Read, Eq)  --это соответствует таблице в бд или id
 
-data API = API QueryType [APIType]
-data QueryType = Select | Insert | Update | Delete deriving (Show, Read, Eq)  --это соответствует модулю
-data APIType = Post | User | Author | Category | Tag | Draft | Id Int deriving (Show, Read, Eq)  --это соответствует таблице в бд или id
+--SelectById -  возвращает 1 или 0 объектов, или например юзера или пустой объект
+data API = API QueryType [APIType] deriving (Show)
+data QueryType = Select | SelectById | Insert | Update | Delete deriving (Show, Read, Eq)  --это соответствует модулю
+data APIType = Post | User | Author | Category | Tag | Draft | Comment | Id Int deriving (Show, Read, Eq)  --это соответствует таблице в бд или id
+
 
 -- publish это синоним для insertPost
 

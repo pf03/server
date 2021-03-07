@@ -21,7 +21,7 @@ import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
 import Control.Monad.Identity
 import Select
-import Data.Map as M ((!))
+import Data.Map as M ((!), fromList)
 import Class
 import Control.Monad.Trans.Except
 import Transformer
@@ -77,8 +77,9 @@ draft params = do
 
 --опубликовать новость из черновика, черновик привязывется к новости, для дальнейшего редактирования
 --"draft_id"
-publish :: ParamsMap Param -> T()
-publish params = do
+publish :: Int -> T()
+publish pid = do
+    let params = M.fromList [("draft_id", ParamEq (Int pid))] --костыль??
     checkExist params "draft_id" [sql|SELECT 1 FROM drafts WHERE drafts.id = {0}|]
     [(contentId, mpostId)] <- query_ $ template [sql|SELECT (content_id, posts_id) FROM drafts WHERE drafts.id = {0}|] 
         [p $ params ! "draft_id" ] :: T [(Int, Maybe Int)]
@@ -100,7 +101,8 @@ user params = execute__ $ template [sql|INSERT into users (last_name, first_name
         [row params ["last_name", "first_name", "avatar", "login", "pass", "creation_date", "is_admin"]]
     
 
-
+comment :: Int -> ParamsMap Param -> T()
+comment =  undefined
     
 
 --query Select 1 ...
