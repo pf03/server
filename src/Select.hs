@@ -87,8 +87,12 @@ type Post = Row.Post :. Row.Content :. Row.Category :. Row.Author :. Row.User :.
 
 --не все так просто!!! Из-за того, что у одного поста может быть много тегов, здесь может быть много строк!!!
 --В общем случае может быть много строк, а на выходе 0 или 1 объект json!!
-post::  Int -> T (Maybe Post)
-post pid = listToMaybe <$> query_ query where
+-- post::  Int -> T (Maybe Post)
+-- post pid = listToMaybe <$> query_ query where
+--         query = selectPostsQuery <+> template [sql|WHERE categories.id = {0}|] [q pid]
+
+post::  Int -> T [Post]
+post pid = query_ query where
         query = selectPostsQuery <+> template [sql|WHERE categories.id = {0}|] [q pid]
 
 posts :: ParamsMap Param -> T [Post]

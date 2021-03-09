@@ -77,6 +77,8 @@ type Tag = Row.Tag
 -- evalCategories :: [Select.Category] -> Except E [Category]
 -- evalCategories rcs = mapM (evalCategory [] rcs . Row.categoryId) rcs
 
+--здесь лучше упорядочить функции!!!!!!!!!!!!!!!!
+
 evalCategories :: [Select.Category] -> [Select.Category] -> Except E [Category]
 evalCategories allCategories  = mapM (_evalCategory [] allCategories . Row.categoryId)
 

@@ -85,13 +85,7 @@ import Data.Aeson.Encode.Pretty
 -- getCategories :: HTTP.Query -> T [Category]
 -- getCategories _ = getAllCategories
 
--- getAllCategories :: T [Category]
--- getAllCategories = do
---     Log.setSettings Color.Blue False "getAllCategories"
---     Log.funcT Log.Debug "..."
---     query <- logT $ Select.categoriesQuery
---     selected <- Query.query_ query
---     logT $ evalCategories selected
+
 
 -- getTags :: HTTP.Query -> T [Tag]
 -- getTags qs = do
@@ -106,6 +100,7 @@ import Data.Aeson.Encode.Pretty
 -- --а также конкретизировать ошибки, например ошибка при парсинге page
 -- --вывести на консоль query в корректной кодировке
 -- --сделать Query экземпляром convert
+
 -- getPosts :: HTTP.Query -> T [Post]
 -- getPosts qs = do
 --     --эта строка первая, чтобы не перезаписывать настройки лога
@@ -129,6 +124,8 @@ import Data.Aeson.Encode.Pretty
 --     json <- logT $ JSON.evalUnitedPosts categories selected
 --     writeResponse json
 --     return json
+
+
 
 -- --многострочные запросы некорректно выводятся на консоль
 -- --их нужно выводить куда-нибудь в файл
@@ -187,34 +184,68 @@ getJSON rawPathinfo pathInfo qs = do
         case api of
             API SelectById [API.User, Id n] -> encodePretty <$> Select.user n
             API SelectById [API.Author, Id n] -> encodePretty . (evalAuthor <$>) <$> Select.author n
-            API SelectById [API.Category, Id n] -> do 
-                allCats <- Select.allCategories
-                mcat <- Select.category n
-                evalmCat <- toT $ sequenceA $ evalCategory allCats <$> mcat
-                return $ encodePretty evalmCat
-            API SelectById [API.Post, Id n] -> do
-                allCats <- Select.allCategories
-                allEvalCats <- toT $ evalCategories allCats allCats
-                mpost <- Select.post n 
-                evalmPost <- toT $ sequenceA $ evalPost allEvalCats <$> mpost
-                return $ encodePretty evalmPost
+            API SelectById [API.Category, Id n] -> encodePretty <$> DB.getCategory n
+            API SelectById [API.Post, Id n] -> encodePretty <$> DB.getPost n
+                -- allCats <- Select.allCategories
+                -- allEvalCats <- toT $ evalCategories allCats allCats
+                -- mpost <- Select.post n 
+                -- evalmPost <- toT $ sequenceA $ evalPost allEvalCats <$> mpost
+                -- return $ encodePretty evalmPost
             API SelectById [API.Tag, Id n] -> encodePretty <$> Select.tag n
 
 
             API Select [API.User] -> encodePretty <$> Select.users params
             API Select [API.Author] -> encodePretty . evalAuthors <$> Select.authors params
-            API Select [API.Category] -> do
-                allCats <- Select.allCategories
-                cats <- Select.categories params
-                evalCats <- toT $ evalCategories allCats cats
-                return $ encodePretty evalCats
-            API Select [API.Post] -> do
-                allCats <- Select.allCategories
-                allEvalCats <- toT $ evalCategories allCats allCats
-                posts <- Select.posts params
-                evalmPost <- toT $ evalPosts allEvalCats posts
-                return $ encodePretty evalmPost
+            API Select [API.Category] -> encodePretty <$> DB.getCategories params
+            API Select [API.Post] -> encodePretty <$> DB.getPosts params
             API Select [API.Tag] -> encodePretty <$> Select.tags params
+
+getPosts :: ParamsMap Param -> T [Post]
+getPosts params = do
+    --эта строка первая, чтобы не перезаписывать настройки лога
+    categories <- DB.getAllCategories
+    Log.setSettings Color.Blue True "DB.getPosts" 
+    Log.funcT Log.Debug "..."
+    let newParams = evalParams params categories
+    selectPosts <- Select.posts newParams
+    jsonPosts <- logT $ JSON.evalUnitedPosts categories selectPosts
+    writeResponse jsonPosts
+    return jsonPosts
+
+getPost :: Int -> T (Maybe Post)
+getPost pid = do
+    --эта строка первая, чтобы не перезаписывать настройки лога
+    categories <- DB.getAllCategories
+    Log.setSettings Color.Blue True "DB.getPost" 
+    Log.funcT Log.Debug "..."
+    selectPosts <- Select.post pid
+    jsonPosts <- logT $ JSON.evalUnitedPosts categories selectPosts
+    writeResponse jsonPosts
+    return $ listToMaybe jsonPosts --проверить как это работает. evalUnitedPosts должно объединять все в один пост
+
+getAllCategories :: T [Category]
+getAllCategories = do
+    Log.setSettings Color.Blue False "DB.getAllCategories"
+    Log.funcT Log.Debug "..."
+    allCategories <- Select.allCategories
+    logT $ evalCategories allCategories allCategories
+
+getCategories :: ParamsMap Param ->  T [Category]
+getCategories params = do
+    Log.setSettings Color.Blue False "DB.getCategories"
+    Log.funcT Log.Debug "..."
+    allCategories <- Select.allCategories
+    categories <- Select.categories params
+    logT $ evalCategories allCategories categories
+
+--эту логику перенести в select??
+getCategory :: Int -> T (Maybe Category)
+getCategory pid = do
+    Log.setSettings Color.Blue False "DB.getCategory"
+    Log.funcT Log.Debug "..."
+    allCats <- Select.allCategories
+    mcat <- Select.category pid
+    toT $ sequenceA $ evalCategory allCats <$> mcat
 
 --функция, которая не возвращает json (insert,update,delete) 
 execute :: BC.ByteString -> PathInfo -> HTTP.Query -> T()
