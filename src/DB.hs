@@ -41,6 +41,7 @@ import qualified Params
 import qualified Insert
 import API
 import Router
+import Data.Aeson.Encode.Pretty
 
 -- testq :: IO ()
 -- testq = runT $ DB.insertAuthor DB.testQueryInsert
@@ -163,7 +164,59 @@ import Router
 -- deleteTag :: HTTP.Query -> T()
 -- deleteTag = undefined
 
---функция, которая не возвращает json (insert,update,delete)
+--общая функция
+getJSON:: BC.ByteString -> PathInfo -> HTTP.Query -> T LC.ByteString
+getJSON rawPathinfo pathInfo qs = do
+    Log.setSettings Color.Blue True "DB.getJSON" 
+    Log.funcT Log.Debug "..."
+    api@(API apiType queryTypes) <- logT $ router rawPathinfo pathInfo
+    params <- logT $ Params.parseParams qs api
+    --апи, которые не возвращают результат
+    if apiType == Insert || apiType == Update || apiType == Delete then do
+        case api of
+            API Insert [API.User] -> Insert.user params
+            API Insert [API.Author] -> Insert.author params
+            API Insert [API.Category] -> Insert.category params
+            API Insert [API.Tag] -> Insert.tag params
+            API Insert [API.Draft] -> Insert.draft params
+            API Insert [API.Draft, Id pid, API.Post] -> Insert.publish pid  
+            API Insert [API.Post, Id pid, API.Comment] -> Insert.comment pid params
+        return mempty
+    --апи, которые возвращают результат
+    else do 
+        case api of
+            API SelectById [API.User, Id n] -> encodePretty <$> Select.user n
+            API SelectById [API.Author, Id n] -> encodePretty . (evalAuthor <$>) <$> Select.author n
+            API SelectById [API.Category, Id n] -> do 
+                allCats <- Select.allCategories
+                mcat <- Select.category n
+                evalmCat <- toT $ sequenceA $ evalCategory allCats <$> mcat
+                return $ encodePretty evalmCat
+            API SelectById [API.Post, Id n] -> do
+                allCats <- Select.allCategories
+                allEvalCats <- toT $ evalCategories allCats allCats
+                mpost <- Select.post n 
+                evalmPost <- toT $ sequenceA $ evalPost allEvalCats <$> mpost
+                return $ encodePretty evalmPost
+            API SelectById [API.Tag, Id n] -> encodePretty <$> Select.tag n
+
+
+            API Select [API.User] -> encodePretty <$> Select.users params
+            API Select [API.Author] -> encodePretty . evalAuthors <$> Select.authors params
+            API Select [API.Category] -> do
+                allCats <- Select.allCategories
+                cats <- Select.categories params
+                evalCats <- toT $ evalCategories allCats cats
+                return $ encodePretty evalCats
+            API Select [API.Post] -> do
+                allCats <- Select.allCategories
+                allEvalCats <- toT $ evalCategories allCats allCats
+                posts <- Select.posts params
+                evalmPost <- toT $ evalPosts allEvalCats posts
+                return $ encodePretty evalmPost
+            API Select [API.Tag] -> encodePretty <$> Select.tags params
+
+--функция, которая не возвращает json (insert,update,delete) 
 execute :: BC.ByteString -> PathInfo -> HTTP.Query -> T()
 execute rawPathinfo pathInfo qs = do
     Log.setSettings Color.Blue True "DB.execute" 

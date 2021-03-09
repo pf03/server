@@ -25,102 +25,94 @@ import Data.Maybe
 ----------------------------------User-----------------------------------------------------------
 type User =  Row.User 
 
-usersQuery1 :: Query 
-usersQuery1 = [sql|SELECT * FROM users|]
+user :: Int -> T (Maybe User)
+user pid = listToMaybe <$> query_ query where
+        query =  selectUsersQuery <+> template [sql|WHERE users.id = {0}|] [q pid]
 
---будте просто users
-usersQuery :: ParamsMap Param ->  Identity Query
-usersQuery params = return res where
-        res:: SQL.Query
-        res = usersQuery1 `whereAll` conditions <+> pagination (params ! "page")
+users :: ParamsMap Param -> T [User]
+users params = query_ $ usersQuery params
 
-        conditions :: [SQL.Query]
-        conditions = []
+--отделение чистого кода от грязного
+selectUsersQuery :: Query 
+selectUsersQuery = [sql|SELECT * FROM users|]
 
---это будет отдельная api
-user :: Param -> T (Maybe Row.User)
-user param = listToMaybe <$> query_ query where
-        query =  usersQuery1 <+> template [sql|SELECT * FROM users WHERE users.id = {0}|] [p param]
+usersQuery :: ParamsMap Param -> Query
+usersQuery params = selectUsersQuery <+> pagination (params ! "page")
 
 -- checkUser :: Param -> T Bool
 -- checkUser param = isJust <$> Select.user param
 
---универсальный тип, подходящий для любого select
---type Select = undefined
-
 -------------------------------Author---------------------------------------------------------
 type Author = Row.Author :. Row.User
 
-authorsQuery :: ParamsMap Param ->  Identity Query
-authorsQuery params = return res where
-        res:: SQL.Query
-        res = selectQuery `whereAll` conditions <+> pagination (params ! "page")
+author :: Int -> T (Maybe Author)
+author pid = listToMaybe <$> query_ query where
+        query =  selectAuthorsQuery <+> template [sql|WHERE authors.id = {0}|] [q pid]
 
-        selectQuery :: SQL.Query
-        selectQuery = [sql|SELECT * FROM authors
+authors :: ParamsMap Param -> T [Author]
+authors params = query_ $ authorsQuery params
+
+selectAuthorsQuery :: SQL.Query
+selectAuthorsQuery = [sql|SELECT * FROM authors
                 LEFT JOIN users
                 ON authors.user_id = users.id|] 
 
-        conditions :: [SQL.Query]
-        conditions = []
+authorsQuery :: ParamsMap Param -> Query
+authorsQuery params = selectAuthorsQuery <+> pagination (params ! "page")
 
 ----------------------------Category-----------------------------------------------------------
 --категории возвращаются все без пагинации, считается, что их немного
 --можно сделать запрос без пагинации для внутреннего использования и с пагинацией для внешнего
 type Category = Row.Category 
-categoriesQuery ::  Identity Query
-categoriesQuery = return [sql|SELECT * FROM categories|] 
 
---возможно здесь передать просто номер категории вместо сложного объекта? тогда нарушится универсальность
---и сложно будет вызывать из модуля db, будут костыли
-category::  Param -> T (Maybe Row.Category)
-category param = listToMaybe <$> query_ query where
-        query =  template [sql|SELECT * FROM categories WHERE categories.id = {0}|] [p param]
+category::  Int -> T (Maybe Category)
+category pid = listToMaybe <$> query_ query where
+        query = selectCategoriesQuery <+> template [sql|WHERE categories.id = {0}|] [q pid]
 
+categories :: ParamsMap Param -> T [Category]
+categories params = query_ $ categoriesQuery params
 
+--все категории без пагинации нужны для вычисления родительских категорий
+allCategories :: T [Category]
+allCategories = query_ selectCategoriesQuery
 
+selectCategoriesQuery ::  Query
+selectCategoriesQuery = [sql|SELECT * FROM categories|] 
 
+categoriesQuery :: ParamsMap Param -> Query
+categoriesQuery params = selectCategoriesQuery <+> pagination (params ! "page")
 
 -------------------------Post-------------------------------------------------------------
 type Post = Row.Post :. Row.Content :. Row.Category :. Row.Author :. Row.User :. Maybe Row.TagToContent :. Maybe Row.Tag
 
+--не все так просто!!! Из-за того, что у одного поста может быть много тегов, здесь может быть много строк!!!
+--В общем случае может быть много строк, а на выходе 0 или 1 объект json!!
+post::  Int -> T (Maybe Post)
+post pid = listToMaybe <$> query_ query where
+        query = selectPostsQuery <+> template [sql|WHERE categories.id = {0}|] [q pid]
 
+posts :: ParamsMap Param -> T [Post]
+posts params = query_ $ postsQuery params
 
--- postsQuery :: Identity SQL.Query
--- postsQuery = return [sql|
---         SELECT * FROM posts
---             LEFT JOIN contents ON contents.id = posts.content_id
---             LEFT JOIN authors ON authors.id = contents.author_id
---             LEFT JOIN users ON users.id = authors.user_id
---             LEFT JOIN tags_to_contents ON contents.id = tags_to_contents.content_id
---             LEFT JOIN tags ON tags.id = tags_to_contents.tag_id
---         |]
+--зачем здесь таблица categories? проверить!!!
+selectPostsQuery ::  Query
+selectPostsQuery = [sql|
+        SELECT * FROM posts
+        LEFT JOIN contents ON contents.id = posts.content_id
+        LEFT JOIN categories ON categories.id = contents.category_id
+        LEFT JOIN authors ON authors.id = contents.author_id
+        LEFT JOIN users ON users.id = authors.user_id
+        LEFT JOIN tags_to_contents ON contents.id = tags_to_contents.content_id
+        LEFT JOIN tags ON tags.id = tags_to_contents.tag_id|]
 
---localhost/posts?tags_in=[1,2,5]
---type PostParams = Int :. Params Int  :. Params Int :. Params Date :. Maybe String :. Maybe String
---попробовать сделать корректный перевод строки в запросе и табуляцию
---более универсальный тип для параметра, чтобы представить это в виде списка
---возможно сделать здесь обработку некорректных шаблонов
-postsNewQuery :: ParamsMap Param -> Identity SQL.Query
-postsNewQuery params = return res where
+postsQuery :: ParamsMap Param -> SQL.Query
+postsQuery params = res where
 
         p :: BSName -> Param
         p name = params ! name
 
         res:: SQL.Query
-        res = selectQuery `whereAll` conditions  <+> orderBy (p "order_by") <+> pagination (p "page")
-        
-
-        --зачем здесь таблица categories? проверить!!!
-        selectQuery :: SQL.Query
-        selectQuery = [sql|
-                SELECT * FROM posts
-                LEFT JOIN contents ON contents.id = posts.content_id
-                LEFT JOIN categories ON categories.id = contents.category_id
-                LEFT JOIN authors ON authors.id = contents.author_id
-                LEFT JOIN users ON users.id = authors.user_id
-                LEFT JOIN tags_to_contents ON contents.id = tags_to_contents.content_id
-                LEFT JOIN tags ON tags.id = tags_to_contents.tag_id|]
+        res = selectPostsQuery `whereAll` conditions  <+> orderBy (p "order_by") <+> pagination (p "page")
 
         --исключить из результирующего запроса лишние TRUE в функции whereAll ?
         conditions :: [SQL.Query]
@@ -132,7 +124,6 @@ postsNewQuery params = return res where
                         cond [sql|contents.name|] $ p "name",
                         cond [sql|CONCAT_WS(' ', users.last_name, users.first_name)|] $ p "author_name",
                         cond [sql|contents.text|] $ p "text"
-                        
                 ]
 
         postIdsSubquery :: Query -> Param -> SQL.Query
@@ -184,53 +175,21 @@ postsNewQuery params = return res where
                         "photos" -> Query.brackets [sql|SELECT COUNT(*) FROM photos WHERE
                                 photos.content_id = contents.id|]
 
-        
-        
-        -- categoriesCond :: Param -> SQL.Query
-        -- categoriesCond ParamsAny = [sql|TRUE|]
-        -- categoriesCond (ParamsIn categoryIds) = [sql|contents.category_id|] `inList` categoryIds
-        -- categoriesCond (ParamsAll categoryIds) =  error "this pattern should not occur!" 
-
-        -- --добавить еще паттерн ParamsEQ для удобства
-        -- createdAtCond :: Param -> SQL.Query
-        -- createdAtCond ParamsAny = [sql|TRUE|]
-        -- createdAtCond (ParamsIn [date]) = template [sql|contents.creation_date = '{0}'|] [q date]
-        -- createdAtCond (ParamsGT date) = template [sql|contents.creation_date > '{0}'|] [q date]
-        -- createdAtCond (ParamsLT date) = template [sql|contents.creation_date < '{0}'|] [q date]
-        -- -- createdAtCondTempl :: Date -> SQL.Query -> SQL.Query
-        -- -- createdAtCondTempl date sign = template [sql|contents.creation_date {1} '{0}'|] [q date, sign]
-
-        -- nameCond :: Param -> SQL.Query
-        -- nameCond Nothing = [sql|TRUE|]
-        -- --authorNameCond (Just text) = template [sql|users.first_name + ' ' + users.last_name ILIKE '%{0}%'|] [q text]
-        -- nameCond (Just name) = template [sql|contents.name ILIKE '%{0}%'|] [q name]
-
-        -- authorNameCond :: Param -> SQL.Query
-        -- authorNameCond Nothing = [sql|TRUE|]
-        -- authorNameCond (Just authorName) = template [sql|CONCAT_WS(' ', users.last_name, users.first_name) ILIKE '%{0}%'|] [q authorName]
-
-        
-
-
-        -- textCond :: Param -> SQL.Query
-        -- textCond Nothing = [sql|TRUE|]
-        -- textCond (Just text) = template [sql|contents.text ILIKE '%{0}%'|] [q text]
-
-
-
 -------------------------Tag-------------------------------------------------------------
 type Tag = Row.Tag 
+tag::  Int -> T (Maybe Tag)
+tag pid = listToMaybe <$> query_ query where
+        query = selectTagsQuery <+> template [sql|WHERE tags.id = {0}|] [q pid]
 
-tagsQuery :: ParamsMap Param -> Identity Query
-tagsQuery params = return res where
-        res:: SQL.Query
-        res = selectQuery `whereAll` conditions <+> pagination (params ! "page")
+tags :: ParamsMap Param -> T [Tag]
+tags params = query_ $ tagsQuery params
 
-        selectQuery :: SQL.Query
-        selectQuery = [sql|SELECT * FROM tags|]
+selectTagsQuery ::  Query
+selectTagsQuery = [sql|SELECT * FROM tags|] 
 
-        conditions :: [SQL.Query]
-        conditions = []
+tagsQuery :: ParamsMap Param -> Query
+tagsQuery params = selectTagsQuery <+> pagination (params ! "page")
+
 
 -------------------------Pagination------------------------------------------------------
 pagination :: Param -> SQL.Query

@@ -74,11 +74,18 @@ type Tag = Row.Tag
 --такой ответ кажется избыточный, но по условиям УЧЕБНОГО проекта требуются именно вложенные сущности.
 
 --evaluate from 'select' types to 'json' types
-evalCategories :: [Select.Category] -> Except E [Category]
-evalCategories rcs = mapM (evalCategory [] rcs . Row.categoryId) rcs
+-- evalCategories :: [Select.Category] -> Except E [Category]
+-- evalCategories rcs = mapM (evalCategory [] rcs . Row.categoryId) rcs
 
-evalCategory :: [Int] -> [Select.Category] -> Int -> Except E Category
-evalCategory  childs rcs categoryId = do
+evalCategories :: [Select.Category] -> [Select.Category] -> Except E [Category]
+evalCategories allCategories  = mapM (_evalCategory [] allCategories . Row.categoryId)
+
+evalCategory :: [Select.Category] -> Select.Category -> Except E Category
+evalCategory  allCategories category = _evalCategory [] allCategories (Row.categoryId category)
+
+--intenal
+_evalCategory :: [Int] -> [Select.Category] -> Int -> Except E Category
+_evalCategory  childs rcs categoryId = do
     if categoryId `elem` childs then do
         --циклическая категория повесит наш сервак при формировании json, поэтому выкинем ошибку
         throwE . DBError $ template "Обнаружена циклическая категория {0}, которая является своим же родителем" [show categoryId]
@@ -90,7 +97,7 @@ evalCategory  childs rcs categoryId = do
                 case mparentId of
                     Nothing -> return $ Category categoryId Nothing name  
                     Just parentId -> do
-                        parentCategory <- evalCategory (categoryId:childs) rcs parentId 
+                        parentCategory <- _evalCategory (categoryId:childs) rcs parentId 
                         return $ Category categoryId (Just parentCategory) name 
 
 evalPosts :: [Category] -> [Select.Post] -> Except E [Post]

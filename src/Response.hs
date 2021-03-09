@@ -40,7 +40,12 @@ get req = do
     Log.dataT Log.Debug req
     let pathInfo = Wai.pathInfo req
     let queryString = Wai.queryString req
-    Response.sendData (DB.execute (rawPathInfo req) pathInfo) pathInfo queryString 
+    json <- DB.getJSON (rawPathInfo req) pathInfo queryString
+    Response.json json
+    --Response.sendData (DB.execute (rawPathInfo req) pathInfo) pathInfo queryString 
+
+
+
     
     -- case pathInfo of 
     --     ["users"] -> Response.sendData DB.getUsers pathInfo queryString 
@@ -54,13 +59,13 @@ get req = do
 
         -- _ -> throwT . RequestError $ template  "Неизвестный путь: {0}"  [show . rawPathInfo $ req]
 
-sendData :: ( ToJSON a, Show a) => (Query -> T a) -> PathInfo -> Query  -> T Response
-sendData tgetData pathInfo queryString  = do
-    Log.setSettings Color.Blue  True $ template "sendData: {0}" [show . head $ pathInfo] 
-    _data <- tgetData queryString
-    let edata = encodePretty _data
-    --Log.dataT Log.Info _data
-    Response.json edata
+-- sendData :: ( ToJSON a, Show a) => (Query -> T a) -> PathInfo -> Query  -> T Response
+-- sendData tgetData pathInfo queryString  = do
+--     Log.setSettings Color.Blue  True $ template "sendData: {0}" [show . head $ pathInfo] 
+--     _data <- tgetData queryString
+--     let edata = encodePretty _data
+--     --Log.dataT Log.Info _data
+--     Response.json edata
 
 
 json :: LC.ByteString -> T Response
