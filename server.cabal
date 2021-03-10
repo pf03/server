@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 151047b3aca7358933cd685d4bef20abd99dd0afefb97a14b438d9a424f0dc51
+-- hash: adfe64b6971a53534b1755222a5e660d0d3a8d8eb8ed4b024610fc01f60509ca
 
 name:           server
 version:        0.1.0.0
@@ -32,6 +32,7 @@ library
       Common
       Config
       DB
+      Delete
       Encode
       Error
       Insert

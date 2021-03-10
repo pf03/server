@@ -22,7 +22,7 @@ import Data.List
 import qualified Network.HTTP.Types.URI as HTTP
 import Data.Maybe
 import qualified Database.PostgreSQL.Simple.Types as SQL
-import Data.Aeson
+import Data.Aeson hiding (encode)
 import Control.Monad.Identity
 import Transformer
 import qualified Row
@@ -42,6 +42,7 @@ import qualified Insert
 import API
 import Router
 import Data.Aeson.Encode.Pretty
+import qualified Delete
 
 -- testq :: IO ()
 -- testq = runT $ DB.insertAuthor DB.testQueryInsert
@@ -171,34 +172,43 @@ getJSON rawPathinfo pathInfo qs = do
     --апи, которые не возвращают результат
     if apiType == Insert || apiType == Update || apiType == Delete then do
         case api of
-            API Insert [API.User] -> Insert.user params
-            API Insert [API.Author] -> Insert.author params
-            API Insert [API.Category] -> Insert.category params
-            API Insert [API.Tag] -> Insert.tag params
-            API Insert [API.Draft] -> Insert.draft params
-            API Insert [API.Draft, Id pid, API.Post] -> Insert.publish pid  
-            API Insert [API.Post, Id pid, API.Comment] -> Insert.comment pid params
+            API Insert [API.User] -> encode $ Insert.user params
+            API Insert [API.Author] -> encode $ Insert.author params
+            API Insert [API.Category] -> encode $ Insert.category params
+            API Insert [API.Tag] -> encode $ Insert.tag params
+            API Insert [API.Draft] -> encode $ Insert.draft params
+            API Insert [API.Draft, Id pid, API.Post] -> encode $ Insert.publish pid
+            API Insert [API.Post, Id pid, API.Comment] -> encode $ Insert.comment pid params
+
+            API Delete [API.Author, Id n] -> encode $ Delete.author n
+            API Delete [API.Post, Id n] -> encode $ Delete.post n
         return mempty
     --апи, которые возвращают результат
     else do 
         case api of
-            API SelectById [API.User, Id n] -> encodePretty <$> Select.user n
-            API SelectById [API.Author, Id n] -> encodePretty . (evalAuthor <$>) <$> Select.author n
-            API SelectById [API.Category, Id n] -> encodePretty <$> DB.getCategory n
-            API SelectById [API.Post, Id n] -> encodePretty <$> DB.getPost n
+            API SelectById [API.User, Id n] -> encode $ Select.user n
+            API SelectById [API.Author, Id n] -> encode $ (evalAuthor <$>) <$> Select.author n
+            API SelectById [API.Category, Id n] -> encode $ DB.getCategory n
+            API SelectById [API.Post, Id n] -> encode $ DB.getPost n
                 -- allCats <- Select.allCategories
                 -- allEvalCats <- toT $ evalCategories allCats allCats
                 -- mpost <- Select.post n 
                 -- evalmPost <- toT $ sequenceA $ evalPost allEvalCats <$> mpost
                 -- return $ encodePretty evalmPost
-            API SelectById [API.Tag, Id n] -> encodePretty <$> Select.tag n
+            API SelectById [API.Tag, Id n] -> encode $ Select.tag n
 
+            API Select [API.User] -> encode $ Select.users params
+            API Select [API.Author] -> encode $ evalAuthors <$> Select.authors params
+            API Select [API.Category] -> encode $ DB.getCategories params
+            API Select [API.Post] -> encode $ DB.getPosts params
+            API Select [API.Tag] -> encode $ Select.tags params
 
-            API Select [API.User] -> encodePretty <$> Select.users params
-            API Select [API.Author] -> encodePretty . evalAuthors <$> Select.authors params
-            API Select [API.Category] -> encodePretty <$> DB.getCategories params
-            API Select [API.Post] -> encodePretty <$> DB.getPosts params
-            API Select [API.Tag] -> encodePretty <$> Select.tags params
+encode :: ToJSON a => T a -> T LC.ByteString
+encode ta = do
+    a <- ta
+    let json = encodePretty a
+    writeResponseJSON json
+    return json
 
 getPosts :: ParamsMap Param -> T [Post]
 getPosts params = do
@@ -208,8 +218,7 @@ getPosts params = do
     Log.funcT Log.Debug "..."
     let newParams = evalParams params categories
     selectPosts <- Select.posts newParams
-    jsonPosts <- logT $ JSON.evalUnitedPosts categories selectPosts
-    writeResponse jsonPosts
+    jsonPosts <- toT $ JSON.evalUnitedPosts categories selectPosts
     return jsonPosts
 
 getPost :: Int -> T (Maybe Post)
@@ -220,7 +229,6 @@ getPost pid = do
     Log.funcT Log.Debug "..."
     selectPosts <- Select.post pid
     jsonPosts <- logT $ JSON.evalUnitedPosts categories selectPosts
-    writeResponse jsonPosts
     return $ listToMaybe jsonPosts --проверить как это работает. evalUnitedPosts должно объединять все в один пост
 
 getAllCategories :: T [Category]
@@ -236,7 +244,7 @@ getCategories params = do
     Log.funcT Log.Debug "..."
     allCategories <- Select.allCategories
     categories <- Select.categories params
-    logT $ evalCategories allCategories categories
+    toT $ evalCategories allCategories categories
 
 --эту логику перенести в select??
 getCategory :: Int -> T (Maybe Category)
@@ -248,20 +256,20 @@ getCategory pid = do
     toT $ sequenceA $ evalCategory allCats <$> mcat
 
 --функция, которая не возвращает json (insert,update,delete) 
-execute :: BC.ByteString -> PathInfo -> HTTP.Query -> T()
-execute rawPathinfo pathInfo qs = do
-    Log.setSettings Color.Blue True "DB.execute" 
-    Log.funcT Log.Debug "..."
-    api <- logT $ router rawPathinfo pathInfo
-    params <- logT $ Params.parseParams qs api
-    case api of
-        API Insert [API.User] -> Insert.user params
-        API Insert [API.Author] -> Insert.author params
-        API Insert [API.Category] -> Insert.category params
-        API Insert [API.Tag] -> Insert.tag params
-        API Insert [API.Draft] -> Insert.draft params
-        API Insert [API.Draft, Id pid, API.Post] -> Insert.publish pid  
-        API Insert [API.Post, Id pid, API.Comment] -> Insert.comment pid params
+-- execute :: BC.ByteString -> PathInfo -> HTTP.Query -> T()
+-- execute rawPathinfo pathInfo qs = do
+--     Log.setSettings Color.Blue True "DB.execute" 
+--     Log.funcT Log.Debug "..."
+--     api <- logT $ router rawPathinfo pathInfo
+--     params <- logT $ Params.parseParams qs api
+--     case api of
+--         API Insert [API.User] -> Insert.user params
+--         API Insert [API.Author] -> Insert.author params
+--         API Insert [API.Category] -> Insert.category params
+--         API Insert [API.Tag] -> Insert.tag params
+--         API Insert [API.Draft] -> Insert.draft params
+--         API Insert [API.Draft, Id pid, API.Post] -> Insert.publish pid  
+--         API Insert [API.Post, Id pid, API.Comment] -> Insert.comment pid params
 
 
 

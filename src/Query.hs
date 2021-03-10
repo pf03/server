@@ -17,13 +17,13 @@ query_ :: (Show r, FromRow r) => Query -> T [r]
 query_ q = do
     conn <- S.getConnection
     Log.debugT q
-    logT $ SQL.query_ conn q
+    toT $ SQL.query_ conn q
 
 query :: (Show r, ToRow q, FromRow r) => Query -> q -> T [r]
 query query q = do
     Log.debugT query 
     conn <- S.getConnection
-    logT $ SQL.query conn query q
+    toT $ SQL.query conn query q
 
 executeMany :: ToRow q => Query -> [q] -> T Int64
 executeMany q list = do 

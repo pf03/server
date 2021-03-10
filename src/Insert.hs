@@ -113,10 +113,10 @@ checkExist params name templ = helper name (params ! name) templ where
     helper name param@(ParamEq (Int pid)) templ = do 
         exist <- query_ $ template templ [q pid] :: T [Only Int]
         case exist of
-            [] -> throwT $ RequestError  (template "Уазан несуществующий параметр {0}: {1}" [show name, show pid]) 
+            [] -> throwT $ DBError  (template "Уазан несуществующий параметр {0}: {1}" [show name, show pid]) 
             _ -> return ()
             --x:xs -> ??
-        --unless exist $ throwT $ RequestError  (template "Уазан несуществующий parent_id: {0}" [show parentId]) 
+        --unless exist $ throwT $ DBError  (template "Уазан несуществующий parent_id: {0}" [show parentId]) 
 
 checkNotExist :: String -> ParamsMap Param -> BSName -> Query -> T() 
 checkNotExist description params name templ = helper name (params ! name) templ where
@@ -125,7 +125,7 @@ checkNotExist description params name templ = helper name (params ! name) templ 
         exist <- query_ $ template templ [q pid] :: T [Only Int]
         case exist of
             [] -> return ()
-            _ -> throwT $ RequestError  (template "{2} с таким {0} = {1} уже существует" [show name, show pid, description]) 
+            _ -> throwT $ DBError  (template "{2} с таким {0} = {1} уже существует" [show name, show pid, description]) 
             
 
 

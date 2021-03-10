@@ -247,3 +247,9 @@ writeResponse json = do
     Log.colorTextT Color.Yellow Log.Warning "Запись ответа в файл в целях отладки..."
     liftIO $ B.writeFile "response.json" $ convert . Aeson.encodePretty $ json --строгая версия
     --liftIO $ B.appendFile "log.txt" $ convert ("\n" :: String)  --строгая версия
+
+writeResponseJSON :: LC.ByteString -> T()
+writeResponseJSON json = do
+    Log.colorTextT Color.Yellow Log.Warning "Запись ответа в файл в целях отладки..."
+    liftIO $ B.writeFile "response.json" $ convert json --строгая версия
+    --liftIO $ B.appendFile "log.txt" $ convert ("\n" :: String)  --строгая версия

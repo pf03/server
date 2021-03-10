@@ -178,6 +178,7 @@ postsQuery params = res where
                         "category_id"-> [sql|contents.category_id|]
                         "photos" -> Query.brackets [sql|SELECT COUNT(*) FROM photos WHERE
                                 photos.content_id = contents.id|]
+        orderBy ParamNo = [sql||]
 
 -------------------------Tag-------------------------------------------------------------
 type Tag = Row.Tag 
