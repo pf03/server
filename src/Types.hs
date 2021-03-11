@@ -55,7 +55,8 @@ data S = S {
     -- configDB :: ConnectInfo,
     connectionDB :: Connection,
     configLog :: Log.ConfigLog,
-    logSettings :: Log.LogSettings
+    logSettings :: Log.LogSettings,
+    changed :: Changed
     
 } deriving (Show, Generic)
 

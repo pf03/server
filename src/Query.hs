@@ -39,11 +39,26 @@ execute_ q = do
     toT $ SQL.execute_ conn q
 
 --новая версия включает в себя template и автоматическую запись в State количество модифицированных строк
-execute :: Query -> [Query] -> QueryType -> APIType ->  T ()
-execute q = do
+insert  :: APIType -> Query -> [Query] ->  T ()
+insert apiType q qs   = do
     Log.debugT q 
     conn <- S.getConnection
-    toT $ SQL.execute_ conn q
+    toT $ SQL.execute_ conn $ template q qs
+    undefined
+
+update  :: APIType -> Query -> [Query] ->  T ()
+update apiType q qs = do
+    Log.debugT q 
+    conn <- S.getConnection
+    toT $ SQL.execute_ conn $ template q qs
+    undefined
+
+delete  :: APIType -> Query -> [Query] ->  T ()
+delete apiType q qs = do
+    Log.debugT q 
+    conn <- S.getConnection
+    toT $ SQL.execute_ conn $ template q qs
+    undefined
 
 execute__ :: Query -> T ()
 execute__ q = do

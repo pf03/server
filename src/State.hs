@@ -6,6 +6,8 @@ import qualified Log
 
 import Control.Monad.State.Lazy
 import Database.PostgreSQL.Simple
+import API
+import Data.Int
 
 --getters && setters lens like
 
@@ -27,6 +29,21 @@ getWarpPort = gets configWarp --trivial
 
 getConnection:: MonadState S m => m Connection
 getConnection = gets connectionDB --trivial
+
+setChanged :: MonadState S m => QueryType -> APIType -> Int64 -> m ()
+setChanged Select _ n |n <= 0 = return ();
+setChanged Select _ n = return ();
+setChanged SelectById _ n = return ();
+setChanged _ (Id _) n = return ();
+setChanged Insert apiType n = do
+    mmodified <- gets $ \st -> M.lookup "edited" (changed st)
+    newModified <- case mmodified of 
+        Nothing -> return $ M.fromList [(entity apiType, n)]
+        Just modified -> case M.lookup (entity apiType) modified of
+            Nothing -> return $ M.insert (entity apiType) n modified
+            Just _ -> return $ M.adjust (+n) (entity apiType) modified
+    modify $ \st -> st {changed = M.insert "edited" newModified (changed st)}
+
 
 -- getConfigDB:: MonadState S m => m ConnectInfo
 -- getConfigDB = gets configDB --trivial
