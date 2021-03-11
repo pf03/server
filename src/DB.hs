@@ -180,6 +180,7 @@ getJSON rawPathinfo pathInfo qs = do
             API Insert [API.Draft, Id pid, API.Post] -> encode $ Insert.publish pid
             API Insert [API.Post, Id pid, API.Comment] -> encode $ Insert.comment pid params
 
+            API Delete [API.User, Id n] -> encode $ Delete.user n
             API Delete [API.Author, Id n] -> encode $ Delete.author n
             API Delete [API.Post, Id n] -> encode $ Delete.post n
         return mempty

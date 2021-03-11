@@ -115,25 +115,34 @@ insertCategoryCases = ("insertCategory", zip pathInfos queries) where
             [("parent_id", Nothing),
             ("category_name", Just "description for category")]
         ]
-    
-deleteAuthorCases :: (String, [(PathInfo, Query)])
-deleteAuthorCases = ("deleteAuthor", zip pathInfos queries) where
-    pathInfos = [
-            ["authors", "1", "delete"]
-            -- ["authors", "2", "delete"],
-            -- ["authors", "100", "delete"],
-            -- ["authors", "-1", "delete"]
-        ]
-    queries = repeat []
 
-deleteCases :: (String, [(PathInfo, Query)])
-deleteCases = ("deleteAuthor", tuples) where
+--работает
+deleteUserCases :: (String, [(PathInfo, Query)])
+deleteUserCases = ("deleteUser", tuples) where
     tuples = [
+            (,) ["users"] [],
+            (,) ["authors"] [],
+            (,) ["posts"] [],
+            (,) ["users", "0", "delete"] [],
+            (,) ["users", "1", "delete"] [],
+            (,) ["users", "2", "delete"] [],
+            (,) ["users", "7", "delete"] [],
+            (,) ["users"] [],
+            (,) ["authors"] [],
+            (,) ["posts"] []
+        ]
+
+--работает  
+deleteAuthorCases :: (String, [(PathInfo, Query)])
+deleteAuthorCases = ("deleteUser", tuples) where
+    tuples = [
+            (,) ["authors"] [],
+            (,) ["posts"] [],
+            (,) ["authors", "0", "delete"] [],
             (,) ["authors", "1", "delete"] [],
-            (,) ["posts"] [],
-            (,) ["posts", "2", "delete"] [],
-            (,) ["posts"] [],
-            (,) ["authors", "1", "delete"] []
+            (,) ["authors", "4", "delete"] [],
+            (,) ["authors"] [],
+            (,) ["posts"] []
         ]
 
 
@@ -141,7 +150,7 @@ cases :: [(String, [(PathInfo, Query)])]
 cases = [
     --selectPostQuery,
     --deleteAuthorCases
-    deleteCases
+    deleteAuthorCases
     ]
 
 -- casesById :: [(String, [PathInfo])]
