@@ -195,16 +195,37 @@ selectTagsQuery = [sql|SELECT * FROM tags|]
 tagsQuery :: ParamsMap Param -> Query
 tagsQuery params = selectTagsQuery <+> pagination (params ! "page")
 
+-------------------------Comment----------------------------------------------------------
 
--------------------------Pagination------------------------------------------------------
+type Comment =  Row.Comment :. Row.Post :. Row.User
+-- comments::  Int -> T (Maybe Tag)
+-- comments postId = listToMaybe <$> query_ query where
+--         query = selectTagsQuery <+> template [sql|WHERE tags.id = {0}|] [q pid]
+
+comments :: Int -> ParamsMap Param -> T [Comment]
+comments postId params = query_ $ commentsQuery postId params
+
+selectCommentsQuery ::  Query
+selectCommentsQuery = [sql|
+        SELECT * FROM comments 
+                LEFT JOIN posts ON posts.id = comments.post_id
+                LEFT JOIN users ON users.id = comments.user_id
+        |] 
+
+commentsQuery :: Int -> ParamsMap Param -> Query
+commentsQuery postId params = selectCommentsQuery `whereAll` conditions <+> pagination (params ! "page") where
+
+        conditions :: [SQL.Query]
+        conditions =  [
+                template [sql|posts.id = {0}|] [q postId]
+                ]
+
+
+
+-------------------------Pagination--------------------------------------------------------
 pagination :: Param -> SQL.Query
 pagination (ParamEq (Int page)) = template [sql|LIMIT {0} OFFSET {1}|] [q quantity, q $ (page-1)*quantity] where
         quantity = 20
-
-------------------------Sort-------------------------------------------------------------
---возможно сортировка должна быть разная для разных запросов
-
-
 
 
 --------------------------Templates-------------------------------------------------------

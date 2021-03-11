@@ -12,6 +12,7 @@ import Common
 import qualified Data.Text.Encoding as T
 import qualified Data.Text as T
 import qualified Log
+import API 
 
 query_ :: (Show r, FromRow r) => Query -> T [r]
 query_ q = do
@@ -33,6 +34,13 @@ executeMany q list = do
 
 execute_ :: Query -> T Int64
 execute_ q = do
+    Log.debugT q 
+    conn <- S.getConnection
+    toT $ SQL.execute_ conn q
+
+--новая версия включает в себя template и автоматическую запись в State количество модифицированных строк
+execute :: Query -> [Query] -> QueryType -> APIType ->  T ()
+execute q = do
     Log.debugT q 
     conn <- S.getConnection
     toT $ SQL.execute_ conn q

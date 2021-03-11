@@ -20,8 +20,8 @@ import Query
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
 import Control.Monad.Identity
-import Select
-import Data.Map as M ((!), fromList)
+import Select ( p, val )
+import Data.Map as M ((!), fromList, insert)
 import Class
 import Control.Monad.Trans.Except
 import Transformer
@@ -101,9 +101,18 @@ user params = execute__ $ template [sql|INSERT into users (last_name, first_name
         [row params ["last_name", "first_name", "avatar", "login", "pass", "creation_date", "is_admin"]]
     
 
-comment :: Int -> ParamsMap Param -> T()
-comment =  undefined
-    
+comment :: Int -> ParamsMap Param -> T Changed
+comment postId params = do
+    when (params ! "user_id" == ParamEq (Int 1)) $ throwT $ DBError "Невозможно создать комментарий от удаленного пользователя (пользователя по умолчанию) id = 1"
+    let allParams = M.insert "post_id" (ParamEq (Int postId)) params
+    checkExist allParams "post_id" [sql|SELECT 1 FROM posts WHERE posts.id = {0}|]
+    checkExist allParams "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
+    createdComments <- execute_ $ template [sql|INSERT into comments (post_id, user_id, creation_date, text) values {0}|]
+        [row allParams ["post_id", "user_id", "creation_date", "text"]]
+
+    --return $ mempty { created = mempty {comments = createdComments}}
+
+    return $ M.fromList [("created", M.fromList [("comments", createdComments)])]
 
 --query Select 1 ...
 --в шаблон подставляется внутренний pid, если параметр обязательный, то ParamNo никогда не выскочит
@@ -113,7 +122,7 @@ checkExist params name templ = helper name (params ! name) templ where
     helper name param@(ParamEq (Int pid)) templ = do 
         exist <- query_ $ template templ [q pid] :: T [Only Int]
         case exist of
-            [] -> throwT $ DBError  (template "Уазан несуществующий параметр {0}: {1}" [show name, show pid]) 
+            [] -> throwT $ DBError  (template "Указан несуществующий параметр {0}: {1}" [show name, show pid]) 
             _ -> return ()
             --x:xs -> ??
         --unless exist $ throwT $ DBError  (template "Уазан несуществующий parent_id: {0}" [show parentId]) 

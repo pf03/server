@@ -183,6 +183,7 @@ getJSON rawPathinfo pathInfo qs = do
             API Delete [API.User, Id n] -> encode $ Delete.user n
             API Delete [API.Author, Id n] -> encode $ Delete.author n
             API Delete [API.Post, Id n] -> encode $ Delete.post n
+            API Delete [API.Comment, Id n] -> encode $ Delete.comment n
         return mempty
     --апи, которые возвращают результат
     else do 
@@ -203,6 +204,7 @@ getJSON rawPathinfo pathInfo qs = do
             API Select [API.Category] -> encode $ DB.getCategories params
             API Select [API.Post] -> encode $ DB.getPosts params
             API Select [API.Tag] -> encode $ Select.tags params
+            API Select [API.Post, Id n, API.Comment] -> encode $ evalComments <$> Select.comments n params
 
 encode :: ToJSON a => T a -> T LC.ByteString
 encode ta = do

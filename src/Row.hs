@@ -87,10 +87,30 @@ data TagToContent = TagToContent{
     tagToContentId :: Int,
     tagToContentContentId :: Int,
     tagToContentTagId :: Int
-}deriving (Show, Generic, FromRow)
+} deriving (Show, Generic, FromRow)
 instance ToJSON TagToContent
 instance Identifiable TagToContent where
     getId = tagToContentId
+
+data Photo = Photo{
+    photoId :: Int,
+    photoPhoto :: Path,
+    photContentId :: Int
+} deriving (Show, Generic, FromRow)
+instance ToJSON Photo
+instance Identifiable Photo where
+    getId = photoId
+
+data Comment = Comment {
+    commentId :: Int,
+    commentPostId :: Int,
+    commentUserId :: Int,
+    commentCreationDate :: Date,
+    commentText :: Text
+} deriving (Show, Generic, FromRow)
+instance ToJSON Comment
+instance Identifiable Comment where
+    getId = commentId
 
 instance FromRow (Maybe Tag) where
     fromRow = do

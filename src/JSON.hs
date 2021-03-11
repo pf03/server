@@ -23,7 +23,7 @@ import Database.PostgreSQL.Simple
 import Class
 import qualified Data.Map as M
 
-
+-- в результирующем json убрать префиксы, и возможно сделать snake_case
 data Post = Post {
     postId :: Int,
     postContent :: Content
@@ -63,6 +63,16 @@ data Category = Category{
 instance ToJSON Category
 instance Identifiable Category where
     getId = categoryId
+
+data Comment = Comment {
+    commentId :: Int,
+    commentUser :: User,
+    commentCreationDate :: Date,
+    commentText :: Text
+} deriving (Show, Generic)
+instance ToJSON Comment
+instance Identifiable Comment where
+    getId = commentId
 
 type User = Row.User
 type Tag = Row.Tag
@@ -145,6 +155,13 @@ evalAuthor  (author :. user) = turnAuthor author user
 evalAuthors :: [Select.Author] -> [Author]
 evalAuthors = map evalAuthor
 
+evalComments :: [Select.Comment] -> [Comment]
+evalComments = map evalComment
+
+evalComment :: Select.Comment -> Comment
+evalComment (comment :. _ :. user) = turnComment comment user
+
+
 maybeToList :: Maybe a -> [a]
 maybeToList Nothing = []
 maybeToList (Just a) = [a]
@@ -156,6 +173,9 @@ turnContent (Row.Content a _ c d _ f g) author category tags  = Content a author
 
 turnAuthor :: Row.Author -> User -> Author
 turnAuthor (Row.Author a _ c) user = Author a user c 
+
+turnComment :: Row.Comment -> User -> Comment
+turnComment (Row.Comment a _ _ d e) user = Comment a user d e
 
 ---------GET-------------------
 getPostTags :: Post -> [Tag]

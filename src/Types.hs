@@ -23,6 +23,7 @@ import Database.PostgreSQL.Simple.Time
 import Data.Text (pack, Text(..))
 import qualified Data.ByteString as BC
 import qualified Data.Map as M
+import Data.Int
 
 --Этот модуль содержит все типы в проекте, исключая специфические для каждого из приложений VK, Telegram
 --Специфические нужно разместить в VK.Types и Telegram.Types
@@ -136,8 +137,8 @@ type FuncName = String
 
 --новая версия
 data Templ = Eq | In | All | Lt | Gt | Bt | Like  deriving (Show, Eq)  
-data Param = ParamEq Val | ParamIn [Val] | ParamAll [Val] | ParamLt Val | ParamGt Val | ParamBt (Val, Val) | ParamLike Val | ParamNo  deriving Show
-data Val = Str  String | Int Int | Date Date deriving Show
+data Param = ParamEq Val | ParamIn [Val] | ParamAll [Val] | ParamLt Val | ParamGt Val | ParamBt (Val, Val) | ParamLike Val | ParamNo  deriving (Show, Eq)
+data Val = Str  String | Int Int | Date Date deriving (Show, Eq)
 --data Val = Str {getStr :: String} | Int {getInt :: Int} | Date {getDate :: Date} deriving Show
 
 data ParamType = ParamTypePage | ParamTypeStr | ParamTypeInt | ParamTypeDate | ParamTypeSort [BSName] deriving Show
@@ -327,3 +328,41 @@ type APIName = String
 --Table.User
 --Row.User
 --JSON.User
+
+-- data Changed = Changed {
+--     created :: Modified,
+--     edited :: Modified,
+--     deleted :: Modified
+--     } deriving (Show, Generic)
+
+-- instance Semigroup Changed where 
+--     (<>) = mappend
+
+-- instance Monoid Changed where
+--     mempty = Changed mempty mempty mempty
+--     mappend (Changed a1 b1 c1) (Changed a2 b2 c2) = Changed (mappend a1 a2) (mappend b1 b2) (mappend c1 c2)
+
+-- instance ToJSON Changed
+
+-- data Modified = Modified {
+--     users :: Int64,
+--     authors :: Int64,
+--     categories :: Int64,
+--     tags :: Int64,
+--     posts :: Int64,
+--     drafts :: Int64,
+--     photos :: Int64,
+--     comments :: Int64
+-- } deriving (Show, Generic)
+
+-- instance ToJSON Modified
+-- instance Semigroup Modified where 
+--     (<>) = mappend
+
+-- instance Monoid Modified where
+--     mempty = Modified 0 0 0 0 0 0 0 0
+--     mappend (Modified a1 b1 c1 d1 e1 f1 g1 h1) (Modified a2 b2 c2 d2 e2 f2 g2 h2) = Modified (a1 + a2) (b1 + b2) (c1 + c2) (d1 + d2) (e1 + e2) (f1 + f2) (g1 + g2) (h1 + h2)
+
+
+type Modified = M.Map String Int64 
+type Changed = M.Map String Modified

@@ -20,7 +20,6 @@ import Query
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
 import Control.Monad.Identity
-import Select
 import Data.Map as M ((!), fromList)
 import Class
 import Control.Monad.Trans.Except
@@ -30,39 +29,40 @@ import Data.Maybe
 import Data.Monoid
 import Data.Int
 
-data Changed = Changed {
-    created :: Modified,
-    edited :: Modified,
-    deleted :: Modified
-    } deriving (Show, Generic)
+--перенес в Types пока
+-- data Changed = Changed {
+--     created :: Modified,
+--     edited :: Modified,
+--     deleted :: Modified
+--     } deriving (Show, Generic)
 
-instance Semigroup Changed where 
-    (<>) = mappend
+-- instance Semigroup Changed where 
+--     (<>) = mappend
 
-instance Monoid Changed where
-    mempty = Changed mempty mempty mempty
-    mappend (Changed a1 b1 c1) (Changed a2 b2 c2) = Changed (mappend a1 a2) (mappend b1 b2) (mappend c1 c2)
+-- instance Monoid Changed where
+--     mempty = Changed mempty mempty mempty
+--     mappend (Changed a1 b1 c1) (Changed a2 b2 c2) = Changed (mappend a1 a2) (mappend b1 b2) (mappend c1 c2)
 
-instance ToJSON Changed
+-- instance ToJSON Changed
 
-data Modified = Modified {
-    users :: Int64,
-    authors :: Int64,
-    cetegories :: Int64,
-    tags :: Int64,
-    posts :: Int64,
-    drafts :: Int64,
-    photos :: Int64,
-    comments :: Int64
-} deriving (Show, Generic)
+-- data Modified = Modified {
+--     users :: Int64,
+--     authors :: Int64,
+--     cetegories :: Int64,
+--     tags :: Int64,
+--     posts :: Int64,
+--     drafts :: Int64,
+--     photos :: Int64,
+--     comments :: Int64
+-- } deriving (Show, Generic)
 
-instance ToJSON Modified
-instance Semigroup Modified where 
-    (<>) = mappend
+-- instance ToJSON Modified
+-- instance Semigroup Modified where 
+--     (<>) = mappend
 
-instance Monoid Modified where
-    mempty = Modified 0 0 0 0 0 0 0 0
-    mappend (Modified a1 b1 c1 d1 e1 f1 g1 h1) (Modified a2 b2 c2 d2 e2 f2 g2 h2) = Modified (a1 + a2) (b1 + b2) (c1 + c2) (d1 + d2) (e1 + e2) (f1 + f2) (g1 + g2) (h1 + h2)
+-- instance Monoid Modified where
+--     mempty = Modified 0 0 0 0 0 0 0 0
+--     mappend (Modified a1 b1 c1 d1 e1 f1 g1 h1) (Modified a2 b2 c2 d2 e2 f2 g2 h2) = Modified (a1 + a2) (b1 + b2) (c1 + c2) (d1 + d2) (e1 + e2) (f1 + f2) (g1 + g2) (h1 + h2)
 
 --связанные сущности - авторы, комменты 
 --юзер удаляется, автор привязывается к дефолтному юзеру
@@ -85,12 +85,17 @@ user pid = do
         [] -> return 0
     updatedComments <- execute_ $ template [sql|UPDATE comments SET user_id = 1 WHERE user_id = {0}|] [q pid]
     deletedUsers <- execute_ $ template [sql|DELETE FROM users WHERE id = {0}|] [q pid]
+
+    return $ M.fromList [
+            ("edited", M.fromList [("authors", updatedAuthors),("comments", updatedComments)]),
+            ("deleted", M.fromList [("users", deletedUsers)])
+        ]
     
-    return $ mempty {
-        Delete.created = mempty,
-        Delete.edited = mempty {Delete.authors = updatedAuthors, Delete.comments = updatedComments},
-        Delete.deleted = mempty {Delete.users = deletedUsers}
-    }
+    -- return $ mempty {
+    --     created = mempty,
+    --     edited = mempty {authors = updatedAuthors, comments = updatedComments},
+    --     deleted = mempty {users = deletedUsers}
+    -- }
 
 --юзеров и авторов на практике удаляют часто, поэтому весь контент ими созданный нужно переписать на удаленного юзера. Или же самого юзера пометить в базе данных как удаленного
 --тогда в других апи нужно это обрабатывать
@@ -128,36 +133,60 @@ author pid = do
     deletedAuthors <- execute_ $ template [sql|DELETE FROM authors WHERE id = {0}|] [q pid]
     -- undefined
 
-    return $ mempty {
-        Delete.created = mempty,
-        Delete.edited = mempty {Delete.posts = updatedPosts, Delete.drafts = updatedDrafts},
-        Delete.deleted = mempty {Delete.authors = deletedAuthors}
-    }
+    return $ M.fromList [
+            ("edited", M.fromList [("posts", updatedPosts),("drafts", updatedDrafts)]),
+            ("deleted", M.fromList [("authors", deletedAuthors)])
+        ]
+
+    -- return $ mempty {
+    --     created = mempty,
+    --     edited = mempty {posts = updatedPosts, drafts = updatedDrafts},
+    --     deleted = mempty {authors = deletedAuthors}
+    -- }
 
 
 --для поста каскадное удаление
 post :: Int -> T Changed 
 post pid = do 
     --проверка на связанные сущности
-    checkNotExist pid "пост" "черновик" $ template [sql|
-        SELECT posts.id, contents.name FROM posts
-        LEFT JOIN contents ON contents.id = posts.content_id   
-        WHERE contents.author_id = {0}
-    |] [q pid]   
-    [Only contentId] <- query_ $ template [sql|SELECT posts.content_id FROM posts WHERE id = {0}|] [q pid] :: T[Only Int] 
-    posts <- execute_ $ template [sql|DELETE FROM posts WHERE id = {0}|] [q pid]   
-    execute__ $ template [sql|DELETE FROM contents WHERE id = {0}|] [q contentId]   
-    drafts <- execute_ $ template [sql|DELETE FROM drafts WHERE post_id = {0}|] [q pid] 
-    execute__ $ template [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [q contentId]   
-    photos <- execute_ $ template [sql|DELETE FROM photos WHERE content_id = {0}|] [q contentId]   
-    comments <- execute_ $ template [sql|DELETE FROM comments WHERE post_id = {0}|] [q pid]
-    return $ mempty {Delete.deleted = mempty {
-            Delete.posts = posts,
-            Delete.drafts = drafts,
-            Delete.photos = photos,
-            Delete.comments = comments
-        }
-    }
+    -- checkNotExist pid "пост" "черновик" $ template [sql|
+    --     SELECT posts.id, contents.name FROM posts
+    --     LEFT JOIN contents ON contents.id = posts.content_id   
+    --     WHERE contents.author_id = {0}
+    -- |] [q pid]   
+    existPost <- query_ $ template [sql|SELECT posts.content_id  FROM posts WHERE id = {0}|] [q pid] :: T[Only Int] 
+    --[Only contentId] <- query_ $ template [sql|SELECT posts.content_id FROM posts WHERE id = {0}|] [q pid] :: T[Only Int] 
+    case existPost of
+        [] -> return mempty 
+        [Only contentId] -> do 
+            deletedPosts <- execute_ $ template [sql|DELETE FROM posts WHERE id = {0}|] [q pid]   
+            execute__ $ template [sql|DELETE FROM contents WHERE id = {0}|] [q contentId]   
+            deletedDrafts <- execute_ $ template [sql|DELETE FROM drafts WHERE post_id = {0}|] [q pid] 
+            execute__ $ template [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [q contentId]   
+            deletedPhotos <- execute_ $ template [sql|DELETE FROM photos WHERE content_id = {0}|] [q contentId]   
+            deletedComments <- execute_ $ template [sql|DELETE FROM comments WHERE post_id = {0}|] [q pid]
+            -- execute Delete Comments $ template [sql|DELETE FROM comments WHERE post_id = {0}|] [q pid]
+            --можно запихнуть это в State
+            return $ M.fromList [
+                    ("deleted", M.fromList [("posts", deletedPosts), ("drafts", deletedDrafts), ("photos", deletedPhotos), ("comments", deletedComments)])
+                ]
+            -- return $ mempty {deleted = mempty {
+            --         posts = deletedPosts,
+            --         drafts = deletedDrafts,
+            --         photos = deletedPhotos,
+            --         comments = deletedComments
+            --     }
+            -- }
+
+
+comment :: Int -> T Changed
+comment pid = do
+    deletedComments <- execute_ $ template [sql|DELETE FROM comments WHERE id = {0}|] [q pid] 
+    return undefined
+    -- return $ mempty {deleted = mempty {
+    --                 comments = deletedComments
+    --             }
+    --         }
 
 
 

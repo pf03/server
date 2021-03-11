@@ -17,4 +17,9 @@ contents.id = posts.content_id
 WHERE TRUE AND (TRUE OR TRUE
 OR TRUE OR TRUE OR TRUE) AND TRUE AND TRUE
 AND TRUE AND TRUE AND TRUE LIMIT 20 OFFSET
-0
+0;
+
+SELECT * FROM comments
+    LEFT JOIN posts ON posts.id = comments.post_id
+    LEFT JOIN users ON users.id = comments.user_id
+WHERE posts.id = 1 LIMIT 20 OFFSET 0

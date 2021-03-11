@@ -43,7 +43,7 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
                 param "order_by" [Eq] $ ParamTypeSort ["created_at", "author_name", "category_id", "photos"], 
                 param "page" [Eq] ParamTypePage
                 ]
-            [_] -> map ($ False) [param "page" [Eq] ParamTypePage] --в тз про фильтры для других функций кроме posts ничего не сказано
+            _ -> map ($ False) [param "page" [Eq] ParamTypePage] --в тз про фильтры для других функций кроме posts ничего не сказано
         API.SelectById -> []
         API.Insert -> case apiType of
             [API.Author] -> [
@@ -55,6 +55,7 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
                 param "category_name" [Eq] ParamTypeStr True
                 ]
             [API.Tag] -> [param "name" [Eq] ParamTypeStr True]
+            --тут еще добавить список тегов!!!
             [API.Draft] -> [
                 param "author_id" [Eq] ParamTypeInt True,
                 param "name" [Eq] ParamTypeStr True,
@@ -65,6 +66,11 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
                 param "news_id" [Eq] ParamTypeInt False
                 ]
             [API.Post] -> [] --[param "draft_id" [Eq] ParamTypeInt True] --draft_id уже в роутере
+            [API.Post, Id n, API.Comment] -> [
+                param "user_id" [Eq] ParamTypeInt True,
+                param "creation_date" [Eq] ParamTypeDate True,
+                param "text" [Eq] ParamTypeStr True
+                ]
         API.Update -> undefined --скорей всего параметры те же, что и у insert 
         API.Delete -> []
 

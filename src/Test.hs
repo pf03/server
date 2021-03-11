@@ -134,7 +134,7 @@ deleteUserCases = ("deleteUser", tuples) where
 
 --работает  
 deleteAuthorCases :: (String, [(PathInfo, Query)])
-deleteAuthorCases = ("deleteUser", tuples) where
+deleteAuthorCases = ("deleteAuthor", tuples) where
     tuples = [
             (,) ["authors"] [],
             (,) ["posts"] [],
@@ -144,13 +144,63 @@ deleteAuthorCases = ("deleteUser", tuples) where
             (,) ["authors"] [],
             (,) ["posts"] []
         ]
+ 
+ --работает
+deletePostCases :: (String, [(PathInfo, Query)])
+deletePostCases = ("deletePost", tuples) where
+    tuples = [
+            (,) ["posts"] [],
+            (,) ["posts", "0", "delete"] [],
+            (,) ["posts", "1", "delete"] [],
+            (,) ["posts"] [],
+            (,) ["posts", "2", "delete"] [],
+            (,) ["posts"] []
+        ]
+
+--работает
+--дату нужно брать текущую, а не присланную пользователем!!!
+commentsCases :: (String, [(PathInfo, Query)])
+commentsCases = ("selectComment", tuples) where
+    tuples = [
+            (,) ["posts", "2", "comments"] [],
+            (,) ["posts", "1", "comments"] [],
+
+            (,) ["posts", "666", "comments", "create"] [
+                ("user_id", Just "2"),
+                ("creation_date", Just "2018-05-21"),
+                ("text", Just "Some new comment to wrong post")
+                ],
+
+            (,) ["posts", "1", "comments", "create"] [
+                ("user_id", Just "666"),
+                ("creation_date", Just "2018-05-21"),
+                ("text", Just "Some new comment from wrong user")
+                ],
+
+            (,) ["posts", "1", "comments", "create"] [
+                ("user_id", Just "1"),
+                ("creation_date", Just "2018-05-21"),
+                ("text", Just "Some new comment from deleted user")
+                ],
+
+            (,) ["posts", "1", "comments", "create"] [
+                ("user_id", Just "2"),
+                ("creation_date", Just "2018-05-21"),
+                ("text", Just "Some new comment from right user")
+                ],
+
+            (,) ["users", "3", "delete"] [],        (,) ["posts", "1", "comments"] [],
+            (,) ["comments", "2", "delete"] [],     (,) ["posts", "1", "comments"] [],
+            (,) ["posts", "1", "delete"] [],        (,) ["posts", "1", "comments"] []
+        ]
 
 
 cases :: [(String, [(PathInfo, Query)])]
 cases = [
     --selectPostQuery,
     --deleteAuthorCases
-    deleteAuthorCases
+    -- deletePostCases,
+    commentsCases
     ]
 
 -- casesById :: [(String, [PathInfo])]

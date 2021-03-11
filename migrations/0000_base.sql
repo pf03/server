@@ -6,25 +6,25 @@ DROP TABLE IF EXISTS posts;
 
 CREATE TABLE users (
 	id SERIAL PRIMARY KEY,
-	first_name VARCHAR (50),
-	last_name VARCHAR (50),
-	avatar VARCHAR (100),
+	first_name VARCHAR (50)  not null,
+	last_name VARCHAR (50)  not null,
+	avatar VARCHAR (100) not null,
 	login VARCHAR (50) unique not null,
 	pass VARCHAR (50) not null,
-	creation_date DATE,
-	is_admin Boolean
+	creation_date DATE  not null,
+	is_admin Boolean  not null
 );
 
 CREATE TABLE authors (
 	id SERIAL PRIMARY KEY,
-	user_id INTEGER,
-	description VARCHAR (1000)
+	user_id INTEGER  not null,
+	description VARCHAR (1000)  not null
 );
 
 CREATE TABLE categories (
 	id SERIAL PRIMARY KEY,
 	parent_id INTEGER,
-	category_name VARCHAR (1000)
+	category_name VARCHAR (1000)  not null
 );
 
 CREATE TABLE tags (
@@ -37,10 +37,10 @@ CREATE TABLE contents (
     id SERIAL PRIMARY KEY,
     author_id INTEGER not null,
     name VARCHAR (50) not null,
-    creation_date DATE,
-    category_id INTEGER,
-    text TEXT,
-    photo VARCHAR (100)
+    creation_date DATE  not null,
+    category_id INTEGER  not null,
+    text TEXT  not null,
+    photo VARCHAR (100)  not null
 );
 
 CREATE TABLE news (
@@ -56,22 +56,22 @@ CREATE TABLE drafts (
 --many to many
 CREATE TABLE tags_to_contents(
     id SERIAL PRIMARY KEY,
-    content_id INT,
-    tag_id INTEGER
+    content_id INT  not null,
+    tag_id INTEGER  not null
 );
 
 CREATE TABLE photos(
     id SERIAL PRIMARY KEY,
-    photo VARCHAR (100),
-    content_id INTEGER
+    photo VARCHAR (100)  not null,
+    content_id INTEGER  not null
 );
 
 CREATE TABLE comments (
     id SERIAL PRIMARY KEY,
-    news_id INTEGER,
-    user_id INTEGER,
-    creation_date DATE,
-    text text
+    news_id INTEGER  not null,
+    user_id INTEGER  not null,
+    creation_date DATE  not null,
+    text text  not null
 );
 
 
