@@ -81,21 +81,27 @@ insertAuthorCases = ("insertAuthor", zip pathInfos queries) where
             [("user_id", Just "2"),
             ("description", Just "description2 for user_id=1")]
         ]
-insertTagCases :: (String, [(PathInfo, Query)])
-insertTagCases = ("insertTag", zip pathInfos queries) where
-    pathInfos = repeat ["tags", "create"]
+tagCases :: (String, [(PathInfo, Query)])
+tagCases = ("insertTag", queries) where
+    --pathInfos = repeat ["tags", "create"]
     queries = [
+            (,) ["tags"] [],
+
             --Ошибка веб-запроса: Не указан обязательный параметр "name"
-            [],
+            (,) ["tags", "create"] [],
 
             --Ошибка веб-запроса: Не указано значение параметра "name"
-            [("name", Nothing)],
+            (,) ["tags", "create"][("name", Nothing)],
 
-            --КОРРЕКТНЫЙ ЗАПРОС
-            [("name", Just "some_tag")],
+            -- {"created":{"tags":1}}
+            (,) ["tags", "create"][("name", Just "some_tag")],              (,) ["tags"] [],
 
             --Ошибка базы данных: Тег с таким "name" = "some_tag" уже существует
-            [("name", Just "some_tag")]
+            (,) ["tags", "create"][("name", Just "some_tag")],
+
+            (,) ["tags", "10", "edit"][("name", Just "some_new_tag")],         (,) ["tags"] []
+
+
         ]
 
 insertCategoryCases :: (String, [(PathInfo, Query)])
@@ -226,9 +232,9 @@ cases :: [(String, [(PathInfo, Query)])]
 cases = [
     -- selectPostCases,
     -- insertAuthorCases,
-    -- insertTagCases,
+    tagCases,
     -- insertCategoryCases,
-    userCases,
+    -- userCases,
     -- deleteAuthorCases,
     --deletePostCases,
     --commentsCases,

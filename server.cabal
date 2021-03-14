@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: adfe64b6971a53534b1755222a5e660d0d3a8d8eb8ed4b024610fc01f60509ca
+-- hash: 63641739aeca9237de518102ff5614fcfe9c376644256def372f3988ec8f7f03
 
 name:           server
 version:        0.1.0.0
@@ -52,6 +52,7 @@ library
       Test
       Transformer
       Types
+      Update
   other-modules:
       Paths_server
   hs-source-dirs:

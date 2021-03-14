@@ -45,25 +45,28 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
                 ]
             _ -> map ($ False) [param "page" [Eq] ParamTypePage] --в тз про фильтры для других функций кроме posts ничего не сказано
         API.SelectById -> []
-        API.Insert -> case apiType of
-            [API.User] -> [
+        API.Delete -> []
+        _ -> case apiType of 
+            API.User:xs -> [
+                --В каком формате нужно хранить и отдавать картинки (аватарки пользователей, фотографии к новостям)?
+                --Просто URL до картинки. URL должен вести до твоего сервера, по запросу на этот URL сама картинка должна возвращаться
                 param "last_name" [Eq] ParamTypeStr True,
                 param "first_name" [Eq] ParamTypeStr True,
                 param "avatar" [Eq] ParamTypeStr True,  --потом подумать над загрузкой фото
                 param "login" [Eq] ParamTypeStr True,
                 param "pass" [Eq] ParamTypeStr True
                 ]
-            [API.Author] -> [
+            API.Author:xs -> [
                 param "user_id" [Eq] ParamTypeInt True,
                 param "description" [Eq] ParamTypeStr True
                 ]
-            [API.Category] -> [
+            API.Category:xs -> [
                 param "parent_id" [Eq] ParamTypeInt False,
                 param "category_name" [Eq] ParamTypeStr True
                 ]
-            [API.Tag] -> [param "name" [Eq] ParamTypeStr True]
+            API.Tag:xs -> [param "name" [Eq] ParamTypeStr True]
             --тут еще добавить список тегов!!!
-            [API.Draft] -> [
+            API.Draft:xs -> [
                 param "author_id" [Eq] ParamTypeInt True,
                 param "name" [Eq] ParamTypeStr True,
                 --param "creation_date" [Eq] ParamTypeStr True,  --дата берется на серваке
@@ -72,14 +75,48 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
                 param "photo" [Eq] ParamTypeStr True,
                 param "news_id" [Eq] ParamTypeInt False
                 ]
-            [API.Post] -> [] --[param "draft_id" [Eq] ParamTypeInt True] --draft_id уже в роутере
             [API.Post, Id n, API.Comment] -> [
                 param "user_id" [Eq] ParamTypeInt True,
                 --param "creation_date" [Eq] ParamTypeDate True,   --дата берется на серваке
                 param "text" [Eq] ParamTypeStr True
                 ]
-        API.Update -> undefined --скорей всего параметры те же, что и у insert 
-        API.Delete -> []
+            API.Post:xs -> [] --[param "draft_id" [Eq] ParamTypeInt True] --draft_id уже в роутере
+        -- API.Insert -> case apiType of 
+        --     [API.User] -> [
+        --         --В каком формате нужно хранить и отдавать картинки (аватарки пользователей, фотографии к новостям)?
+        --         --Просто URL до картинки. URL должен вести до твоего сервера, по запросу на этот URL сама картинка должна возвращаться
+        --         param "last_name" [Eq] ParamTypeStr True,
+        --         param "first_name" [Eq] ParamTypeStr True,
+        --         param "avatar" [Eq] ParamTypeStr True,  --потом подумать над загрузкой фото
+        --         param "login" [Eq] ParamTypeStr True,
+        --         param "pass" [Eq] ParamTypeStr True
+        --         ]
+        --     [API.Author] -> [
+        --         param "user_id" [Eq] ParamTypeInt True,
+        --         param "description" [Eq] ParamTypeStr True
+        --         ]
+        --     [API.Category] -> [
+        --         param "parent_id" [Eq] ParamTypeInt False,
+        --         param "category_name" [Eq] ParamTypeStr True
+        --         ]
+        --     [API.Tag] -> [param "name" [Eq] ParamTypeStr True]
+        --     --тут еще добавить список тегов!!!
+        --     [API.Draft] -> [
+        --         param "author_id" [Eq] ParamTypeInt True,
+        --         param "name" [Eq] ParamTypeStr True,
+        --         --param "creation_date" [Eq] ParamTypeStr True,  --дата берется на серваке
+        --         param "category_id" [Eq] ParamTypeInt True,
+        --         param "text" [Eq] ParamTypeStr True,
+        --         param "photo" [Eq] ParamTypeStr True,
+        --         param "news_id" [Eq] ParamTypeInt False
+        --         ]
+        --     [API.Post] -> [] --[param "draft_id" [Eq] ParamTypeInt True] --draft_id уже в роутере
+        --     [API.Post, Id n, API.Comment] -> [
+        --         param "user_id" [Eq] ParamTypeInt True,
+        --         --param "creation_date" [Eq] ParamTypeDate True,   --дата берется на серваке
+        --         param "text" [Eq] ParamTypeStr True
+        --         ]
+        
 
 possibleParams :: BSName -> ParamDesc -> [BSKey]
 possibleParams bsname (ParamDesc templs _ _) = for templs $ \templ -> bsname <> jlookup templ templates

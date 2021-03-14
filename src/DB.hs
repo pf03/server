@@ -44,6 +44,7 @@ import Router
 import Data.Aeson.Encode.Pretty
 import qualified Delete
 import qualified State as S
+import qualified Update
 
 -- testq :: IO ()
 -- testq = runT $ DB.insertAuthor DB.testQueryInsert
@@ -187,6 +188,8 @@ getJSON rawPathinfo pathInfo qs = do
             API Delete [API.Author, Id n] -> encode $ Delete.author n
             API Delete [API.Post, Id n] -> encode $ Delete.post n
             API Delete [API.Comment, Id n] -> encode $ Delete.comment n
+
+            API Update [API.Tag, Id n] -> encode $ Update.tag n params
         return mempty
     --апи, которые возвращают результат
     else do 
