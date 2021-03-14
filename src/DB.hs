@@ -43,6 +43,7 @@ import API
 import Router
 import Data.Aeson.Encode.Pretty
 import qualified Delete
+import qualified State as S
 
 -- testq :: IO ()
 -- testq = runT $ DB.insertAuthor DB.testQueryInsert
@@ -165,8 +166,10 @@ import qualified Delete
 --общая функция
 getJSON:: BC.ByteString -> PathInfo -> HTTP.Query -> T LC.ByteString
 getJSON rawPathinfo pathInfo qs = do
+    
     Log.setSettings Color.Blue True "DB.getJSON" 
     Log.funcT Log.Debug "..."
+    S.resetChanged
     api@(API apiType queryTypes) <- logT $ router rawPathinfo pathInfo
     params <- logT $ Params.parseParams qs api
     --апи, которые не возвращают результат

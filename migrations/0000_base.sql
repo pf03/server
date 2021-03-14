@@ -29,7 +29,7 @@ CREATE TABLE categories (
 
 CREATE TABLE tags (
 	id SERIAL PRIMARY KEY,
-	name VARCHAR (50) not null
+	name VARCHAR (50) unique not null 
 );
 
 --CONTENT = DRAFT OR NEWS

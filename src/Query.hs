@@ -14,6 +14,7 @@ import qualified Data.Text as T
 import qualified Log
 import API 
 
+--Для единоообразия во все запросы можно встроить template
 query_ :: (Show r, FromRow r) => Query -> T [r]
 query_ q = do
     conn <- S.getConnection
@@ -32,38 +33,38 @@ executeMany q list = do
     conn <- S.getConnection
     toT $ SQL.executeMany conn q list
 
-execute_ :: Query -> T Int64
-execute_ q = do
-    Log.debugT q 
+--без автоматической записи изменений
+execute_ :: Query -> [Query] -> T Int64
+execute_ q qs = do
+    let query = template q qs
+    Log.debugT query 
     conn <- S.getConnection
-    toT $ SQL.execute_ conn q
+    toT $ SQL.execute_ conn query
+
+_execute :: QueryType -> APIType -> Query -> [Query] ->  T Changed
+_execute queryType apiType q qs   = do
+    let query = template q qs
+    Log.debugT query 
+    conn <- S.getConnection
+    rows <- toT $ SQL.execute_ conn query
+    S.addChanged queryType apiType rows
+    S.getChanged
+
 
 --новая версия включает в себя template и автоматическую запись в State количество модифицированных строк
-insert  :: APIType -> Query -> [Query] ->  T ()
-insert apiType q qs   = do
-    Log.debugT q 
-    conn <- S.getConnection
-    toT $ SQL.execute_ conn $ template q qs
-    undefined
+insert  :: APIType -> Query -> [Query] ->  T Changed
+insert = _execute Insert
 
-update  :: APIType -> Query -> [Query] ->  T ()
-update apiType q qs = do
-    Log.debugT q 
-    conn <- S.getConnection
-    toT $ SQL.execute_ conn $ template q qs
-    undefined
+update  :: APIType -> Query -> [Query] ->  T Changed
+update = _execute Update
 
-delete  :: APIType -> Query -> [Query] ->  T ()
-delete apiType q qs = do
-    Log.debugT q 
-    conn <- S.getConnection
-    toT $ SQL.execute_ conn $ template q qs
-    undefined
+delete  :: APIType -> Query -> [Query] ->  T Changed
+delete = _execute Delete
 
 execute__ :: Query -> T ()
 execute__ q = do
     -- Log.debugT q --это добавить во все функции
-    n <- Query.execute_ q
+    n <- Query.execute_ q []
     Log.textT Log.Debug $ template "Выполнен запрос, изменено {0} строк" [show n] --и это, т .е результат выполнения
     return()
 

@@ -12,15 +12,10 @@ module API where
 import Data.Char
 data API = API QueryType [APIType] deriving (Show)
 data QueryType = Select | SelectById | Insert | Update | Delete deriving (Show, Read, Eq)  --это соответствует модулю
-data APIType = Post | User | Author | Category | Tag | Draft | Comment | Id Int deriving (Show, Read, Eq)  --это соответствует таблице в бд или id
+data APIType = Post | User | Author | Category | Tag | Draft | Comment | Photo | Id Int deriving (Show, Read, Eq)  --это соответствует таблице в бд или id
 
-entity :: APIType -> String 
-entity = plural . lower . show where
-    plural :: String -> String
-    plural str = case str of
-        "category" -> "categories"
-        _ -> str <> "s"
-    lower (x:xs) = toLower x : xs
+
+
 
 -- publish это синоним для insertPost
 

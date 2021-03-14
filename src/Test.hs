@@ -23,69 +23,78 @@ import qualified Data.ByteString.Lazy.Char8 as LC
 --тестирование не только запроса, но и роутера
 --проверка значений на уникальность, например тегов
 
+--НАДО ПЕРЕНОСИТЬ ЭТО В HPEC!!
+
 --можно сначала отправить по одному параметру, а потом все сразу (они все необязательные)
-selectPostQuery :: (String, [(PathInfo, Query)])
-selectPostQuery = ("selectPost", zip pathInfos queries) where
+selectPostCases :: (String, [(PathInfo, Query)])
+selectPostCases = ("selectPost", zip pathInfos queries) where
     pathInfos = repeat ["posts"]
     queries = map (:[]) query <> [query]
     query = [
-            ("created_at__bt", Just "(2018-05-21,2030-05-21)"),
+            --подобрать более корректные тесты
+            ("created_at__bt", Just "(2018-05-21, 2030-05-21)"),
             ("tag_id__in", Just "[1,2,3]"),
             --("tag__in", Just "[\"Haskell\",\"Python\"]"), --внутренние строки в кавычках. Наружные опционально (см ereadMap). Это не работает (нет в ТЗ)
-            ("category_id__in", Just "[1,2,3]"),  
-            ("created_at__lt", Just "1925-03-20"),
-            ("name", Just "мгновенье"),
+            ("category_id__in", Just "[1,2,3]"),
+            ("name", Just "мгновенье"),  --кириллица здесь не работает, но в постмане работает
             ("text__like", Just "glasgow"),
             ("author_name", Just "Денис"), --кириллица здесь не работает, но в постмане работает
             ("contains__like", Just "haskell")
         ]
 
 --неверный user_id
-insertAuthorQueries :: (String, [(PathInfo, Query)])
-insertAuthorQueries = ("insertAuthor", zip pathInfos queries) where
+insertAuthorCases :: (String, [(PathInfo, Query)])
+insertAuthorCases = ("insertAuthor", zip pathInfos queries) where
     pathInfos = repeat ["authors", "create"]
     
     queries =  [
             --некорректные запросы
+            --Ошибка веб-запроса: Не указан обязательный параметр "description"
             [],
 
+            --Ошибка веб-запроса: Недопустимый параметр запроса: "foo"
             [("user_id", Just "1"),
             ("foo", Just "bar")],
 
+            --Ошибка веб-запроса: Не указано значение параметра "description"
             [("user_id", Just "1"),
             ("description", Nothing)],
 
+            --Ошибка веб-запроса: Параметр запроса "user_id" должен быть целым числом
             [("user_id", Just "bar"),
             ("description", Just "bar")],
 
+            --Ошибка веб-запроса: Недопустимый параметр запроса: "foo"
             [("user_id", Just "1"),
             ("description", Just "1"),
             ("foo", Just "bar")],
 
-            --некорректный user_id
+            --Ошибка базы данных: Указан несуществующий параметр "user_id": 666
             [("user_id", Just "666"),
             ("description", Just "description for user_id=666")],
-
-            --корректный запрос, добавляет автора в таблицу authors
-            [("user_id", Just "1"),
+            
+            --КОРРЕКТНЫЙ ЗАПРОС
+            [("user_id", Just "2"),
             ("description", Just "description for user_id=1")],
 
-            --повторный запрос с тем же user_id не должен пройти
-            [("user_id", Just "1"),
+            --Ошибка базы данных: Автор с таким "user_id" = 2 уже существует
+            [("user_id", Just "2"),
             ("description", Just "description2 for user_id=1")]
         ]
 insertTagCases :: (String, [(PathInfo, Query)])
 insertTagCases = ("insertTag", zip pathInfos queries) where
     pathInfos = repeat ["tags", "create"]
     queries = [
-            --некорректные запросы
+            --Ошибка веб-запроса: Не указан обязательный параметр "name"
             [],
+
+            --Ошибка веб-запроса: Не указано значение параметра "name"
             [("name", Nothing)],
 
-            --корректный запрос
+            --КОРРЕКТНЫЙ ЗАПРОС
             [("name", Just "some_tag")],
 
-            --повторный запрос, должна выскочить ошибка
+            --Ошибка базы данных: Тег с таким "name" = "some_tag" уже существует
             [("name", Just "some_tag")]
         ]
 
@@ -93,114 +102,137 @@ insertCategoryCases :: (String, [(PathInfo, Query)])
 insertCategoryCases = ("insertCategory", zip pathInfos queries) where
     pathInfos = repeat ["categories", "create"]
     queries = [
-            --некорректные запросы
+            --Ошибка веб-запроса: Не указан обязательный параметр "category_name"
             [],
 
-            --некорректный parent_id
+            --Ошибка базы данных: Указан несуществующий параметр "parent_id": 666
             [("parent_id", Just "666"),
             ("category_name", Just "description for category")],
 
-            --корректный parent_id
+            --КОРРЕКТНЫЙ ЗАПРОС
             [("parent_id", Just "8"),
             ("category_name", Just "description for category")],
 
-            --корректный повтор
+            --КОРРЕКТНЫЙ ЗАПРОС
             [("parent_id", Just "8"),
             ("category_name", Just "description for category")],
 
-            --корректная корневая категория
+            --КОРРЕКТНЫЙ ЗАПРОС (КОРНЕВАЯ КАТЕГОРИЯ)
             [("category_name", Just "description2 for category")],
 
-            --некорректная корневая категория (в моей логике Nothing не используется)
+            --Ошибка веб-запроса: Не указано значение параметра "parent_id"
             [("parent_id", Nothing),
             ("category_name", Just "description for category")]
         ]
 
---работает
-deleteUserCases :: (String, [(PathInfo, Query)])
-deleteUserCases = ("deleteUser", tuples) where
+userCases :: (String, [(PathInfo, Query)])
+userCases = ("deleteUser", tuples) where
     tuples = [
             (,) ["users"] [],
+            -- {"created":{"users":1}}
+            (,) ["users", "create"] [
+                    ("last_name", Just "last_name"),
+                    ("first_name", Just "first_name"),
+                    ("avatar", Just "avatar"), --подумать над загрузкой фото
+                    ("login", Just "login"),
+                    ("pass", Just "pass")
+                ],
+            -- Ошибка базы данных: Пользователь с таким "login" = "login" уже существует
+            (,) ["users", "create"] [
+                    ("last_name", Just "last_name"),
+                    ("first_name", Just "first_name"),
+                    ("avatar", Just "avatar"), --подумать над загрузкой фото
+                    ("login", Just "login"),
+                    ("pass", Just "pass")
+                ],
             (,) ["authors"] [],
             (,) ["posts"] [],
-            (,) ["users", "0", "delete"] [],
-            (,) ["users", "1", "delete"] [],
-            (,) ["users", "2", "delete"] [],
-            (,) ["users", "7", "delete"] [],
+            (,) ["users", "0", "delete"] [], -- {}
+            (,) ["users", "1", "delete"] [], -- Ошибка базы данных: Невозможно удалить пользователя по умолчанию с id = 1
+            (,) ["users", "2", "delete"] [], -- Ошибка базы данных: Невозможно удалить админа с id = 2
+            (,) ["users", "7", "delete"] [], -- {"edited": {"authors": 1},"deleted": {"users": 1}}
             (,) ["users"] [],
             (,) ["authors"] [],
             (,) ["posts"] []
         ]
 
---работает  
 deleteAuthorCases :: (String, [(PathInfo, Query)])
 deleteAuthorCases = ("deleteAuthor", tuples) where
     tuples = [
             (,) ["authors"] [],
             (,) ["posts"] [],
-            (,) ["authors", "0", "delete"] [],
-            (,) ["authors", "1", "delete"] [],
-            (,) ["authors", "4", "delete"] [],
+            (,) ["authors", "0", "delete"] [], -- {}
+            (,) ["authors", "1", "delete"] [], -- Ошибка базы данных: Невозможно удалить автора по умолчанию с id = 1
+            (,) ["authors", "4", "delete"] [], -- {"edited": {"posts": 1},"deleted": {"authors": 1}}
             (,) ["authors"] [],
             (,) ["posts"] []
         ]
- 
- --работает
+
 deletePostCases :: (String, [(PathInfo, Query)])
 deletePostCases = ("deletePost", tuples) where
     tuples = [
             (,) ["posts"] [],
-            (,) ["posts", "0", "delete"] [],
-            (,) ["posts", "1", "delete"] [],
+            (,) ["posts", "0", "delete"] [], -- {}
+            (,) ["posts", "1", "delete"] [], -- {"deleted": {"photos": 2,"comments": 3,"posts": 1}}
             (,) ["posts"] [],
-            (,) ["posts", "2", "delete"] [],
+            (,) ["posts", "2", "delete"] [], -- {"deleted": {"posts": 1}}
             (,) ["posts"] []
         ]
 
---работает
 --дату нужно брать текущую, а не присланную пользователем!!!
 commentsCases :: (String, [(PathInfo, Query)])
 commentsCases = ("selectComment", tuples) where
     tuples = [
-            (,) ["posts", "2", "comments"] [],
+            (,) ["posts", "2", "comments"] [], --[]
             (,) ["posts", "1", "comments"] [],
 
+            -- Ошибка базы данных: Указан несуществующий параметр "post_id": 666
             (,) ["posts", "666", "comments", "create"] [
                 ("user_id", Just "2"),
-                ("creation_date", Just "2018-05-21"),
                 ("text", Just "Some new comment to wrong post")
                 ],
 
+            -- Ошибка базы данных: Указан несуществующий параметр "user_id": 666
             (,) ["posts", "1", "comments", "create"] [
                 ("user_id", Just "666"),
-                ("creation_date", Just "2018-05-21"),
                 ("text", Just "Some new comment from wrong user")
                 ],
 
+            -- Ошибка базы данных: Невозможно создать комментарий от удаленного пользователя (пользователя по умолчанию) id = 1
             (,) ["posts", "1", "comments", "create"] [
                 ("user_id", Just "1"),
-                ("creation_date", Just "2018-05-21"),
                 ("text", Just "Some new comment from deleted user")
                 ],
 
+            -- {"created": {"comments": 1}}
             (,) ["posts", "1", "comments", "create"] [
                 ("user_id", Just "2"),
-                ("creation_date", Just "2018-05-21"),
                 ("text", Just "Some new comment from right user")
                 ],
 
+            -- {"edited":{"comments":1},"deleted":{"users":1}}
             (,) ["users", "3", "delete"] [],        (,) ["posts", "1", "comments"] [],
+
+            -- {"deleted":{"comments":1}}
             (,) ["comments", "2", "delete"] [],     (,) ["posts", "1", "comments"] [],
+            
+            -- {"deleted":{"photos":2,"comments":3,"posts":1}}
             (,) ["posts", "1", "delete"] [],        (,) ["posts", "1", "comments"] []
         ]
 
 
+
 cases :: [(String, [(PathInfo, Query)])]
 cases = [
-    --selectPostQuery,
-    --deleteAuthorCases
-    -- deletePostCases,
-    commentsCases
+    -- selectPostCases,
+    -- insertAuthorCases,
+    -- insertTagCases,
+    -- insertCategoryCases,
+    userCases,
+    -- deleteAuthorCases,
+    --deletePostCases,
+    --commentsCases,
+    ("fake", [])
     ]
 
 -- casesById :: [(String, [PathInfo])]

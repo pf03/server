@@ -23,3 +23,10 @@ SELECT * FROM comments
     LEFT JOIN posts ON posts.id = comments.post_id
     LEFT JOIN users ON users.id = comments.user_id
 WHERE posts.id = 1 LIMIT 20 OFFSET 0
+
+INSERT into comments (post_id, user_id, creation_date, text)
+    values (1, 1, current_date, 'text')
+
+INSERT into users (last_name, first_name,
+avatar, login, pass, creation_date, is_admin) values
+('last_name' , 'first_name' , 'avatar' , 'login' , md5 ('pass') , current_date , FALSE)

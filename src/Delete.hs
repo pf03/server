@@ -28,6 +28,8 @@ import qualified Log
 import Data.Maybe
 import Data.Monoid
 import Data.Int
+import API
+import qualified State as S
 
 --перенес в Types пока
 -- data Changed = Changed {
@@ -77,25 +79,14 @@ user pid = do
     --     WHERE contents.author_id = {0}
     -- |] [q pid]   
 
-    
     --set default user
     existAuthor <- query_ $ template [sql|SELECT id FROM authors WHERE user_id = {0}|] [q pid] :: T[Only Int] 
-    updatedAuthors <- case existAuthor of 
-        [Only author] -> execute_ $ template [sql|UPDATE authors SET user_id = 1 WHERE user_id = {0}|] [q pid]
-        [] -> return 0
-    updatedComments <- execute_ $ template [sql|UPDATE comments SET user_id = 1 WHERE user_id = {0}|] [q pid]
-    deletedUsers <- execute_ $ template [sql|DELETE FROM users WHERE id = {0}|] [q pid]
+    case existAuthor of 
+        [Only author] -> update Author [sql|UPDATE authors SET user_id = 1 WHERE user_id = {0}|] [q pid]
+        [] -> return mempty
+    update Comment [sql|UPDATE comments SET user_id = 1 WHERE user_id = {0}|] [q pid]
+    delete User [sql|DELETE FROM users WHERE id = {0}|] [q pid]
 
-    return $ M.fromList [
-            ("edited", M.fromList [("authors", updatedAuthors),("comments", updatedComments)]),
-            ("deleted", M.fromList [("users", deletedUsers)])
-        ]
-    
-    -- return $ mempty {
-    --     created = mempty,
-    --     edited = mempty {authors = updatedAuthors, comments = updatedComments},
-    --     deleted = mempty {users = deletedUsers}
-    -- }
 
 --юзеров и авторов на практике удаляют часто, поэтому весь контент ими созданный нужно переписать на удаленного юзера. Или же самого юзера пометить в базе данных как удаленного
 --тогда в других апи нужно это обрабатывать
@@ -122,21 +113,23 @@ author pid = do
             LEFT JOIN contents ON contents.id = posts.content_id   
             WHERE contents.author_id = {0}
         |] [q pid] :: T Int64
+    S.addChanged Update Post updatedPosts
     updatedDrafts <- fmap (fromOnly . head ) $ query_ $ template [sql|
             SELECT COUNT(drafts.id) FROM drafts
             LEFT JOIN contents ON contents.id = drafts.content_id   
             WHERE contents.author_id = {0}
         |] [q pid] :: T Int64
+    S.addChanged Update Draft updatedDrafts
     Log.debugT updatedPosts
-    updatedContents <- execute_ $ template [sql|UPDATE contents SET author_id = 1 WHERE author_id = {0}|] [q pid] 
+    execute_ [sql|UPDATE contents SET author_id = 1 WHERE author_id = {0}|] [q pid] 
     --удаление делается в последнюю очередь
-    deletedAuthors <- execute_ $ template [sql|DELETE FROM authors WHERE id = {0}|] [q pid]
+    delete Author [sql|DELETE FROM authors WHERE id = {0}|] [q pid]
     -- undefined
 
-    return $ M.fromList [
-            ("edited", M.fromList [("posts", updatedPosts),("drafts", updatedDrafts)]),
-            ("deleted", M.fromList [("authors", deletedAuthors)])
-        ]
+    -- return $ M.fromList [
+    --         ("edited", M.fromList [("posts", updatedPosts),("drafts", updatedDrafts)]),
+    --         ("deleted", M.fromList [("authors", deletedAuthors)])
+    --     ]
 
     -- return $ mempty {
     --     created = mempty,
@@ -159,37 +152,15 @@ post pid = do
     case existPost of
         [] -> return mempty 
         [Only contentId] -> do 
-            deletedPosts <- execute_ $ template [sql|DELETE FROM posts WHERE id = {0}|] [q pid]   
-            execute__ $ template [sql|DELETE FROM contents WHERE id = {0}|] [q contentId]   
-            deletedDrafts <- execute_ $ template [sql|DELETE FROM drafts WHERE post_id = {0}|] [q pid] 
-            execute__ $ template [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [q contentId]   
-            deletedPhotos <- execute_ $ template [sql|DELETE FROM photos WHERE content_id = {0}|] [q contentId]   
-            deletedComments <- execute_ $ template [sql|DELETE FROM comments WHERE post_id = {0}|] [q pid]
-            -- execute Delete Comments $ template [sql|DELETE FROM comments WHERE post_id = {0}|] [q pid]
-            --можно запихнуть это в State
-            return $ M.fromList [
-                    ("deleted", M.fromList [("posts", deletedPosts), ("drafts", deletedDrafts), ("photos", deletedPhotos), ("comments", deletedComments)])
-                ]
-            -- return $ mempty {deleted = mempty {
-            --         posts = deletedPosts,
-            --         drafts = deletedDrafts,
-            --         photos = deletedPhotos,
-            --         comments = deletedComments
-            --     }
-            -- }
-
+            delete Post [sql|DELETE FROM posts WHERE id = {0}|] [q pid]   
+            execute_ [sql|DELETE FROM contents WHERE id = {0}|] [q contentId]   
+            delete Draft [sql|DELETE FROM drafts WHERE post_id = {0}|] [q pid] 
+            execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [q contentId]   
+            delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [q contentId]   
+            delete Comment [sql|DELETE FROM comments WHERE post_id = {0}|] [q pid]
 
 comment :: Int -> T Changed
-comment pid = do
-    deletedComments <- execute_ $ template [sql|DELETE FROM comments WHERE id = {0}|] [q pid] 
-    return undefined
-    -- return $ mempty {deleted = mempty {
-    --                 comments = deletedComments
-    --             }
-    --         }
-
-
-
+comment pid = delete Comment [sql|DELETE FROM comments WHERE id = {0}|] [q pid] 
 
 checkNotExist :: Int -> String -> String -> Query -> T() 
 checkNotExist pid name1 name2 templ = do

@@ -88,7 +88,7 @@ hashPasswords = do
     execute_ [sql|
         ALTER TABLE users 
             ALTER COLUMN pass TYPE VARCHAR (32)
-    |]
+    |] []
     Log.textT Log.Info "Урезана длина строки пароля до 32 символов..."
 
 --это тоже можно запихнуть в файл

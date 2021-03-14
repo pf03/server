@@ -46,6 +46,13 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
             _ -> map ($ False) [param "page" [Eq] ParamTypePage] --в тз про фильтры для других функций кроме posts ничего не сказано
         API.SelectById -> []
         API.Insert -> case apiType of
+            [API.User] -> [
+                param "last_name" [Eq] ParamTypeStr True,
+                param "first_name" [Eq] ParamTypeStr True,
+                param "avatar" [Eq] ParamTypeStr True,  --потом подумать над загрузкой фото
+                param "login" [Eq] ParamTypeStr True,
+                param "pass" [Eq] ParamTypeStr True
+                ]
             [API.Author] -> [
                 param "user_id" [Eq] ParamTypeInt True,
                 param "description" [Eq] ParamTypeStr True
@@ -59,7 +66,7 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
             [API.Draft] -> [
                 param "author_id" [Eq] ParamTypeInt True,
                 param "name" [Eq] ParamTypeStr True,
-                param "creation_date" [Eq] ParamTypeStr True,
+                --param "creation_date" [Eq] ParamTypeStr True,  --дата берется на серваке
                 param "category_id" [Eq] ParamTypeInt True,
                 param "text" [Eq] ParamTypeStr True,
                 param "photo" [Eq] ParamTypeStr True,
@@ -68,7 +75,7 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
             [API.Post] -> [] --[param "draft_id" [Eq] ParamTypeInt True] --draft_id уже в роутере
             [API.Post, Id n, API.Comment] -> [
                 param "user_id" [Eq] ParamTypeInt True,
-                param "creation_date" [Eq] ParamTypeDate True,
+                --param "creation_date" [Eq] ParamTypeDate True,   --дата берется на серваке
                 param "text" [Eq] ParamTypeStr True
                 ]
         API.Update -> undefined --скорей всего параметры те же, что и у insert 

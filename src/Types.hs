@@ -365,5 +365,8 @@ type APIName = String
 --     mappend (Modified a1 b1 c1 d1 e1 f1 g1 h1) (Modified a2 b2 c2 d2 e2 f2 g2 h2) = Modified (a1 + a2) (b1 + b2) (c1 + c2) (d1 + d2) (e1 + e2) (f1 + f2) (g1 + g2) (h1 + h2)
 
 
-type Modified = M.Map String Int64 
-type Changed = M.Map String Modified
+-- type Modified = M.Map String Int64 
+--newtype Changed = Changed {fromChanged :: M.Map String (M.Map String Int64) } deriving (Show, Generic)
+newtype Changed = Changed  (M.Map String (M.Map String Int64))  deriving (Show, Generic)
+
+instance ToJSON Changed
