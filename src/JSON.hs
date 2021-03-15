@@ -112,6 +112,49 @@ _evalCategory  childs rcs categoryId = do
                         parentCategory <- _evalCategory (categoryId:childs) rcs parentId 
                         return $ Category categoryId (Just parentCategory) name 
 
+--категория не должна быть своим же родителем
+checkCyclicCategory :: Int -> Int -> [Select.Category] -> Except E ()
+checkCyclicCategory categoryId parentId rcs = do
+    grandParents <- getParents parentId rcs
+    when (categoryId `elem` grandParents) $ 
+        throwE . DBError $ template "Категрия {0} имеет в списке родителей {1} категорию {2}. Невозможно создать циклическую категорию" 
+            [show parentId, show grandParents, show categoryId]
+
+
+-- getParents :: Int -> [Select.Category] -> Except E [Int]
+-- getParents categoryId rcs = do
+--     let mrc = findById categoryId rcs
+--     case mrc of 
+--         Nothing -> throwE . DBError $ template "Отсутствует категория {0}" [show categoryId]
+--         Just (Row.Category categoryId mparentId name) -> do
+--             case mparentId of
+--                 Nothing -> return []
+--                 Just parentId -> do
+--                     let parents = parentId <> getParents parentId rcs
+--                     if categoryId `elem` parents
+--                          throwE . DBError $ template "Обнаружена циклическая ктегория " [show categoryId]
+
+
+    
+    
+getParents :: Int -> [Select.Category] -> Except E [Int]
+getParents = helper [] where
+    helper :: [Int] -> Int -> [Select.Category] -> Except E [Int]
+    helper acc categoryId rcs = do
+        when (categoryId `elem` acc) $
+            throwE . DBError $ template "Категория {0} является своим же родителем" [show categoryId]
+        let mrc = findById categoryId rcs
+        case mrc of 
+            Nothing -> throwE . DBError $ template "Отсутствует категория {0}" [show categoryId]
+            Just (Row.Category categoryId mparentId name) -> do
+            case mparentId of
+                Nothing -> return $ [categoryId] <> acc
+                Just parentId -> helper ([categoryId] <> acc) parentId rcs
+
+
+    
+
+
 evalPosts :: [Category] -> [Select.Post] -> Except E [Post]
 evalPosts cs = mapM (evalPost cs) 
 
@@ -212,4 +255,7 @@ getChildCategories (ParamIn vals) cs  = if length filtered == length cs then Par
             Just p -> helper cids p
 getChildCategories ParamNo cs = ParamNo
 getChildCategories param cs = error $ template "Некоректный параметр {0}" [show param]
+
+
+
     

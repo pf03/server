@@ -13,6 +13,9 @@ import Common
 import Types
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy.Char8 as LC
+
+-- ЭТОТ МОДУЛЬ НЕ ДЛЯ РЕВЬЮ, А ДЛЯ ОТЛАДКИ
+
 --some test cases for debug (ручная проверка)
 
 --создать список всех возможных запросов с опциональными парамерами, и применить их. 
@@ -46,7 +49,6 @@ selectPostCases = ("selectPost", zip pathInfos queries) where
 insertAuthorCases :: (String, [(PathInfo, Query)])
 insertAuthorCases = ("insertAuthor", zip pathInfos queries) where
     pathInfos = repeat ["authors", "create"]
-    
     queries =  [
             --некорректные запросы
             --Ошибка веб-запроса: Не указан обязательный параметр "description"
@@ -81,6 +83,49 @@ insertAuthorCases = ("insertAuthor", zip pathInfos queries) where
             [("user_id", Just "2"),
             ("description", Just "description2 for user_id=1")]
         ]
+
+updateAuthorCases :: (String, [(PathInfo, Query)])
+updateAuthorCases = ("author", tuples) where
+    tuples = [
+            (,) ["authors"] [],
+
+            -- Ошибка веб-запроса: Необходимо указать хотя бы один параметр для редактирвания из следующего списка : ["description","user_id"]
+            (,) ["authors", "0", "edit"] [], 
+            
+            -- Ошибка базы данных: Указан несуществующий параметр "id": 0
+            (,) ["authors", "0", "edit"] [
+                    ("user_id", Just "666"),
+                    ("description", Just "foo")
+                ],
+            -- Ошибка базы данных: Указан несуществующий параметр "user_id": 666
+            (,) ["authors", "1", "edit"] [
+                    ("user_id", Just "666"),
+                    ("description", Just "foo")
+                ],
+            -- {"edited":{"users":1}}
+            (,) ["authors", "1", "edit"] [
+                    ("user_id", Just "5"),
+                    ("description", Just "foo")
+                ],
+            -- {"edited":{"users":1}}
+            (,) ["authors", "1", "edit"] [
+                    ("description", Just "bar")
+                ],
+            (,) ["authors"] []
+        ]
+
+deleteAuthorCases :: (String, [(PathInfo, Query)])
+deleteAuthorCases = ("updateAuthor", tuples) where
+    tuples = [
+            (,) ["authors"] [],
+            (,) ["posts"] [],
+            (,) ["authors", "0", "delete"] [], -- {}
+            (,) ["authors", "1", "delete"] [], -- Ошибка базы данных: Невозможно удалить автора по умолчанию с id = 1
+            (,) ["authors", "4", "delete"] [], -- {"edited": {"posts": 1},"deleted": {"authors": 1}}
+            (,) ["authors"] [],
+            (,) ["posts"] []
+        ]
+
 tagCases :: (String, [(PathInfo, Query)])
 tagCases = ("insertTag", queries) where
     --pathInfos = repeat ["tags", "create"]
@@ -131,9 +176,41 @@ insertCategoryCases = ("insertCategory", zip pathInfos queries) where
             ("category_name", Just "description for category")]
         ]
 
-userCases :: (String, [(PathInfo, Query)])
-userCases = ("deleteUser", tuples) where
+updateCategoryCases :: (String, [(PathInfo, Query)])
+updateCategoryCases = ("updateCategory", tuples) where
     tuples = [
+            (,) ["categories"] [],
+
+            -- Ошибка веб-запроса: Необходимо указать хотя бы один параметр для редактирвания из следующего списка : ["category_name","parent_id"]
+            (,) ["categories", "0", "edit"] [], 
+            
+            -- Ошибка базы данных: Указан несуществующий параметр "id": 0
+            (,) ["categories", "0", "edit"] [
+                    ("parent_id", Just "666"),
+                    ("category_name", Just "foo")
+                ],
+            -- Ошибка базы данных: Указан несуществующий параметр "parent_id": 666
+            (,) ["categories", "1", "edit"] [
+                    ("parent_id", Just "666"),
+                    ("category_name", Just "foo")
+                ],
+            --циклическая категория!!!
+            -- {"edited":{"users":1}}
+            (,) ["categories", "1", "edit"] [
+                    ("parent_id", Just "5"),
+                    ("category_name", Just "foo")
+                ],
+            -- {"edited":{"users":1}}
+            (,) ["categories", "1", "edit"] [
+                    ("category_name", Just "bar")
+                ],
+            (,) ["categories"] []
+        ]
+
+userCases :: (String, [(PathInfo, Query)])
+userCases = ("user", tuples) where
+    tuples = [
+            --CREATE--
             (,) ["users"] [],
             -- {"created":{"users":1}}
             (,) ["users", "create"] [
@@ -151,28 +228,34 @@ userCases = ("deleteUser", tuples) where
                     ("login", Just "login"),
                     ("pass", Just "pass")
                 ],
-            (,) ["authors"] [],
-            (,) ["posts"] [],
-            (,) ["users", "0", "delete"] [], -- {}
-            (,) ["users", "1", "delete"] [], -- Ошибка базы данных: Невозможно удалить пользователя по умолчанию с id = 1
-            (,) ["users", "2", "delete"] [], -- Ошибка базы данных: Невозможно удалить админа с id = 2
-            (,) ["users", "7", "delete"] [], -- {"edited": {"authors": 1},"deleted": {"users": 1}}
+            --EDIT--
             (,) ["users"] [],
+            -- Ошибка веб-запроса: Необходимо указать хотя бы один параметр для редактирвания из следующего списка : ["avatar","first_name","last_name","pass"]
+            (,) ["users", "0", "edit"] [],
+            -- Ошибка базы данных: Указан несуществующий параметр "id": 0
+            (,) ["users", "0", "edit"] [("last_name", Just "new_last_name")],
+            (,) ["users", "8", "edit"] [("last_name", Just "new_last_name")],
+            (,) ["users", "8", "edit"] [("pass", Just "new_pass")],
+            (,) ["users", "8", "edit"] [
+                    ("last_name", Just "foo"),
+                    ("first_name", Just "bar"),
+                    ("avatar", Just "foo.jpg"), --подумать над загрузкой фото
+                    ("pass", Just "foo")
+                ],
+            (,) ["users","8"] [],
             (,) ["authors"] [],
+            -- (,) ["posts"] [],
+            --DELETE--
+            -- (,) ["users", "0", "delete"] [], -- {}
+            -- (,) ["users", "1", "delete"] [], -- Ошибка базы данных: Невозможно удалить пользователя по умолчанию с id = 1
+            -- (,) ["users", "2", "delete"] [], -- Ошибка базы данных: Невозможно удалить админа с id = 2
+            -- (,) ["users", "7", "delete"] [], -- {"edited": {"authors": 1},"deleted": {"users": 1}}
+            -- (,) ["users"] [],
+            -- (,) ["authors"] [],
             (,) ["posts"] []
         ]
 
-deleteAuthorCases :: (String, [(PathInfo, Query)])
-deleteAuthorCases = ("deleteAuthor", tuples) where
-    tuples = [
-            (,) ["authors"] [],
-            (,) ["posts"] [],
-            (,) ["authors", "0", "delete"] [], -- {}
-            (,) ["authors", "1", "delete"] [], -- Ошибка базы данных: Невозможно удалить автора по умолчанию с id = 1
-            (,) ["authors", "4", "delete"] [], -- {"edited": {"posts": 1},"deleted": {"authors": 1}}
-            (,) ["authors"] [],
-            (,) ["posts"] []
-        ]
+
 
 deletePostCases :: (String, [(PathInfo, Query)])
 deletePostCases = ("deletePost", tuples) where
@@ -232,10 +315,12 @@ cases :: [(String, [(PathInfo, Query)])]
 cases = [
     -- selectPostCases,
     -- insertAuthorCases,
-    tagCases,
-    -- insertCategoryCases,
-    -- userCases,
+    --updateAuthorCases,
     -- deleteAuthorCases,
+    -- tagCases,
+    -- insertCategoryCases,
+    updateCategoryCases,
+    --userCases,
     --deletePostCases,
     --commentsCases,
     ("fake", [])

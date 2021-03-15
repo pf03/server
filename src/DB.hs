@@ -181,15 +181,21 @@ getJSON rawPathinfo pathInfo qs = do
             API Insert [API.Category] -> encode $ Insert.category params
             API Insert [API.Tag] -> encode $ Insert.tag params
             API Insert [API.Draft] -> encode $ Insert.draft params
-            API Insert [API.Draft, Id pid, API.Post] -> encode $ Insert.publish pid
-            API Insert [API.Post, Id pid, API.Comment] -> encode $ Insert.comment pid params
+            API Insert [API.Draft, Id n, API.Post] -> encode $ Insert.publish n
+            API Insert [API.Post, Id n, API.Comment] -> encode $ Insert.comment n params
 
             API Delete [API.User, Id n] -> encode $ Delete.user n
             API Delete [API.Author, Id n] -> encode $ Delete.author n
             API Delete [API.Post, Id n] -> encode $ Delete.post n
             API Delete [API.Comment, Id n] -> encode $ Delete.comment n
 
+            
+
+            API Update [API.User, Id n] -> encode $ Update.user n params
+            API Update [API.Author, Id n] -> encode $ Update.author n params
+            API Update [API.Category, Id n] -> encode $ Update.category n params
             API Update [API.Tag, Id n] -> encode $ Update.tag n params
+            API Update [API.Draft, Id n] -> encode $ Update.draft n params
         return mempty
     --апи, которые возвращают результат
     else do 
