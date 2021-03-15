@@ -186,23 +186,26 @@ updateCategoryCases = ("updateCategory", tuples) where
             
             -- Ошибка базы данных: Указан несуществующий параметр "id": 0
             (,) ["categories", "0", "edit"] [
-                    ("parent_id", Just "666"),
-                    ("category_name", Just "foo")
-                ],
-            -- Ошибка базы данных: Указан несуществующий параметр "parent_id": 666
-            (,) ["categories", "1", "edit"] [
-                    ("parent_id", Just "666"),
-                    ("category_name", Just "foo")
-                ],
-            --циклическая категория!!!
-            -- {"edited":{"users":1}}
-            (,) ["categories", "1", "edit"] [
                     ("parent_id", Just "5"),
                     ("category_name", Just "foo")
                 ],
-            -- {"edited":{"users":1}}
+            -- Ошибка базы данных: Отсутствует категория 666
             (,) ["categories", "1", "edit"] [
+                    ("parent_id", Just "666"),
+                    ("category_name", Just "foo")
+                ],
+            -- Ошибка базы данных: Категрия 7 имеет в списке родителей [1,5,6] категорию 1. Невозможно создать циклическую категорию
+            (,) ["categories", "1", "edit"] [
+                    ("parent_id", Just "7"),
+                    ("category_name", Just "foo")
+                ],
+            -- {"edited":{"users":1}}
+            (,) ["categories", "7", "edit"] [
                     ("category_name", Just "bar")
+                ],
+            -- {"edited":{"users":1}}
+            (,) ["categories", "7", "edit"] [
+                    ("parent_id", Just "null")
                 ],
             (,) ["categories"] []
         ]

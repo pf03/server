@@ -123,6 +123,7 @@ comment postId params = do
 checkExist :: ParamsMap Param -> BSName -> Query -> T() 
 checkExist params name templ = helper name (params ! name) templ where
     helper name ParamNo templ = return ()
+    helper name ParamNull templ = return ()
     helper name param@(ParamEq (Int pid)) templ = do 
         exist <- query_ $ template templ [q pid] :: T [Only Int]
         case exist of

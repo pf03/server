@@ -112,13 +112,26 @@ _evalCategory  childs rcs categoryId = do
                         parentCategory <- _evalCategory (categoryId:childs) rcs parentId 
                         return $ Category categoryId (Just parentCategory) name 
 
+--не учтен вариант корневой категории в params
 --категория не должна быть своим же родителем
-checkCyclicCategory :: Int -> Int -> [Select.Category] -> Except E ()
-checkCyclicCategory categoryId parentId rcs = do
-    grandParents <- getParents parentId rcs
-    when (categoryId `elem` grandParents) $ 
-        throwE . DBError $ template "Категрия {0} имеет в списке родителей {1} категорию {2}. Невозможно создать циклическую категорию" 
-            [show parentId, show grandParents, show categoryId]
+checkCyclicCategory :: Int -> ParamsMap Param -> [Select.Category] -> Except E ()
+checkCyclicCategory categoryId params rcs = do
+    case params M.! "parent_id" of
+        ParamNo -> return () --не меняем parent_id
+        ParamNull -> return () --меняем parent_id на null, т. е. делаем корневую категорию
+        ParamEq (Int parentId) -> do
+            grandParents <- getParents parentId rcs
+            when (categoryId `elem` grandParents) $ 
+                throwE . DBError $ template "Категрия {0} имеет в списке родителей {1} категорию {2}. Невозможно создать циклическую категорию" 
+                    [show parentId, show grandParents, show categoryId]
+
+--категория не должна быть своим же родителем
+-- checkCyclicCategory_ :: Int -> Int -> [Select.Category] -> Except E ()
+-- checkCyclicCategory_ categoryId parentId rcs = do
+--     grandParents <- getParents parentId rcs
+--     when (categoryId `elem` grandParents) $ 
+--         throwE . DBError $ template "Категрия {0} имеет в списке родителей {1} категорию {2}. Невозможно создать циклическую категорию" 
+--             [show parentId, show grandParents, show categoryId]
 
 
 -- getParents :: Int -> [Select.Category] -> Except E [Int]
@@ -141,15 +154,16 @@ getParents :: Int -> [Select.Category] -> Except E [Int]
 getParents = helper [] where
     helper :: [Int] -> Int -> [Select.Category] -> Except E [Int]
     helper acc categoryId rcs = do
-        when (categoryId `elem` acc) $
-            throwE . DBError $ template "Категория {0} является своим же родителем" [show categoryId]
         let mrc = findById categoryId rcs
         case mrc of 
             Nothing -> throwE . DBError $ template "Отсутствует категория {0}" [show categoryId]
             Just (Row.Category categoryId mparentId name) -> do
             case mparentId of
-                Nothing -> return $ [categoryId] <> acc
-                Just parentId -> helper ([categoryId] <> acc) parentId rcs
+                Nothing -> return acc
+                Just parentId -> do
+                    when (parentId `elem` acc) $
+                        throwE . DBError $ template "Категория {0} является своим же родителем" [show parentId]
+                    helper ([parentId] <> acc) parentId rcs
 
 
     

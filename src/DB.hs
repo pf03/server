@@ -167,56 +167,51 @@ import qualified Update
 --общая функция
 getJSON:: BC.ByteString -> PathInfo -> HTTP.Query -> T LC.ByteString
 getJSON rawPathinfo pathInfo qs = do
+
+
+
     
     Log.setSettings Color.Blue True "DB.getJSON" 
     Log.funcT Log.Debug "..."
+    Log.debugT qs
     S.resetChanged
     api@(API apiType queryTypes) <- logT $ router rawPathinfo pathInfo
     params <- logT $ Params.parseParams qs api
-    --апи, которые не возвращают результат
-    if apiType == Insert || apiType == Update || apiType == Delete then do
-        case api of
-            API Insert [API.User] -> encode $ Insert.user params
-            API Insert [API.Author] -> encode $ Insert.author params
-            API Insert [API.Category] -> encode $ Insert.category params
-            API Insert [API.Tag] -> encode $ Insert.tag params
-            API Insert [API.Draft] -> encode $ Insert.draft params
-            API Insert [API.Draft, Id n, API.Post] -> encode $ Insert.publish n
-            API Insert [API.Post, Id n, API.Comment] -> encode $ Insert.comment n params
+    
+    case api of
+        --апи, которые не возвращают количество измененных строк
+        API Insert [API.User] -> encode $ Insert.user params
+        API Insert [API.Author] -> encode $ Insert.author params
+        API Insert [API.Category] -> encode $ Insert.category params
+        API Insert [API.Tag] -> encode $ Insert.tag params
+        API Insert [API.Draft] -> encode $ Insert.draft params
+        API Insert [API.Draft, Id n, API.Post] -> encode $ Insert.publish n
+        API Insert [API.Post, Id n, API.Comment] -> encode $ Insert.comment n params
 
-            API Delete [API.User, Id n] -> encode $ Delete.user n
-            API Delete [API.Author, Id n] -> encode $ Delete.author n
-            API Delete [API.Post, Id n] -> encode $ Delete.post n
-            API Delete [API.Comment, Id n] -> encode $ Delete.comment n
+        API Delete [API.User, Id n] -> encode $ Delete.user n
+        API Delete [API.Author, Id n] -> encode $ Delete.author n
+        API Delete [API.Post, Id n] -> encode $ Delete.post n
+        API Delete [API.Comment, Id n] -> encode $ Delete.comment n
 
-            
+        API Update [API.User, Id n] -> encode $ Update.user n params
+        API Update [API.Author, Id n] -> encode $ Update.author n params
+        API Update [API.Category, Id n] -> encode $ DB.updateCategory n params
+        API Update [API.Tag, Id n] -> encode $ Update.tag n params
+        API Update [API.Draft, Id n] -> encode $ Update.draft n params
 
-            API Update [API.User, Id n] -> encode $ Update.user n params
-            API Update [API.Author, Id n] -> encode $ Update.author n params
-            API Update [API.Category, Id n] -> encode $ Update.category n params
-            API Update [API.Tag, Id n] -> encode $ Update.tag n params
-            API Update [API.Draft, Id n] -> encode $ Update.draft n params
-        return mempty
-    --апи, которые возвращают результат
-    else do 
-        case api of
-            API SelectById [API.User, Id n] -> encode $ Select.user n
-            API SelectById [API.Author, Id n] -> encode $ (evalAuthor <$>) <$> Select.author n
-            API SelectById [API.Category, Id n] -> encode $ DB.getCategory n
-            API SelectById [API.Post, Id n] -> encode $ DB.getPost n
-                -- allCats <- Select.allCategories
-                -- allEvalCats <- toT $ evalCategories allCats allCats
-                -- mpost <- Select.post n 
-                -- evalmPost <- toT $ sequenceA $ evalPost allEvalCats <$> mpost
-                -- return $ encodePretty evalmPost
-            API SelectById [API.Tag, Id n] -> encode $ Select.tag n
+        --апи, которые возвращают результат
+        API SelectById [API.User, Id n] -> encode $ Select.user n
+        API SelectById [API.Author, Id n] -> encode $ (evalAuthor <$>) <$> Select.author n
+        API SelectById [API.Category, Id n] -> encode $ DB.getCategory n
+        API SelectById [API.Post, Id n] -> encode $ DB.getPost n
+        API SelectById [API.Tag, Id n] -> encode $ Select.tag n
 
-            API Select [API.User] -> encode $ Select.users params
-            API Select [API.Author] -> encode $ evalAuthors <$> Select.authors params
-            API Select [API.Category] -> encode $ DB.getCategories params
-            API Select [API.Post] -> encode $ DB.getPosts params
-            API Select [API.Tag] -> encode $ Select.tags params
-            API Select [API.Post, Id n, API.Comment] -> encode $ evalComments <$> Select.comments n params
+        API Select [API.User] -> encode $ Select.users params
+        API Select [API.Author] -> encode $ evalAuthors <$> Select.authors params
+        API Select [API.Category] -> encode $ DB.getCategories params
+        API Select [API.Post] -> encode $ DB.getPosts params
+        API Select [API.Tag] -> encode $ Select.tags params
+        API Select [API.Post, Id n, API.Comment] -> encode $ evalComments <$> Select.comments n params
 
 encode :: ToJSON a => T a -> T LC.ByteString
 encode ta = do
@@ -248,23 +243,31 @@ getPost pid = do
 
 getAllCategories :: T [Category]
 getAllCategories = do
-    Log.setSettings Color.Blue False "DB.getAllCategories"
+    Log.setSettings Color.Blue True "DB.getAllCategories"
     Log.funcT Log.Debug "..."
     allCategories <- Select.allCategories
     logT $ evalCategories allCategories allCategories
 
 getCategories :: ParamsMap Param ->  T [Category]
 getCategories params = do
-    Log.setSettings Color.Blue False "DB.getCategories"
+    Log.setSettings Color.Blue True "DB.getCategories"
     Log.funcT Log.Debug "..."
     allCategories <- Select.allCategories
     categories <- Select.categories params
     toT $ evalCategories allCategories categories
 
+updateCategory :: Int -> ParamsMap Param -> T Changed 
+updateCategory pid params = do 
+    Log.setSettings Color.Blue True "DB.updateCategory"
+    Log.funcT Log.Debug "..."
+    allCategories <- Select.allCategories
+    toT $ checkCyclicCategory pid params allCategories
+    Update.category pid params
+
 --эту логику перенести в select??
 getCategory :: Int -> T (Maybe Category)
 getCategory pid = do
-    Log.setSettings Color.Blue False "DB.getCategory"
+    Log.setSettings Color.Blue True "DB.getCategory"
     Log.funcT Log.Debug "..."
     allCats <- Select.allCategories
     mcat <- Select.category pid

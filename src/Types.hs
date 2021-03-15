@@ -138,7 +138,7 @@ type FuncName = String
 
 --новая версия
 data Templ = Eq | In | All | Lt | Gt | Bt | Like  deriving (Show, Eq)  
-data Param = ParamEq Val | ParamIn [Val] | ParamAll [Val] | ParamLt Val | ParamGt Val | ParamBt (Val, Val) | ParamLike Val | ParamNo  deriving (Show, Eq)
+data Param = ParamEq Val | ParamIn [Val] | ParamAll [Val] | ParamLt Val | ParamGt Val | ParamBt (Val, Val) | ParamLike Val | ParamNull | ParamNo   deriving (Show, Eq)
 data Val = Str  String | Int Int | Date Date deriving (Show, Eq)
 --data Val = Str {getStr :: String} | Int {getInt :: Int} | Date {getDate :: Date} deriving Show
 
@@ -165,7 +165,8 @@ type ParamsMap = M.Map BSName
 data ParamDesc = ParamDesc {
     templs :: [Templ],
     paramType :: ParamType,
-    must :: Bool
+    must :: Bool,
+    nullable :: Bool
 }      
 type APIName = String
 

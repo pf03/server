@@ -29,7 +29,8 @@ templates = [(Eq ,""), (In, "__in"), (All, "__all"), (Lt, "__lt"), (Gt, "__gt"),
 --возможно перенести в роутер???
 possibleParamDescs :: API.API -> ParamsMap ParamDesc
 possibleParamDescs (API.API queryType apiType) = M.fromList list where
-    param a b c d = (a, ParamDesc b c d)
+    param a b c d = (a, ParamDesc b c d False)
+    paramNull a b c d = (a, ParamDesc b c d True)
     list = case queryType of
         API.Select -> case apiType of 
             [API.Post] -> map ($ False) [
@@ -99,7 +100,7 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
                 param "description" [Eq] ParamTypeStr False
                 ]
             API.Category:xs -> [
-                param "parent_id" [Eq] ParamTypeInt False,
+                paramNull "parent_id" [Eq] ParamTypeInt False,
                 param "category_name" [Eq] ParamTypeStr False
                 ]
             API.Tag:xs -> [param "name" [Eq] ParamTypeStr False]
@@ -122,7 +123,7 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
         
 
 possibleParams :: BSName -> ParamDesc -> [BSKey]
-possibleParams bsname (ParamDesc templs _ _) = for templs $ \templ -> bsname <> jlookup templ templates
+possibleParams bsname (ParamDesc templs _ _ _) = for templs $ \templ -> bsname <> jlookup templ templates
 
 concatParams :: ParamsMap ParamDesc -> [BSKey]
 concatParams = concat . M.mapWithKey possibleParams
@@ -156,14 +157,14 @@ checkParams qs api paramDesc  = do
                     throwE . RequestError $ template "Недопустимый параметр запроса: {0}" [show param]
     
 parseParam :: Query -> BSName -> ParamDesc -> Except E Param
-parseParam qs bsname paramDesc@(ParamDesc _ paramType _)  = do
+parseParam qs bsname paramDesc@(ParamDesc _ paramType _ nl)  = do
     mtuple <- findTemplate qs bsname paramDesc
-    readParamAny paramType mtuple
+    readParamAny paramType mtuple nl
 
 --проверка всей строки запроса
 --проверка на дублирующие, взаимоисключающие, обязательные параметры и параметры без значения (все проверки, кроме проверки на лишние параметры)
 findTemplate :: [(BS, Maybe BS)] -> BSName -> ParamDesc -> Except E (Maybe (Templ, BSKey, BSValue))
-findTemplate qs name paramDesc@(ParamDesc templs paramType must) = do
+findTemplate qs name paramDesc@(ParamDesc templs paramType must _) = do
     let pp = possibleParams name paramDesc
     let filtered = forMaybe qs $ \q -> checkParam q name paramDesc
     case filtered of
@@ -177,7 +178,7 @@ findTemplate qs name paramDesc@(ParamDesc templs paramType must) = do
 
 --проверка одного элемента строки запроса
 checkParam :: (BS, Maybe BS) -> BSName -> ParamDesc -> Maybe (Templ, BSKey, Maybe BSValue)
-checkParam (param, mvalue) name (ParamDesc templs _ _) = res where
+checkParam (param, mvalue) name (ParamDesc templs _ _ _) = res where
     mtmpl = find (\tpl -> param == name <> jlookup tpl templates ) templs
     res = case mtmpl of 
         Nothing -> Nothing 
@@ -185,13 +186,16 @@ checkParam (param, mvalue) name (ParamDesc templs _ _) = res where
 
 --------------------------------------PARAMS HANDLERS--------------------------------------------------------------------
 
-readParamAny :: ParamType -> Maybe (Templ, BSKey, BSValue) -> Except E Param
-readParamAny paramType = case paramType of
-    ParamTypePage -> readParamPage
-    ParamTypeInt -> readParamInt
-    ParamTypeStr -> readParamStr
-    ParamTypeDate -> readParamDate
-    ParamTypeSort list -> readParamSort list
+readParamAny :: ParamType -> Maybe (Templ, BSKey, BSValue) -> Bool -> Except E Param
+readParamAny paramType (Just (_, _, "null")) True = return ParamNull
+readParamAny paramType (Just (_, key, "null")) False = throwE . RequestError $ template "Для параметра {0} не разрешено значение null" [show key] 
+readParamAny paramType mtuple _  = do 
+    case paramType of
+        ParamTypePage -> readParamPage mtuple
+        ParamTypeInt -> readParamInt mtuple
+        ParamTypeStr -> readParamStr mtuple
+        ParamTypeDate -> readParamDate mtuple
+        ParamTypeSort list -> readParamSort list mtuple
 
 
 --продумать, какие ограничения есть для каждой из трех функций
@@ -246,21 +250,21 @@ readParam cons consStr mtuple = do
 --по сути вся эта городуха нужна только для корректных сообщений об ошибках
 ereadMap :: Read a => String -> BS -> BS -> Except E a
 ereadMap t bs param = case t of
-    "Int" -> eread bs $ template "{0}целым числом" [must]
-    "[Int]" -> eread bs $ template "{0}массивом, состоящим из целых чисел в формате [x,y,z]" [must]
-    "(Int,Int)" -> eread bs $ template "{0}парой целых чисел в формате (x,y)" [must]
-    --вариант со строковым параметром без кавычек ?text__like=glasgow
-    "String" -> eread ("\"" <> bs <> "\"") $ template "{0}строкой" [must]
-    --вариант со строковым параметром в кавычках ?text__like="glasgow"
-    --"String" -> eread bs $ template "{0}строкой" [must]
-    --каждая строка внутри массива или кортежа должна быть в кавычках!!! ?tag__in=["python","haskell"]
-    "[String]" -> eread bs $ template "{0}массивом, состоящим из строк в формате [x,y,z]" [must]
-    "(String,String)" -> eread bs $ template "{0} парой строк в формате (x,y)" [must]
-    "Date" -> eread bs $ template "{0}датой в формате YYYY-MM-DD" [must]
-    "[Date]" -> eread bs $ template "{0}списком дат в формате [YYYY-MM-DD,YYYY-MM-DD,YYYY-MM-DD]" [must]
-    "(Date,Date)" -> eread bs $ template "{0}списком дат в формате (YYYY-MM-DD,YYYY-MM-DD)" [must]
-    _ -> throwE . RequestError $ template "Неизвестный тип параметра {1}: {0}" [t, show param]
-    where must = template "Параметр запроса {0} должен быть " [show param]
+            "Int" -> eread bs $ template "{0}целым числом" [must]
+            "[Int]" -> eread bs $ template "{0}массивом, состоящим из целых чисел в формате [x,y,z]" [must]
+            "(Int,Int)" -> eread bs $ template "{0}парой целых чисел в формате (x,y)" [must]
+            --вариант со строковым параметром без кавычек ?text__like=glasgow
+            "String" -> eread ("\"" <> bs <> "\"") $ template "{0}строкой" [must]
+            --вариант со строковым параметром в кавычках ?text__like="glasgow"
+            --"String" -> eread bs $ template "{0}строкой" [must]
+            --каждая строка внутри массива или кортежа должна быть в кавычках!!! ?tag__in=["python","haskell"]
+            "[String]" -> eread bs $ template "{0}массивом, состоящим из строк в формате [x,y,z]" [must]
+            "(String,String)" -> eread bs $ template "{0} парой строк в формате (x,y)" [must]
+            "Date" -> eread bs $ template "{0}датой в формате YYYY-MM-DD" [must]
+            "[Date]" -> eread bs $ template "{0}списком дат в формате [YYYY-MM-DD,YYYY-MM-DD,YYYY-MM-DD]" [must]
+            "(Date,Date)" -> eread bs $ template "{0}списком дат в формате (YYYY-MM-DD,YYYY-MM-DD)" [must]
+            _ -> throwE . RequestError $ template "Неизвестный тип параметра {1}: {0}" [t, show param]
+            where must = template "Параметр запроса {0} должен быть " [show param]
 
 eread :: Read a => BC.ByteString -> String -> Except E a
 eread bs error = catchE (except . readEither . unpackString $ bs) $ \e -> do

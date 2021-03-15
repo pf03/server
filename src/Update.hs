@@ -75,5 +75,6 @@ updates params names = Query.concat "," $ mapMaybe helper names where
     upd "pass" (ParamEq v) = Just $ template [sql|pass = md5({0})|] [val v] --костыль для pass
     upd field (ParamEq v) = Just $ template [sql|{0} = {1}|] [field, val v]
     upd field ParamNo = Nothing 
+    upd field ParamNull = Just $ template [sql|{0} = null|] [field]
     upd field param = error $ template "Нет шаблона для {0}" [show param]
 
