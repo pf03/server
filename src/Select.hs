@@ -81,19 +81,43 @@ selectCategoriesQuery = [sql|SELECT * FROM categories|]
 
 categoriesQuery :: ParamsMap Param -> Query
 categoriesQuery params = selectCategoriesQuery <+> pagination (params ! "page")
+-------------------------Draft-------------------------------------------------------------
+type Content = Row.Content :. Row.Category :. Row.Author :. Row.User :. Maybe Row.TagToContent :. Maybe Row.Tag
+
+type Draft = Row.Draft :. Select.Content
+
+draft::  Int -> T [Post]
+draft pid = query_ query where
+        query = selectDraftsQuery <+> template [sql|WHERE drafts.id = {0}|] [q pid]
+
+drafts :: ParamsMap Param -> T [Post]
+drafts params = query_ $ postsQuery params
+
+selectDraftsQuery ::  Query
+selectDraftsQuery = [sql|
+        SELECT * FROM drafts
+        LEFT JOIN contents ON contents.id = drafts.content_id
+        LEFT JOIN categories ON categories.id = contents.category_id
+        LEFT JOIN authors ON authors.id = contents.author_id
+        LEFT JOIN users ON users.id = authors.user_id
+        LEFT JOIN tags_to_contents ON contents.id = tags_to_contents.content_id
+        LEFT JOIN tags ON tags.id = tags_to_contents.tag_id|]
+
+draftsQuery :: ParamsMap Param -> Query
+draftsQuery params = selectTagsQuery <+> pagination (params ! "page")
 
 -------------------------Post-------------------------------------------------------------
-type Post = Row.Post :. Row.Content :. Row.Category :. Row.Author :. Row.User :. Maybe Row.TagToContent :. Maybe Row.Tag
 
---не все так просто!!! Из-за того, что у одного поста может быть много тегов, здесь может быть много строк!!!
---В общем случае может быть много строк, а на выходе 0 или 1 объект json!!
+type Post = Row.Post :. Select.Content
+--type Post = Row.Post :. Row.Content :. Row.Category :. Row.Author :. Row.User :. Maybe Row.TagToContent :. Maybe Row.Tag
+
 -- post::  Int -> T (Maybe Post)
 -- post pid = listToMaybe <$> query_ query where
 --         query = selectPostsQuery <+> template [sql|WHERE categories.id = {0}|] [q pid]
 
 post::  Int -> T [Post]
 post pid = query_ query where
-        query = selectPostsQuery <+> template [sql|WHERE categories.id = {0}|] [q pid]
+        query = selectPostsQuery <+> template [sql|WHERE posts.id = {0}|] [q pid]
 
 posts :: ParamsMap Param -> T [Post]
 posts params = query_ $ postsQuery params

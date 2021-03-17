@@ -188,16 +188,18 @@ getJSON rawPathinfo pathInfo qs = do
         API Insert [API.Draft, Id n, API.Post] -> encode $ Insert.publish n
         API Insert [API.Post, Id n, API.Comment] -> encode $ Insert.comment n params
 
-        API Delete [API.User, Id n] -> encode $ Delete.user n
-        API Delete [API.Author, Id n] -> encode $ Delete.author n
-        API Delete [API.Post, Id n] -> encode $ Delete.post n
-        API Delete [API.Comment, Id n] -> encode $ Delete.comment n
-
         API Update [API.User, Id n] -> encode $ Update.user n params
         API Update [API.Author, Id n] -> encode $ Update.author n params
         API Update [API.Category, Id n] -> encode $ DB.updateCategory n params
         API Update [API.Tag, Id n] -> encode $ Update.tag n params
         API Update [API.Draft, Id n] -> encode $ Update.draft n params
+        API Update [API.Post, Id n] -> encode $ Update.post n params
+
+        API Delete [API.User, Id n] -> encode $ Delete.user n
+        API Delete [API.Author, Id n] -> encode $ Delete.author n
+        API Delete [API.Post, Id n] -> encode $ Delete.post n
+        API Delete [API.Draft, Id n] -> encode $ Delete.draft n
+        API Delete [API.Comment, Id n] -> encode $ Delete.comment n
 
         --апи, которые возвращают результат
         API SelectById [API.User, Id n] -> encode $ Select.user n
@@ -210,6 +212,7 @@ getJSON rawPathinfo pathInfo qs = do
         API Select [API.Author] -> encode $ evalAuthors <$> Select.authors params
         API Select [API.Category] -> encode $ DB.getCategories params
         API Select [API.Post] -> encode $ DB.getPosts params
+        API Select [API.Draft] -> encode $ DB.getDrafts params
         API Select [API.Tag] -> encode $ Select.tags params
         API Select [API.Post, Id n, API.Comment] -> encode $ evalComments <$> Select.comments n params
 
@@ -229,6 +232,17 @@ getPosts params = do
     let newParams = evalParams params categories
     selectPosts <- Select.posts newParams
     jsonPosts <- toT $ JSON.evalUnitedPosts categories selectPosts
+    return jsonPosts
+
+getDrafts :: ParamsMap Param -> T [Post]
+getDrafts params = do
+    --эта строка первая, чтобы не перезаписывать настройки лога
+    categories <- DB.getAllCategories
+    Log.setSettings Color.Blue True "DB.getDrafts" 
+    Log.funcT Log.Debug "..."
+    let newParams = evalParams params categories
+    selectDrafts <- Select.drafts newParams
+    jsonDrafts <- toT $ JSON.evalUnitedDrafts categories selectDrafts
     return jsonPosts
 
 getPost :: Int -> T (Maybe Post)

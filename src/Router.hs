@@ -28,7 +28,7 @@ router _ ["authors", n, "edit"] = withInt "author_id" n $ \pid -> API Update [Au
 router _ ["categories", n, "edit"] = withInt "category_id" n $ \pid -> API Update [Category, Id pid]
 router _ ["tags", n, "edit"] = withInt "tag_id" n $ \pid -> API Update [Tag, Id pid]
 router _ ["drafts", n, "edit"] = withInt "draft_id" n $ \pid -> API Update [Draft, Id pid]
--- router _ ["posts", n, "edit"] = withInt "post_id" n $ \pid -> API Update [Post, Id pid]  --не то же, что publish?
+router _ ["posts", n, "edit"] = withInt "post_id" n $ \pid -> API Update [Post, Id pid] 
 
 ---DELETE---
 router _ ["users", n, "delete"] = withInt "user_id" n $ \pid -> API Delete [User, Id pid]
@@ -36,7 +36,7 @@ router _ ["authors", n, "delete"] = withInt "author_id" n $ \pid -> API Delete [
 router _ ["categories", n, "delete"] = withInt "category_id" n $ \pid -> API Delete [Category, Id pid]
 router _ ["tags", n, "delete"] = withInt "tag_id" n $ \pid -> API Delete [Tag, Id pid]
 router _ ["drafts", n, "delete"] = withInt "draft_id" n $ \pid -> API Delete [Draft, Id pid]
-router _ ["posts", n, "delete"] = withInt "post_id" n $ \pid -> API Delete [Post, Id pid]  --не то же, что publish?
+router _ ["posts", n, "delete"] = withInt "post_id" n $ \pid -> API Delete [Post, Id pid] 
 router _ ["comments", n, "delete"] = withInt "comment_id" n $ \pid -> API Delete [Comment, Id pid] 
 
 --у новости также есть еще фотографии
@@ -46,6 +46,7 @@ router _ ["authors"] = return $ API Select [Author]
 router _ ["categories"] = return $ API Select [Category]
 router _ ["tags"] = return $ API Select [Tag]
 router _ ["posts"] = return $ API Select [Post]
+router _ ["drafts"] = return $ API Select [Draft]
 router _ ["posts", n, "comments"] = withInt "post_id" n $ \pid -> API Select [Post, Id pid, Comment]
 
 --SELECT BY ID---

@@ -159,6 +159,9 @@ post pid = do
             delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [q contentId]   
             delete Comment [sql|DELETE FROM comments WHERE post_id = {0}|] [q pid]
 
+draft :: Int -> T Changed
+draft pid = delete Draft undefined []
+
 comment :: Int -> T Changed
 comment pid = delete Comment [sql|DELETE FROM comments WHERE id = {0}|] [q pid] 
 

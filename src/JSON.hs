@@ -169,40 +169,90 @@ getParents = helper [] where
     
 
 
+-- evalPosts :: [Category] -> [Select.Post] -> Except E [Post]
+-- evalPosts cs = mapM (evalPost cs) 
+
+-- evalUnitedPosts::[Category] -> [Select.Post] -> Except E [Post]
+-- evalUnitedPosts cs l = unitePosts <$> mapM (evalPost cs) l  
+
+-- --unite equal posts with different tags
+-- unitePosts :: [Post] -> [Post]
+-- unitePosts = foldr helper [] where
+--     helper :: Post -> [Post] -> [Post]
+--     helper curPost unitedPosts  = res where 
+--         curId = getId curPost;
+--         --munitedPost = findById curId unitedPosts;
+--         res = if existId curId unitedPosts 
+--             then updateById curId (uniteTwoPosts curPost) unitedPosts 
+--             else curPost : unitedPosts
+--         uniteTwoPosts :: Post -> Post -> Post
+--         uniteTwoPosts post1 post2 = setPostTags post1 (getPostTags post1 <> getPostTags post2)
+
+-- -- tag1 = Row.Tag 1 "tag1"
+-- -- tag2 = Row.Tag 2 "tag2"
+
+-- evalPost :: [Category] -> Select.Post -> Except E Post
+-- evalPost cs (rpost :. rcontent :. _ :.  rauthor :. user :. _ :. mtag)  = do
+--     let postId = Row.postId rpost
+--     let categoryId = Row.contentCategoryId rcontent
+--     let mcategory = findById categoryId cs
+--     case mcategory of
+--         Nothing -> do
+--             throwE . DBError $ template "Пост {0} принадлежит к несуществующей категории {1}" [show postId, show categoryId]
+--         Just category -> do
+--             let author = turnAuthor rauthor user
+--             let postContent = turnContent rcontent author category (maybeToList mtag)
+--             return Post {..}
+
 evalPosts :: [Category] -> [Select.Post] -> Except E [Post]
 evalPosts cs = mapM (evalPost cs) 
 
 evalUnitedPosts::[Category] -> [Select.Post] -> Except E [Post]
 evalUnitedPosts cs l = unitePosts <$> mapM (evalPost cs) l  
 
+
 --unite equal posts with different tags
 unitePosts :: [Post] -> [Post]
-unitePosts = foldr helper [] where
-    helper :: Post -> [Post] -> [Post]
-    helper curPost unitedPosts  = res where 
-        curId = getId curPost;
+unitePosts posts = map setPostContent . uniteContents . map postContent $ posts
+
+
+evalPost :: [Category] -> Select.Post -> Except E Post
+evalPost cs (rpost :. rcontent :. _ :.  rauthor :. user :. _ :. mtag)  = do
+    undefined
+
+evalContents :: [Category] -> [Select.Content] -> Except E [Content]
+evalContents cs = mapM (evalContent cs) 
+
+evalUnitedContents::[Category] -> [Select.Content] -> Except E [Content]
+evalUnitedContents cs l = uniteContents <$> mapM (evalContent cs) l  
+
+--unite equal contents with different tags
+uniteContents :: [Content] -> [Content]
+uniteContents = foldr helper [] where
+    helper :: Content -> [Content] -> [Content]
+    helper curContent unitedContents  = res where 
+        curId = getId curContent;
         --munitedPost = findById curId unitedPosts;
-        res = if existId curId unitedPosts 
-            then updateById curId (uniteTwoPosts curPost) unitedPosts 
-            else curPost : unitedPosts
-        uniteTwoPosts :: Post -> Post -> Post
-        uniteTwoPosts post1 post2 = setPostTags post1 (getPostTags post1 <> getPostTags post2)
+        res = if existId curId unitedContents 
+            then updateById curId (uniteTwoContents curContent) unitedContents 
+            else curContent : unitedContents
+        uniteTwoContents :: Content -> Content -> Content
+        uniteTwoContents content1 content2 = setContentTags content1 (contentTags content1 <> contentTags content2)
 
 -- tag1 = Row.Tag 1 "tag1"
 -- tag2 = Row.Tag 2 "tag2"
 
-evalPost :: [Category] -> Select.Post -> Except E Post
-evalPost cs (rpost :. rcontent :. _ :.  rauthor :. user :. _ :. mtag)  = do
-    let postId = Row.postId rpost
+evalContent :: [Category] -> Select.Content -> Except E Content
+evalContent cs (rcontent :. _ :.  rauthor :. user :. _ :. mtag)  = do
+    let cid = Row.contentId rcontent
     let categoryId = Row.contentCategoryId rcontent
     let mcategory = findById categoryId cs
     case mcategory of
         Nothing -> do
-            throwE . DBError $ template "Пост {0} принадлежит к несуществующей категории {1}" [show postId, show categoryId]
+            throwE . DBError $ template "Контент {0} принадлежит к несуществующей категории {1}" [show cid, show categoryId]
         Just category -> do
             let author = turnAuthor rauthor user
-            let postContent = turnContent rcontent author category (maybeToList mtag)
-            return Post {..}
+            return $ turnContent rcontent author category (maybeToList mtag)
 
 evalAuthor :: Select.Author -> Author
 evalAuthor  (author :. user) = turnAuthor author user
@@ -243,6 +293,12 @@ setPostTags :: Post -> [Tag] -> Post
 setPostTags post tags = post {postContent = newContent} where
     content = postContent post;
     newContent = content {contentTags = tags}
+
+setContentTags :: Content -> [Tag] -> Content
+setContentTags content tags = content {contentTags = tags}
+
+setPostContent :: Post -> Content -> Post
+setPostContent post content = post {postContent = content}
 
 -------Data manipaltion-------------------
 --здесь используется тип Category, который уже проверен на цикличность и корректность в evalCategory

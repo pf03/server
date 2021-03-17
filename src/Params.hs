@@ -76,8 +76,8 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
                 --param "creation_date" [Eq] ParamTypeStr True,  --дата берется на серваке
                 param "category_id" [Eq] ParamTypeInt True,
                 param "text" [Eq] ParamTypeStr True,
-                param "photo" [Eq] ParamTypeStr True,
-                param "news_id" [Eq] ParamTypeInt False
+                param "photo" [Eq] ParamTypeStr True
+                --param "news_id" [Eq] ParamTypeInt False --это отдельная функция posts/m/edit
                 ]
             [API.Post] -> [] --[param "draft_id" [Eq] ParamTypeInt True] --draft_id уже в роутере
             [API.Post, Id n, API.Comment] -> [
@@ -106,13 +106,13 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
             API.Tag:xs -> [param "name" [Eq] ParamTypeStr False]
             --тут еще добавить список тегов!!!
             API.Draft:xs -> [
-                param "author_id" [Eq] ParamTypeInt False,
+                --param "author_id" [Eq] ParamTypeInt False, --не редактируется
                 param "name" [Eq] ParamTypeStr False,
                 --param "creation_date" [Eq] ParamTypeStr False,  --дата берется на серваке
                 param "category_id" [Eq] ParamTypeInt False,
                 param "text" [Eq] ParamTypeStr False,
-                param "photo" [Eq] ParamTypeStr False,
-                param "news_id" [Eq] ParamTypeInt False
+                param "photo" [Eq] ParamTypeStr False
+                --param "news_id" [Eq] ParamTypeInt False --можно привязать черновик к другой новости?
                 ]
             [API.Post, Id n, API.Comment] -> [
                 param "user_id" [Eq] ParamTypeInt False,

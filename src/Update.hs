@@ -44,18 +44,25 @@ author pid params = do
     update Author [sql|UPDATE authors SET {0} WHERE id = {1}|] 
         [updates params ["user_id", "description"], q pid]
 
---проверка на цикличность категории!!!
 category :: Int -> ParamsMap Param -> T Changed
 category pid params = do
     let allParams = M.insert "id" (ParamEq (Int pid)) params
     checkExist allParams "id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
-    checkExist allParams "parent_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
+    checkExist allParams "parent_id" [sql|SELECT 1 FROM categories WHERE categories.parent_id = {0}|]
     update Category [sql|UPDATE categories SET {0} WHERE id = {1}|] 
         [updates params ["parent_id", "category_name"], q pid]
 
-
 draft :: Int -> ParamsMap Param -> T Changed
 draft pid params = do
+    let allParams = M.insert "id" (ParamEq (Int pid)) params
+    checkExist allParams "id" [sql|SELECT 1 FROM drafts WHERE drafts.id = {0}|]
+    checkExist allParams "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
+    update Draft [sql|UPDATE drafts SET {0} WHERE id = {1}|] 
+        [updates params ["name", "category_id", "text", "photo"], q pid]
+
+post :: Int -> ParamsMap Param -> T Changed
+post pid params = do
+    let allParams = M.insert "id" (ParamEq (Int pid)) params
     undefined
 
 tag :: Int -> ParamsMap Param -> T Changed
