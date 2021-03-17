@@ -360,7 +360,7 @@ unite f = foldl helper [] where
 unitePosts :: [Post] -> [Post]
 unitePosts = unite unitePost where
      unitePost ::  Post -> Post -> Post
-     unitePost post1 post2 = setPostTags post1 (getPostTags post1 <> getPostTags post2)
+     unitePost post1 post2 = setPostTags post1 $ filterById (getPostTags post1 <> getPostTags post2)
 
 
     

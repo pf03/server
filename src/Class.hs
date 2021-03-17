@@ -120,6 +120,9 @@ updateSetById wantedId func def list = if existId wantedId list
     then updateById wantedId func list 
     else setById wantedId def list
 
+--оставляем только уникальные знчения
+filterById :: Identifiable a => [a] -> [a]
+filterById = foldl (\acc a -> if getId a `elem` map getId acc then acc else a:acc) []
     
 
 
