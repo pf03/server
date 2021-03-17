@@ -115,7 +115,14 @@ updateById :: Identifiable a => Int -> (a -> a) -> [a] -> [a]
 updateById wantedId func = map helper where
     helper curValue = if getId curValue == wantedId then func curValue else curValue
 
-    
+updateSetById :: Identifiable a => Int -> (a -> a) -> a -> [a] -> [a]
+updateSetById wantedId func def list = if existId wantedId list 
+    then updateById wantedId func list 
+    else setById wantedId def list
+
+--оставляем только уникальные знчения
+filterById :: Identifiable a => [a] -> [a]
+filterById = foldl (\acc a -> if getId a `elem` map getId acc then acc else a:acc) []
 
 
 
