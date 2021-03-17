@@ -20,7 +20,7 @@ import Common
 import Query
 import qualified Data.ByteString as BC
 import Control.Monad.Identity
-import Data.Map as M ((!))
+import Data.Map as M ((!), insert)
 import Data.Maybe
 ----------------------------------User-----------------------------------------------------------
 type User =  Row.User 
@@ -82,15 +82,15 @@ selectCategoriesQuery = [sql|SELECT * FROM categories|]
 categoriesQuery :: ParamsMap Param -> Query
 categoriesQuery params = selectCategoriesQuery <+> pagination (params ! "page")
 -------------------------Draft-------------------------------------------------------------
-type Content = Row.Content :. Row.Category :. Row.Author :. Row.User :. Maybe Row.TagToContent :. Maybe Row.Tag
+type Content = Row.Content :. Row.Category :. Row.Author :. Row.User
 
 type Draft = Row.Draft :. Select.Content
 
-draft::  Int -> T [Post]
+draft::  Int -> T [Draft]
 draft pid = query_ query where
         query = selectDraftsQuery <+> template [sql|WHERE drafts.id = {0}|] [q pid]
 
-drafts :: ParamsMap Param -> T [Post]
+drafts :: ParamsMap Param -> T [Draft]
 drafts params = query_ $ postsQuery params
 
 selectDraftsQuery ::  Query
@@ -113,34 +113,72 @@ type Post = Row.Post :. Select.Content
 
 -- post::  Int -> T (Maybe Post)
 -- post pid = listToMaybe <$> query_ query where
---         query = selectPostsQuery <+> template [sql|WHERE categories.id = {0}|] [q pid]
+--         query = selectPostsQuery <+> template [sql|WHERE posts.id = {0}|] [q pid]
 
-post::  Int -> T [Post]
+
+--потом перейти на версю с Maybe, когда уйдем от unite!!
+post :: Int -> T [Post]
 post pid = query_ query where
         query = selectPostsQuery <+> template [sql|WHERE posts.id = {0}|] [q pid]
 
 posts :: ParamsMap Param -> T [Post]
-posts params = query_ $ postsQuery params
+posts params = do
+        ids <- query_ $ postIdsQuery params :: T [Only Int]
+        let allParams = M.insert "id" (ParamIn (map (Int . fromOnly) ids)) params
+        query_ $ postsQuery allParams
 
---зачем здесь таблица categories? проверить!!!
-selectPostsQuery ::  Query
+selectPostsQuery :: Query 
 selectPostsQuery = [sql|
         SELECT * FROM posts
         LEFT JOIN contents ON contents.id = posts.content_id
         LEFT JOIN categories ON categories.id = contents.category_id
         LEFT JOIN authors ON authors.id = contents.author_id
-        LEFT JOIN users ON users.id = authors.user_id
-        LEFT JOIN tags_to_contents ON contents.id = tags_to_contents.content_id
-        LEFT JOIN tags ON tags.id = tags_to_contents.tag_id|]
+        LEFT JOIN users ON users.id = authors.user_id|]
 
-postsQuery :: ParamsMap Param -> SQL.Query
+--зачем здесь таблица categories? проверить!!!
+postsQuery ::  ParamsMap Param -> Query
 postsQuery params = res where
 
         p :: BSName -> Param
         p name = params ! name
 
         res:: SQL.Query
-        res = selectPostsQuery `whereAll` conditions  <+> orderBy (p "order_by") <+> pagination (p "page")
+        res = selectPostsQuery `whereAll` conditions  <+> orderBy (p "order_by")
+
+        conditions :: [SQL.Query]
+        conditions =  [
+                        cond [sql|posts.id|] $ p "id"
+                ]
+        
+        orderBy :: Param -> SQL.Query
+        orderBy (ParamEq (Str paramName)) = template [sql|ORDER BY {0}|] [field] where
+                field = case paramName of 
+                        "created_at" -> [sql|contents.creation_date|]
+                        "author_name" -> [sql|CONCAT_WS(' ', users.last_name, users.first_name)|]
+                        "category_id"-> [sql|contents.category_id|]
+                        "photos" -> Query.brackets [sql|SELECT COUNT(*) FROM photos WHERE
+                                photos.content_id = contents.id|]
+        orderBy ParamNo = [sql||]
+
+
+postIdsQuery :: ParamsMap Param -> SQL.Query
+postIdsQuery params = res where
+
+        p :: BSName -> Param
+        p name = params ! name
+
+        res:: SQL.Query
+        res = selectPostsIds `whereAll` conditions <+> pagination (p "page")
+
+        selectPostsIds ::  Query
+        selectPostsIds = [sql|
+        SELECT DISTINCT posts.id FROM posts
+                LEFT JOIN contents ON contents.id = posts.content_id
+                LEFT JOIN categories ON categories.id = contents.category_id
+                LEFT JOIN authors ON authors.id = contents.author_id
+                LEFT JOIN users ON users.id = authors.user_id
+                LEFT JOIN tags_to_contents ON contents.id = tags_to_contents.content_id
+                LEFT JOIN tags ON tags.id = tags_to_contents.tag_id|]
 
         --исключить из результирующего запроса лишние TRUE в функции whereAll ?
         conditions :: [SQL.Query]
@@ -194,15 +232,7 @@ postsQuery params = res where
                         WHERE contents.id = posts.content_id
                         AND |] <+> cond field param
         
-        orderBy :: Param -> SQL.Query
-        orderBy (ParamEq (Str paramName)) = template [sql|ORDER BY {0}|] [field] where
-                field = case paramName of 
-                        "created_at" -> [sql|contents.creation_date|]
-                        "author_name" -> [sql|CONCAT_WS(' ', users.last_name, users.first_name)|]
-                        "category_id"-> [sql|contents.category_id|]
-                        "photos" -> Query.brackets [sql|SELECT COUNT(*) FROM photos WHERE
-                                photos.content_id = contents.id|]
-        orderBy ParamNo = [sql||]
+        
 
 -------------------------Tag-------------------------------------------------------------
 type Tag = Row.Tag 

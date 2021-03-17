@@ -316,17 +316,18 @@ commentsCases = ("selectComment", tuples) where
 publishCases :: (String, [(PathInfo, Query)])
 publishCases = ("publish", tuples) where
     tuples = [
-            (,) ["drafts"] [],
-            (,) ["posts"] [],
-            (,) ["drafts", "create"] [
-                ("author_id", Just "name"),
-                ("name", Just "name"),
-                ("category_id", Just "category_id"),
-                ("text", Just "text"),
-                ("photo", Just "photo.jpg")
-            ],
-            (,) ["drafts"] [],
             (,) ["posts"] []
+            -- (,) ["drafts"] [],
+            -- (,) ["posts"] [],
+            -- (,) ["drafts", "create"] [
+            --     ("author_id", Just "name"),
+            --     ("name", Just "name"),
+            --     ("category_id", Just "category_id"),
+            --     ("text", Just "text"),
+            --     ("photo", Just "photo.jpg")
+            -- ],
+            -- (,) ["drafts"] [],
+            -- (,) ["posts"] []
         ]
 
 cases :: [(String, [(PathInfo, Query)])]

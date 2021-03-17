@@ -32,6 +32,15 @@ instance ToJSON Post
 instance Identifiable Post where
     getId = postId
 
+data Draft = Draft {
+    draftId :: Int,
+    draftContent :: Content,
+    draftPostId :: Maybe Int  --или Maybe draftPost??
+} deriving (Show, Generic)
+instance ToJSON Draft
+instance Identifiable Draft where
+    getId = draftId
+
 data Content = Content {
     contentId :: Int,
     contentAuthor :: Author,
@@ -204,21 +213,34 @@ getParents = helper [] where
 --             let postContent = turnContent rcontent author category (maybeToList mtag)
 --             return Post {..}
 
-evalPosts :: [Category] -> [Select.Post] -> Except E [Post]
+evalUnitedDrafts :: [Category] -> [Select.Draft] -> Except E [Draft]
+evalUnitedDrafts = undefined
+
+evalPosts :: [Category] -> [Select.Post] -> [Tag] -> Except E [Post]
 evalPosts cs = mapM (evalPost cs) 
 
-evalUnitedPosts::[Category] -> [Select.Post] -> Except E [Post]
+evalUnitedPosts :: [Category] -> [Select.Post] -> Except E [Post]
 evalUnitedPosts cs l = unitePosts <$> mapM (evalPost cs) l  
 
+getCategoryById :: Int -> [Category] -> Except E Category
+getCategoryById cid cs = let mcategory = findById cid cs in 
+    case mcategory of
+        Nothing -> do
+            throwE . DBError $ template "Категория {0} не существует" [show cid]
+        Just category -> return category
 
 --unite equal posts with different tags
-unitePosts :: [Post] -> [Post]
-unitePosts posts = map setPostContent . uniteContents . map postContent $ posts
+-- unitePosts :: [Post] -> [Post]
+-- unitePosts posts = undefined --map setPostContent . uniteContents . map postContent $ posts
 
 
-evalPost :: [Category] -> Select.Post -> Except E Post
-evalPost cs (rpost :. rcontent :. _ :.  rauthor :. user :. _ :. mtag)  = do
-    undefined
+evalPost :: [Category] -> Select.Post -> [Tag] -> Except E Post
+evalPost cs (rpost :. rcontent :. rcategory :.  rauthor :. user) tags = do
+    let author = turnAuthor rauthor user
+    category <- getCategoryById (Row.categoryId rcategory) cs
+    let content = turnContent rcontent author category tags
+    let post = turnPost rpost content
+    return post
 
 evalContents :: [Category] -> [Select.Content] -> Except E [Content]
 evalContents cs = mapM (evalContent cs) 
@@ -284,6 +306,9 @@ turnAuthor (Row.Author a _ c) user = Author a user c
 turnComment :: Row.Comment -> User -> Comment
 turnComment (Row.Comment a _ _ d e) user = Comment a user d e
 
+turnPost :: Row.Post -> Content -> Post
+turnPost (Row.Post a _) content = Post a content
+
 ---------GET-------------------
 getPostTags :: Post -> [Tag]
 getPostTags = contentTags . postContent
@@ -326,6 +351,16 @@ getChildCategories (ParamIn vals) cs  = if length filtered == length cs then Par
 getChildCategories ParamNo cs = ParamNo
 getChildCategories param cs = error $ template "Некоректный параметр {0}" [show param]
 
+
+--универсальная функция для объединения строк
+unite :: (Identifiable a) => (a -> a -> a) -> [a] -> [a]
+unite f = foldl helper [] where
+    helper acc a = updateSetById (getId a) (f a) a acc
+
+unitePosts :: [Post] -> [Post]
+unitePosts = unite unitePost where
+     unitePost ::  Post -> Post -> Post
+     unitePost post1 post2 = setPostTags post1 (getPostTags post1 <> getPostTags post2)
 
 
     

@@ -234,7 +234,7 @@ getPosts params = do
     jsonPosts <- toT $ JSON.evalUnitedPosts categories selectPosts
     return jsonPosts
 
-getDrafts :: ParamsMap Param -> T [Post]
+getDrafts :: ParamsMap Param -> T [Draft]
 getDrafts params = do
     --эта строка первая, чтобы не перезаписывать настройки лога
     categories <- DB.getAllCategories
@@ -243,7 +243,7 @@ getDrafts params = do
     let newParams = evalParams params categories
     selectDrafts <- Select.drafts newParams
     jsonDrafts <- toT $ JSON.evalUnitedDrafts categories selectDrafts
-    return jsonPosts
+    return jsonDrafts
 
 getPost :: Int -> T (Maybe Post)
 getPost pid = do
