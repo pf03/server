@@ -118,6 +118,13 @@ instance FromRow (Maybe Tag) where
         mtagName <- field
         return $ Tag <$> mtagId <*> mtagName
 
+instance FromRow (Maybe Photo) where
+    fromRow = do
+        a <- field
+        b <- field
+        c <- field
+        return $ Photo <$> a <*> b <*> c
+
 instance FromRow (Maybe TagToContent) where
     fromRow = do
         a <- field

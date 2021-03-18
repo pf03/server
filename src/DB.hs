@@ -231,10 +231,10 @@ getPosts params = do
     Log.funcT Log.Debug "..."
     let newParams = evalParams params categories
     selectPosts <- Select.posts newParams
-    jsonPosts <- toT $ JSON.evalUnitedPosts categories selectPosts
+    jsonPosts <- toT $ JSON.evalPosts categories selectPosts
     return jsonPosts
 
-getDrafts :: ParamsMap Param -> T [Post]
+getDrafts :: ParamsMap Param -> T [Draft]
 getDrafts params = do
     --эта строка первая, чтобы не перезаписывать настройки лога
     categories <- DB.getAllCategories
@@ -242,8 +242,8 @@ getDrafts params = do
     Log.funcT Log.Debug "..."
     let newParams = evalParams params categories
     selectDrafts <- Select.drafts newParams
-    jsonDrafts <- toT $ JSON.evalUnitedDrafts categories selectDrafts
-    return jsonPosts
+    jsonDrafts <- toT $ JSON.evalDrafts categories selectDrafts
+    return jsonDrafts
 
 getPost :: Int -> T (Maybe Post)
 getPost pid = do
@@ -252,7 +252,7 @@ getPost pid = do
     Log.setSettings Color.Blue True "DB.getPost" 
     Log.funcT Log.Debug "..."
     selectPosts <- Select.post pid
-    jsonPosts <- logT $ JSON.evalUnitedPosts categories selectPosts
+    jsonPosts <- logT $ JSON.evalPosts categories selectPosts
     return $ listToMaybe jsonPosts --проверить как это работает. evalUnitedPosts должно объединять все в один пост
 
 getAllCategories :: T [Category]

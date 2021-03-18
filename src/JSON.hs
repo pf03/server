@@ -32,6 +32,15 @@ instance ToJSON Post
 instance Identifiable Post where
     getId = postId
 
+data Draft = Draft {
+    draftId :: Int,
+    draftContent :: Content,
+    draftPostId :: Maybe Int  --или Maybe draftPost??
+} deriving (Show, Generic)
+instance ToJSON Draft
+instance Identifiable Draft where
+    getId = draftId
+
 data Content = Content {
     contentId :: Int,
     contentAuthor :: Author,
@@ -40,7 +49,8 @@ data Content = Content {
     contentCategory :: Category,
     contentText :: Text,
     contentPhoto :: Path,
-    contentTags :: [Tag]
+    contentTags :: [Tag],
+    contentPhotos :: [Photo]
 } deriving (Show, Generic)
 instance ToJSON Content
 instance Identifiable Content where
@@ -76,6 +86,7 @@ instance Identifiable Comment where
 
 type User = Row.User
 type Tag = Row.Tag
+type Photo = Row.Photo
 
 -- getPosts:: [Select.Post] -> [JSON.Post] 
 -- getPosts = undefined
@@ -141,42 +152,36 @@ getParents = helper [] where
                         throwE . DBError $ template "Категория {0} является своим же родителем" [show parentId]
                     helper ([parentId] <> acc) parentId rcs
 
-getCategoryById :: Int -> [Category] -> Except E Category
-getCategoryById cid cs = let mcategory = findById cid cs in 
+getCategoryById :: Int -> [Category] -> String -> Except E Category
+getCategoryById cid cs err = let mcategory = findById cid cs in 
     case mcategory of
         Nothing -> do
-            throwE . DBError $ template "Категория {0} не существует" [show cid]
+            throwE . DBError $ err
         Just category -> return category
 
-evalPosts::[Category] -> [Select.Post] -> Except E [Post]
-evalPosts cs l = unitePosts <$> mapM (evalPost cs) l  
+evalDrafts :: [Category] -> [Select.Draft] -> Except E [Draft]
+evalDrafts cs l = undefined --unitePosts <$> mapM (evalPost cs) l  
+
+evalPosts :: [Category] -> [Select.Post] -> Except E [Post]
+evalPosts cs l = unitePosts <$> mapM (evalPost cs) l 
 
 
 evalPost :: [Category] -> Select.Post -> Except E Post
-evalPost cs (rpost :. rcontent :. rcategory :.  rauthor :. user :. _ :. mtag) = do
+evalPost cs (rpost :. rcontent :. rcategory :.  rauthor :. user :. _ :. mtag :. mphoto) = do
     let author = turnAuthor rauthor user
-    category <- getCategoryById (Row.categoryId rcategory) cs
-    let content = turnContent rcontent author category (maybeToList mtag)
+    let postId = Row.postId rpost
+    let categoryId = Row.categoryId rcategory
+    category <- getCategoryById categoryId cs $ template "Пост {0} принадлежит к несуществующей категории {1}" [show postId, show categoryId]
+    let content = turnContent rcontent author category (maybeToList mtag) (maybeToList mphoto)
     let post = turnPost rpost content
     return post 
 
-
 unitePosts :: [Post] -> [Post]
-unitePosts = unite unitePost where
-     unitePost ::  Post -> Post -> Post
-     unitePost post1 post2 = setPostTags post1 $ filterById (getPostTags post1 <> getPostTags post2)
-
--- evalContent :: [Category] -> Select.Content -> Except E Content
--- evalContent cs (rcontent :. _ :.  rauthor :. user :. _ :. mtag)  = do
---     let cid = Row.contentId rcontent
---     let categoryId = Row.contentCategoryId rcontent
---     let mcategory = findById categoryId cs
---     case mcategory of
---         Nothing -> do
---             throwE . DBError $ template "Контент {0} принадлежит к несуществующей категории {1}" [show cid, show categoryId]
---         Just category -> do
---             let author = turnAuthor rauthor user
---             return $ turnContent rcontent author category (maybeToList mtag)
+unitePosts = map (modifyPostTags filterById . modifyPostPhotos filterById) . unite appendPost where
+    appendPost ::  Post -> Post -> Post
+    appendPost p1 p2 = setPostTags tags . setPostPhotos photos $ p1 where
+        tags = getPostTags p1 <> getPostTags p2;
+        photos = getPostPhotos p1 <> getPostPhotos p2
 
 evalAuthor :: Select.Author -> Author
 evalAuthor  (author :. user) = turnAuthor author user
@@ -199,8 +204,8 @@ maybeToList (Just a) = [a]
 
 ----------TURN--------------
 --turn from 'row' types to 'json' types
-turnContent ::  Row.Content -> Author -> Category -> [Tag]-> Content
-turnContent (Row.Content a _ c d _ f g) author category tags  = Content a author c d category f g tags
+turnContent ::  Row.Content -> Author -> Category -> [Tag] -> [Photo] -> Content
+turnContent (Row.Content a _ c d _ f g) author category tags photos  = Content a author c d category f g tags photos
 
 turnAuthor :: Row.Author -> User -> Author
 turnAuthor (Row.Author a _ c) user = Author a user c 
@@ -215,11 +220,25 @@ turnPost (Row.Post a _) content = Post a content
 getPostTags :: Post -> [Tag]
 getPostTags = contentTags . postContent
 
+getPostPhotos :: Post -> [Photo]
+getPostPhotos = contentPhotos . postContent
+
 ---------SET-------------------
-setPostTags :: Post -> [Tag] -> Post
-setPostTags post tags = post {postContent = newContent} where
+setPostTags :: [Tag] -> Post -> Post
+setPostTags tags post = post {postContent = newContent} where
     content = postContent post;
     newContent = content {contentTags = tags}
+
+setPostPhotos :: [Photo] -> Post -> Post
+setPostPhotos photos post = post {postContent = newContent} where
+    content = postContent post;
+    newContent = content {contentPhotos = photos}
+
+modifyPostTags ::  ([Tag] -> [Tag]) -> Post -> Post
+modifyPostTags f post = setPostTags (f $ getPostTags post) post
+
+modifyPostPhotos ::  ([Photo] -> [Photo]) -> Post -> Post
+modifyPostPhotos f post = setPostPhotos  (f $ getPostPhotos post) post
 
 setContentTags :: Content -> [Tag] -> Content
 setContentTags content tags = content {contentTags = tags}
@@ -256,7 +275,7 @@ getChildCategories param cs = error $ template "Некоректный пара�
 --универсальная функция для объединения строк
 unite :: (Identifiable a) => (a -> a -> a) -> [a] -> [a]
 unite f = foldl helper [] where
-    helper acc a = updateSetById (getId a) (f a) a acc
+    helper acc a = updateInsertById (f a) a acc
 
 
 

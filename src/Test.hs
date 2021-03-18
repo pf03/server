@@ -313,21 +313,24 @@ commentsCases = ("selectComment", tuples) where
         ]
 
 --жизненный цикл новости
+--сортировка нарушается при evalPost!!
 publishCases :: (String, [(PathInfo, Query)])
 publishCases = ("publish", tuples) where
     tuples = [
-            (,) ["drafts"] [],
+        --     (,) ["drafts"] [],
+        --     (,) ["posts"] [],
+        --     (,) ["drafts", "create"] [
+        --         ("author_id", Just "name"),
+        --         ("name", Just "name"),
+        --         ("category_id", Just "category_id"),
+        --         ("text", Just "text"),
+        --         ("photo", Just "photo.jpg")
+        --     ],
+        --     (,) ["drafts"] [],
             (,) ["posts"] [],
-            (,) ["drafts", "create"] [
-                ("author_id", Just "name"),
-                ("name", Just "name"),
-                ("category_id", Just "category_id"),
-                ("text", Just "text"),
-                ("photo", Just "photo.jpg")
-            ],
-            (,) ["drafts"] [],
-            (,) ["posts"] []
-        ]
+            (,) ["posts", "1"] [],
+            (,) ["posts", "3"] []
+         ]
 
 cases :: [(String, [(PathInfo, Query)])]
 cases = [
