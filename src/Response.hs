@@ -17,7 +17,7 @@ import Class
 import qualified Log
 import qualified DB 
 
---import qualified Data.ByteString as B
+import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
 --import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Lazy.Char8 as LC
@@ -34,12 +34,46 @@ import Control.Monad.Trans.Except
 --import Network.HTTP.Types.URI
 import Data.Aeson.Encode.Pretty
 
+
+saveBinary :: Request -> T ()
+saveBinary req = do
+    -- chunk  <- toT $ getRequestBodyChunk  req 
+    -- Log.debugT chunk
+    toT $ B.writeFile "images/1.jpg" mempty
+    toT $ stream 0 (getRequestBodyChunk req) where
+
+    stream :: Int -> IO B.ByteString -> T()
+    stream n str = do
+        when (n > 100) $ do 
+            throwT $ RequestError "Слишком большой размер файла!" -- какой? около 1,41МБ
+            --удалить, то что загрузили!!!
+        bs <- toT str 
+        --print bs
+        if bs == mempty 
+            then do
+                putStrLnT $ template "Успешно записано {0} чаcтей файла" [show n] 
+                --return () 
+            else do
+                toT $ B.appendFile "images/1.jpg" bs
+                -- print $ B.length bs
+                -- print $ B.length "xxs"
+                -- print $ B.length "яяя"
+                -- print "xxs"
+                -- print "яяя"
+                -- undefined
+                stream (n+1) str
+
+    
+
+
 get :: Request -> T Response
 get req = do
     Log.setSettings Color.Blue  True "Response.get"
     Log.dataT Log.Debug req
     let pathInfo = Wai.pathInfo req
     let queryString = Wai.queryString req
+    saveBinary req
+    undefined
     json <- DB.getJSON (rawPathInfo req) pathInfo queryString
     Response.json json
     --Response.sendData (DB.execute (rawPathInfo req) pathInfo) pathInfo queryString 

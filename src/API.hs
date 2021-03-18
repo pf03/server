@@ -12,7 +12,7 @@ module API where
 import Data.Char
 data API = API QueryType [APIType] deriving (Show)
 data QueryType = Select | SelectById | Insert | Update | Delete deriving (Show, Read, Eq)  --это соответствует модулю
-data APIType = Post | User | Author | Category | Tag | Draft | Comment | Photo | Id Int deriving (Show, Read, Eq)  --это соответствует таблице в бд или id
+data APIType = Post | User | Author | Category | Tag | Draft | Comment | Photo | Content | Id Int deriving (Show, Read, Eq)  --это соответствует таблице в бд или id
 
 
 

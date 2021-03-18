@@ -318,9 +318,9 @@ commentsCases = ("selectComment", tuples) where
 publishCases :: (String, [(PathInfo, Query)])
 publishCases = ("publish", tuples) where
     tuples = [
-             (,) ["drafts"] [],
-             (,) ["drafts", "0"] [],
-             (,) ["drafts", "1"] [],
+            (,) ["drafts"] [],
+            (,) ["drafts", "0"] [],
+            (,) ["drafts", "1"] [],
             (,) ["posts"] [],
             -- Ошибка базы данных: Указан несуществующий параметр "author_id": 0
             (,) ["drafts", "create"] [
@@ -346,7 +346,7 @@ publishCases = ("publish", tuples) where
                 ("text", Just "text"),
                 ("photo", Just "photo.jpg")
             ],
-            -- {"created":{"drafts":1}}
+            -- {"created":{"contents":1,"drafts":1}}
             (,) ["drafts", "create"] [
                 ("author_id", Just "2"),
                 ("name", Just "name"),
@@ -363,11 +363,11 @@ publishCases = ("publish", tuples) where
             (,) ["drafts", "2","edit"] [
                 ("category_id", Just "0")
             ],
-            -- {"edited":{"drafts":1}}
+            -- {"edited":{"contents":1}}
             (,) ["drafts", "2","edit"] [
                 ("category_id", Just "2")
             ],
-            -- {"edited":{"drafts":1}}
+            -- {"edited":{"contents":1}}
             (,) ["drafts", "2","edit"] [
                 ("name", Just "edited_name"),
                 ("category_id", Just "3"),
@@ -378,7 +378,19 @@ publishCases = ("publish", tuples) where
             (,) ["drafts", "2","publish"] [],
             (,) ["drafts"] [],
             (,) ["posts"] [],
-            -- (,) ["posts", "1"] [],
+            -- {"created":{"contents":1,"drafts":1}}
+            (,) ["posts", "3","edit"] [
+                ("author_id", Just "3"),
+                ("name", Just "edited_name2"),
+                ("category_id", Just "4"),
+                ("text", Just "edited_text2"),
+                ("photo", Just "edited_photo2.jpg")
+            ],
+            (,) ["drafts"] [],
+            (,) ["posts"] [],
+            -- {"edited":{"posts":1},"deleted":{"drafts":1}} -- ТУТ ЕЩЕ НУЖНО УДАЛИТЬ СТАРЫЙ КОНТЕНТ, а к контенту привязанные фото и теги
+            (,) ["drafts", "3","publish"] [],
+
             (,) ["posts", "3"] []
          ]
 

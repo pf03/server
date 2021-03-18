@@ -153,7 +153,7 @@ post pid = do
         [] -> return mempty 
         [Only contentId] -> do 
             delete Post [sql|DELETE FROM posts WHERE id = {0}|] [q pid]   
-            execute_ [sql|DELETE FROM contents WHERE id = {0}|] [q contentId]   
+            delete Content [sql|DELETE FROM contents WHERE id = {0}|] [q contentId]   
             delete Draft [sql|DELETE FROM drafts WHERE post_id = {0}|] [q pid] 
             execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [q contentId]   
             delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [q contentId]   

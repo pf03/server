@@ -109,18 +109,22 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
             API.Draft:xs -> [
                 --param "author_id" [Eq] ParamTypeInt False, --не редактируется
                 param "name" [Eq] ParamTypeStr False,
-                --param "creation_date" [Eq] ParamTypeStr False,  --дата берется на серваке
                 param "category_id" [Eq] ParamTypeInt False,
                 param "text" [Eq] ParamTypeStr False,
                 param "photo" [Eq] ParamTypeStr False
                 --param "news_id" [Eq] ParamTypeInt False --можно привязать черновик к другой новости?
                 ]
-            [API.Post, Id n, API.Comment] -> [
+            [API.Post, Id _, API.Comment] -> [
                 param "user_id" [Eq] ParamTypeInt False,
-                --param "creation_date" [Eq] ParamTypeDate False,   --дата берется на серваке
                 param "text" [Eq] ParamTypeStr False
                 ]
-            API.Post:xs -> [] --[param "draft_id" [Eq] ParamTypeInt False] --draft_id уже в роутере
+            [API.Post, Id _] -> [
+                param "author_id" [Eq] ParamTypeInt False,
+                param "name" [Eq] ParamTypeStr False,
+                param "category_id" [Eq] ParamTypeInt False,
+                param "text" [Eq] ParamTypeStr False,
+                param "photo" [Eq] ParamTypeStr False
+                ]
         
 
 possibleParams :: BSName -> ParamDesc -> [BSKey]

@@ -193,7 +193,7 @@ getJSON rawPathinfo pathInfo qs = do
         API Update [API.Category, Id n] -> encode $ DB.updateCategory n params
         API Update [API.Tag, Id n] -> encode $ Update.tag n params
         API Update [API.Draft, Id n] -> encode $ Update.draft n params
-        API Update [API.Post, Id n] -> encode $ Update.post n params
+        API Update [API.Post, Id n] -> encode $ Insert.draft (Just n) params
 
         API Delete [API.User, Id n] -> encode $ Delete.user n
         API Delete [API.Author, Id n] -> encode $ Delete.author n

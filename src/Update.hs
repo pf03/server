@@ -58,13 +58,14 @@ draft pid params = do
     checkExist allParams "id" [sql|SELECT 1 FROM drafts WHERE drafts.id = {0}|]
     checkExist allParams "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
     [Only contentId] <- query_ $ template [sql|SELECT content_id FROM drafts WHERE drafts.id = {0}|] [q pid] :: T [Only Int]
-    update Draft [sql|UPDATE contents SET {0} WHERE id = {1}|] 
+    update Content [sql|UPDATE contents SET {0} WHERE id = {1}|] 
         [updates params ["name", "category_id", "text", "photo"], q contentId]
 
-post :: Int -> ParamsMap Param -> T Changed
-post pid params = do
-    let allParams = M.insert "id" (ParamEq (Int pid)) params
-    undefined
+-- см. Insert.draft
+-- post :: Int -> ParamsMap Param -> T Changed
+-- post pid params = do
+--     let allParams = M.insert "id" (ParamEq (Int pid)) params
+--     undefined
 
 tag :: Int -> ParamsMap Param -> T Changed
 tag pid params = do

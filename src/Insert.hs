@@ -29,6 +29,7 @@ import Transformer
 import qualified Log
 import Data.Maybe
 import API
+import qualified State as S
 
 -- Должно быть отдельные API для сущностей:
 -- авторов — и создание, и редактирование, и получение, и удаление, только для админов, 
@@ -67,8 +68,6 @@ tag params = do
     checkNotExist "Тег" params "name" [sql|SELECT 1 FROM tags WHERE tags.name = {0}|]
     insert Tag [sql|INSERT into tags (name)  values ({0})|] [p $ params ! "name"]
 
---создать черновик и контент
---разделить варианты, когда черновик создается с нуля или к существующей новости!!!
 --"author_id", "name", "creation_date", "category_id", "text", "photo", "news_id" - необязательный (ParamNo если создаем с нуля, ParamEq если к существующей новости)
 --тут еще добавить теги и фотографии
 draft :: Maybe Int -> ParamsMap Param -> T Changed
@@ -81,6 +80,7 @@ draft mpostId params = do
     checkExist params "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
     [Only cid] <- query_ $ template [sql|INSERT into contents (author_id, name, creation_date, category_id, text, photo) values {0} RETURNING id|] 
         [rowEither params [Left "author_id", Left "name", Right [sql|current_date|], Left "category_id", Left "text", Left "photo"]] :: T[Only Int]
+    S.addChanged Insert Content 1
     insert Draft [sql|INSERT into drafts (content_id, post_id) values ({0}, {1})|] 
         [cell $ ParamEq (Int cid), cell postIdParam]
 
@@ -94,7 +94,10 @@ publish pid = do
         [p $ params ! "draft_id" ] :: T [(Int, Maybe Int)]
     case mpostId of 
         Nothing -> insert Post [sql|INSERT into posts (content_id) values ({0})|] [q contentId] --новость публикуется в первый раз
-        Just postId -> update Post [sql|UPDATE posts SET content_id = {0} WHERE posts.id = {1}|] [q contentId, q postId]
+        Just postId -> do
+            update Post [sql|UPDATE posts SET content_id = {0} WHERE posts.id = {1}|] [q contentId, q postId]
+            --удалить старый контент с тегами и фотографиями? если он нигде не используется?
+            --контент привязан или к черновику или к посту, поэтому нигде больше не используется
     delete Draft [sql|DELETE FROM drafts WHERE drafts.id = {0}|] [p $ params ! "draft_id"]
 
 
