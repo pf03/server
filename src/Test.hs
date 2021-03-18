@@ -313,22 +313,72 @@ commentsCases = ("selectComment", tuples) where
         ]
 
 --жизненный цикл новости
---сортировка нарушается при evalPost!!
+--проверить отдельно в БД, не остаются ли лишние contents, не привязанные к drafts или news
+--отдельное апи для загрузки фотографии? Фотографию можно привязать по ид или по имени?? или загрузить новую?
 publishCases :: (String, [(PathInfo, Query)])
 publishCases = ("publish", tuples) where
     tuples = [
-        --     (,) ["drafts"] [],
-        --     (,) ["posts"] [],
-        --     (,) ["drafts", "create"] [
-        --         ("author_id", Just "name"),
-        --         ("name", Just "name"),
-        --         ("category_id", Just "category_id"),
-        --         ("text", Just "text"),
-        --         ("photo", Just "photo.jpg")
-        --     ],
-        --     (,) ["drafts"] [],
+             (,) ["drafts"] [],
+             (,) ["drafts", "0"] [],
+             (,) ["drafts", "1"] [],
             (,) ["posts"] [],
-            (,) ["posts", "1"] [],
+            -- Ошибка базы данных: Указан несуществующий параметр "author_id": 0
+            (,) ["drafts", "create"] [
+                ("author_id", Just "0"),
+                ("name", Just "name"),
+                ("category_id", Just "1"),
+                ("text", Just "text"),
+                ("photo", Just "photo.jpg")
+            ],
+            -- Ошибка базы данных: Указан несуществующий параметр "category_id": 0
+            (,) ["drafts", "create"] [
+                ("author_id", Just "2"),
+                ("name", Just "name"),
+                ("category_id", Just "0"),
+                ("text", Just "text"),
+                ("photo", Just "photo.jpg")
+            ],
+            -- Ошибка базы данных: Невозможно создать черновик от удаленного автора (автора по умолчанию) id = 1
+            (,) ["drafts", "create"] [
+                ("author_id", Just "1"),
+                ("name", Just "name"),
+                ("category_id", Just "1"),
+                ("text", Just "text"),
+                ("photo", Just "photo.jpg")
+            ],
+            -- {"created":{"drafts":1}}
+            (,) ["drafts", "create"] [
+                ("author_id", Just "2"),
+                ("name", Just "name"),
+                ("category_id", Just "1"),
+                ("text", Just "text"),
+                ("photo", Just "photo.jpg")
+            ],
+            (,) ["drafts"] [],
+            -- Ошибка базы данных: Указан несуществующий параметр "id": 0
+            (,) ["drafts", "0","edit"] [
+                ("category_id", Just "2")
+            ],
+            -- Ошибка базы данных: Указан несуществующий параметр "category_id": 0
+            (,) ["drafts", "2","edit"] [
+                ("category_id", Just "0")
+            ],
+            -- {"edited":{"drafts":1}}
+            (,) ["drafts", "2","edit"] [
+                ("category_id", Just "2")
+            ],
+            -- {"edited":{"drafts":1}}
+            (,) ["drafts", "2","edit"] [
+                ("name", Just "edited_name"),
+                ("category_id", Just "3"),
+                ("text", Just "edited_text"),
+                ("photo", Just "edited_photo.jpg")
+            ],
+            -- {"created":{"posts":1},"deleted":{"drafts":1}}
+            (,) ["drafts", "2","publish"] [],
+            (,) ["drafts"] [],
+            (,) ["posts"] [],
+            -- (,) ["posts", "1"] [],
             (,) ["posts", "3"] []
          ]
 
@@ -366,7 +416,7 @@ listOfTestCases name qs = do
     forM_ (zip [1,2..] qs) $ \(n, (pathInfo, query)) -> do
         catchT (do
             Log.colorTextT Color.Blue Log.Debug  $ template "Проверка {1}, тестовый случай {0}: " [show n, name]
-            Log.debugT query
+            Log.debugT (pathInfo, query)
             DB.getJSON (convert $ show pathInfo) pathInfo query
             Log.colorTextT Color.Green Log.Debug  "Запрос успешно завершен..."
             ) $ \e -> do
@@ -379,7 +429,7 @@ listOfTestCasesByOne name qs = do
     forM_ (zip [1,2..] qs) $ \(n, (pathInfo, query)) -> do
         catchT (do
             Log.colorTextT Color.Blue Log.Debug  $ template "Проверка {1}, тестовый случай {0}: " [show n, name]
-            Log.debugT query
+            Log.debugT (pathInfo, query)
             DB.getJSON (convert $ show pathInfo) pathInfo query
             Log.colorTextT Color.Green Log.Debug  "Запрос успешно завершен. Нажмите Enter для следующего теста..."
             readLnT

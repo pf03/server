@@ -71,14 +71,18 @@ tag params = do
 --разделить варианты, когда черновик создается с нуля или к существующей новости!!!
 --"author_id", "name", "creation_date", "category_id", "text", "photo", "news_id" - необязательный (ParamNo если создаем с нуля, ParamEq если к существующей новости)
 --тут еще добавить теги и фотографии
-draft :: ParamsMap Param -> T Changed
-draft params = do
+draft :: Maybe Int -> ParamsMap Param -> T Changed
+draft mpostId params = do
+    when (params ! "author_id" == ParamEq (Int 1)) $ throwT $ DBError "Невозможно создать черновик от удаленного автора (автора по умолчанию) id = 1"
+    postIdParam <- case mpostId of 
+        Nothing -> return ParamNo
+        Just postId -> return $ ParamEq (Int postId)
     checkExist params "author_id" [sql|SELECT 1 FROM authors WHERE authors.id = {0}|]
     checkExist params "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
     [Only cid] <- query_ $ template [sql|INSERT into contents (author_id, name, creation_date, category_id, text, photo) values {0} RETURNING id|] 
         [rowEither params [Left "author_id", Left "name", Right [sql|current_date|], Left "category_id", Left "text", Left "photo"]] :: T[Only Int]
-    insert Draft [sql|INSERT into drafts (content_id, news_id) values ({0}, {1})|] 
-        [cell $ ParamEq (Int cid), cell (params!"news_id")]
+    insert Draft [sql|INSERT into drafts (content_id, post_id) values ({0}, {1})|] 
+        [cell $ ParamEq (Int cid), cell postIdParam]
 
 --опубликовать новость из черновика, черновик привязывется к новости, для дальнейшего редактирования
 --"draft_id"
@@ -86,7 +90,7 @@ publish :: Int -> T Changed
 publish pid = do
     let params = M.fromList [("draft_id", ParamEq (Int pid))] --костыль??
     checkExist params "draft_id" [sql|SELECT 1 FROM drafts WHERE drafts.id = {0}|]
-    [(contentId, mpostId)] <- query_ $ template [sql|SELECT (content_id, posts_id) FROM drafts WHERE drafts.id = {0}|] 
+    [(contentId, mpostId)] <- query_ $ template [sql|SELECT content_id, post_id FROM drafts WHERE drafts.id = {0}|] 
         [p $ params ! "draft_id" ] :: T [(Int, Maybe Int)]
     case mpostId of 
         Nothing -> insert Post [sql|INSERT into posts (content_id) values ({0})|] [q contentId] --новость публикуется в первый раз

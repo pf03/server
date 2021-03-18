@@ -184,7 +184,7 @@ getJSON rawPathinfo pathInfo qs = do
         API Insert [API.Author] -> encode $ Insert.author params
         API Insert [API.Category] -> encode $ Insert.category params
         API Insert [API.Tag] -> encode $ Insert.tag params
-        API Insert [API.Draft] -> encode $ Insert.draft params
+        API Insert [API.Draft] -> encode $ Insert.draft Nothing params
         API Insert [API.Draft, Id n, API.Post] -> encode $ Insert.publish n
         API Insert [API.Post, Id n, API.Comment] -> encode $ Insert.comment n params
 
@@ -206,6 +206,7 @@ getJSON rawPathinfo pathInfo qs = do
         API SelectById [API.Author, Id n] -> encode $ (evalAuthor <$>) <$> Select.author n
         API SelectById [API.Category, Id n] -> encode $ DB.getCategory n
         API SelectById [API.Post, Id n] -> encode $ DB.getPost n
+        API SelectById [API.Draft, Id n] -> encode $ DB.getDraft n
         API SelectById [API.Tag, Id n] -> encode $ Select.tag n
 
         API Select [API.User] -> encode $ Select.users params
@@ -252,15 +253,25 @@ getPost pid = do
     Log.setSettings Color.Blue True "DB.getPost" 
     Log.funcT Log.Debug "..."
     selectPosts <- Select.post pid
-    jsonPosts <- logT $ JSON.evalPosts categories selectPosts
+    jsonPosts <- toT $ JSON.evalPosts categories selectPosts
     return $ listToMaybe jsonPosts --проверить как это работает. evalUnitedPosts должно объединять все в один пост
+
+getDraft :: Int -> T (Maybe Draft)
+getDraft pid = do
+    --эта строка первая, чтобы не перезаписывать настройки лога
+    categories <- DB.getAllCategories
+    Log.setSettings Color.Blue True "DB.getDraft" 
+    Log.funcT Log.Debug "..."
+    selectDrafts <- Select.draft pid
+    jsonDrafts <- toT $ JSON.evalDrafts categories selectDrafts
+    return $ listToMaybe jsonDrafts --проверить как это работает. evalUnitedDrafts должно объединять все в один пост
 
 getAllCategories :: T [Category]
 getAllCategories = do
     Log.setSettings Color.Blue True "DB.getAllCategories"
     Log.funcT Log.Debug "..."
     allCategories <- Select.allCategories
-    logT $ evalCategories allCategories allCategories
+    toT $ evalCategories allCategories allCategories
 
 getCategories :: ParamsMap Param ->  T [Category]
 getCategories params = do

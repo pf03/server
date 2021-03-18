@@ -77,7 +77,7 @@ instance Identifiable Post where
 data Draft = Draft {
     draftId :: Int,
     draftContentId :: Int,
-    draftPostId :: Int
+    draftPostId :: Maybe Int
 } deriving (Show, Generic, FromRow)
 instance ToJSON Draft
 instance Identifiable Draft where
@@ -95,7 +95,7 @@ instance Identifiable TagToContent where
 data Photo = Photo{
     photoId :: Int,
     photoPhoto :: Path,
-    photContentId :: Int
+    photoContentId :: Int
 } deriving (Show, Generic, FromRow)
 instance ToJSON Photo
 instance Identifiable Photo where

@@ -160,7 +160,7 @@ getCategoryById cid cs err = let mcategory = findById cid cs in
         Just category -> return category
 
 evalDrafts :: [Category] -> [Select.Draft] -> Except E [Draft]
-evalDrafts cs l = undefined --unitePosts <$> mapM (evalPost cs) l  
+evalDrafts cs l = uniteDrafts <$> mapM (evalDraft cs) l  
 
 evalPosts :: [Category] -> [Select.Post] -> Except E [Post]
 evalPosts cs l = unitePosts <$> mapM (evalPost cs) l 
@@ -176,12 +176,29 @@ evalPost cs (rpost :. rcontent :. rcategory :.  rauthor :. user :. _ :. mtag :. 
     let post = turnPost rpost content
     return post 
 
+evalDraft :: [Category] -> Select.Draft -> Except E Draft
+evalDraft cs (rdraft :. rcontent :. rcategory :.  rauthor :. user :. _ :. mtag :. mphoto) = do
+    let author = turnAuthor rauthor user
+    let draftId = Row.draftId rdraft
+    let categoryId = Row.categoryId rcategory
+    category <- getCategoryById categoryId cs $ template "Черновик {0} принадлежит к несуществующей категории {1}" [show draftId, show categoryId]
+    let content = turnContent rcontent author category (maybeToList mtag) (maybeToList mphoto)
+    let draft = turnDraft rdraft content
+    return draft 
+
 unitePosts :: [Post] -> [Post]
 unitePosts = map (modifyPostTags filterById . modifyPostPhotos filterById) . unite appendPost where
     appendPost ::  Post -> Post -> Post
     appendPost p1 p2 = setPostTags tags . setPostPhotos photos $ p1 where
         tags = getPostTags p1 <> getPostTags p2;
         photos = getPostPhotos p1 <> getPostPhotos p2
+
+uniteDrafts :: [Draft] -> [Draft]
+uniteDrafts = map (modifyDraftTags filterById . modifyDraftPhotos filterById) . unite appendDraft where
+    appendDraft ::  Draft -> Draft -> Draft
+    appendDraft p1 p2 = setDraftTags tags . setDraftPhotos photos $ p1 where
+        tags = getDraftTags p1 <> getDraftTags p2;
+        photos = getDraftPhotos p1 <> getDraftPhotos p2
 
 evalAuthor :: Select.Author -> Author
 evalAuthor  (author :. user) = turnAuthor author user
@@ -216,12 +233,21 @@ turnComment (Row.Comment a _ _ d e) user = Comment a user d e
 turnPost :: Row.Post -> Content -> Post
 turnPost (Row.Post a _) content = Post a content
 
+turnDraft :: Row.Draft -> Content -> Draft
+turnDraft (Row.Draft a _ c) content = Draft a content c
+
 ---------GET-------------------
 getPostTags :: Post -> [Tag]
 getPostTags = contentTags . postContent
 
 getPostPhotos :: Post -> [Photo]
 getPostPhotos = contentPhotos . postContent
+
+getDraftTags :: Draft -> [Tag]
+getDraftTags = contentTags . draftContent
+
+getDraftPhotos :: Draft -> [Photo]
+getDraftPhotos = contentPhotos . draftContent
 
 ---------SET-------------------
 setPostTags :: [Tag] -> Post -> Post
@@ -239,6 +265,22 @@ modifyPostTags f post = setPostTags (f $ getPostTags post) post
 
 modifyPostPhotos ::  ([Photo] -> [Photo]) -> Post -> Post
 modifyPostPhotos f post = setPostPhotos  (f $ getPostPhotos post) post
+
+setDraftTags :: [Tag] -> Draft -> Draft
+setDraftTags tags draft = draft {draftContent = newContent} where
+    content = draftContent draft;
+    newContent = content {contentTags = tags}
+
+setDraftPhotos :: [Photo] -> Draft -> Draft
+setDraftPhotos photos draft = draft {draftContent = newContent} where
+    content = draftContent draft;
+    newContent = content {contentPhotos = photos}
+
+modifyDraftTags ::  ([Tag] -> [Tag]) -> Draft -> Draft
+modifyDraftTags f draft = setDraftTags (f $ getDraftTags draft) draft
+
+modifyDraftPhotos ::  ([Photo] -> [Photo]) -> Draft -> Draft
+modifyDraftPhotos f draft = setDraftPhotos  (f $ getDraftPhotos draft) draft
 
 setContentTags :: Content -> [Tag] -> Content
 setContentTags content tags = content {contentTags = tags}

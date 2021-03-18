@@ -91,7 +91,7 @@ draft pid = query_ query where
         query = selectDraftsQuery <+> template [sql|WHERE drafts.id = {0}|] [q pid]
 
 drafts :: ParamsMap Param -> T [Draft]
-drafts params = query_ $ postsQuery params
+drafts params = query_ $ draftsQuery params
 
 selectDraftsQuery ::  Query
 selectDraftsQuery = [sql|
@@ -101,10 +101,11 @@ selectDraftsQuery = [sql|
         LEFT JOIN authors ON authors.id = contents.author_id
         LEFT JOIN users ON users.id = authors.user_id
         LEFT JOIN tags_to_contents ON contents.id = tags_to_contents.content_id
-        LEFT JOIN tags ON tags.id = tags_to_contents.tag_id|]
+        LEFT JOIN tags ON tags.id = tags_to_contents.tag_id
+        LEFT JOIN photos ON photos.content_id = contents.id|]
 
 draftsQuery :: ParamsMap Param -> Query
-draftsQuery params = selectTagsQuery <+> pagination (params ! "page")
+draftsQuery params = selectDraftsQuery <+> pagination (params ! "page")
 
 -------------------------Post-------------------------------------------------------------
 
