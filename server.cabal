@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: efb01c258b5964972ba6b1e6ac9f6f4cfa4e405037fd31a6bdd9ca952285123c
+-- hash: 47ff457c21de964b7ca9584a95ea03c8e9e62207073d86231a2f441d271eb2e2
 
 name:           server
 version:        0.1.0.0
@@ -76,6 +76,7 @@ library
     , postgresql-simple-migration
     , split
     , text
+    , time
     , transformers
     , wai
     , warp
@@ -107,6 +108,7 @@ executable server-exe
     , server
     , split
     , text
+    , time
     , transformers
     , wai
     , warp
@@ -139,6 +141,7 @@ test-suite server-test
     , server
     , split
     , text
+    , time
     , transformers
     , wai
     , warp

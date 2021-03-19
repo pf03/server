@@ -30,6 +30,9 @@ import qualified Log
 import Data.Maybe
 import API
 import qualified State as S
+import Data.Time
+import Data.Time.Format.ISO8601
+import Crypto.Hash.MD5 (hash)
 
 -- Должно быть отдельные API для сущностей:
 -- авторов — и создание, и редактирование, и получение, и удаление, только для админов, 
@@ -113,7 +116,25 @@ user params = do
     checkNotExist "Пользователь" params "login" [sql|SELECT 1 FROM users WHERE users.login = {0}|]
     insert User [sql|INSERT into users (last_name, first_name, avatar, login, pass, creation_date, is_admin) values {0}|]
         [rowEither params [Left "last_name", Left "first_name", Left "avatar", Left "login", Right $ template [sql|md5({0}), current_date, FALSE|] [cell(params ! "pass")]]]
-    
+
+
+--простейший токен привязывается к пользователю, время жизни 1 сутки
+
+--Data.Hashable
+getToken :: Int -> IO Token
+getToken userId = do
+    let secret = "mySecretWord"
+    date <- getCurrentTime 
+    let day = iso8601Show . utctDay $ date
+    let str = template "{0}_{1}_{2}" [secret, show userId, day]
+    return $ template "{0}_{1}_{2}" [show userId, day, BC.unpack . hash . BC.pack $ str]
+
+h :: String -> IO()
+h str = do
+    let ha = hash $ BC.pack $ str
+    print ha
+
+
 
 comment :: Int -> ParamsMap Param -> T Changed
 comment postId params = do

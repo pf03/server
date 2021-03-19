@@ -44,6 +44,7 @@ dependencies:
 - containers
 - aeson-pretty
 - neat-interpolation
+- time
 library:
   source-dirs: src
 
