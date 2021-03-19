@@ -49,6 +49,8 @@ import qualified Network.Wai as Wai
 import Network.Wai.Internal as Wai
 import qualified Data.ByteString as B
 import qualified Upload
+import qualified Auth
+import Network.HTTP.Types
 
 --это обертка для загрузки файлов, подумать о более красивом реешении
 getJSONwithUpload :: Request -> T LC.ByteString
@@ -62,16 +64,33 @@ getJSON rawPathInfo pathInfo qs req = do
 
     Log.setSettings Color.Blue True "DB.getJSON" 
     Log.funcT Log.Debug "..."
-    
+    Log.debugT req
     Log.debugT qs
+    
+
+    bs <- toT (getRequestBodyChunk req) --учесть вариант, что за один проход не получили всю строку, тогда ошибка
+    
+    Log.debugT bs
+
+    --эту функцию можно использовать для тестирования и эмуляции запросов
+    let qsBody = parseQuery bs
+
+    Log.debugT qsBody
+
+
     S.resetChanged
     api@(API apiType queryTypes) <- logT $ router rawPathInfo pathInfo
-    params <- logT $ Params.parseParams qs api
+    --params <- logT $ Params.parseParams qs api
+
+    params <- logT $ Params.parseParams qsBody api
     
     case api of
+        API Auth [] -> convertL <$> Auth.token params
+
         API Upload [API.Photo] -> encode $ Upload.photo req params
 
         --апи, которые не возвращают количество измененных строк
+        --может publish сделать отдельным querytype?
         API Insert [API.User] -> encode $ Insert.user params
         API Insert [API.Author] -> encode $ Insert.author params
         API Insert [API.Category] -> encode $ Insert.category params

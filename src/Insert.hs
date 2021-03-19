@@ -118,23 +118,6 @@ user params = do
         [rowEither params [Left "last_name", Left "first_name", Left "avatar", Left "login", Right $ template [sql|md5({0}), current_date, FALSE|] [cell(params ! "pass")]]]
 
 
---простейший токен привязывается к пользователю, время жизни 1 сутки
-
---Data.Hashable
-getToken :: Int -> IO Token
-getToken userId = do
-    let secret = "mySecretWord"
-    date <- getCurrentTime 
-    let day = iso8601Show . utctDay $ date
-    let str = template "{0}_{1}_{2}" [secret, show userId, day]
-    return $ template "{0}_{1}_{2}" [show userId, day, BC.unpack . hash . BC.pack $ str]
-
-h :: String -> IO()
-h str = do
-    let ha = hash $ BC.pack $ str
-    print ha
-
-
 
 comment :: Int -> ParamsMap Param -> T Changed
 comment postId params = do

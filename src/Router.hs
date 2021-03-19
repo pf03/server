@@ -12,6 +12,8 @@ import qualified Data.ByteString as B
 import Common
 
 router :: B.ByteString -> PathInfo -> Except E API
+---AUTH---
+router _ ["auth"] = return $ API Auth []
 ---UPLOAD---
 router _ ["photos", "upload"] = return $ API Upload [Photo]
 ---INSERT---

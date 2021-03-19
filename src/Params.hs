@@ -33,6 +33,12 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
     param a b c d = (a, ParamDesc b c d False)
     paramNull a b c d = (a, ParamDesc b c d True)
     list = case queryType of
+
+        API.Auth -> [
+                param "login" [Eq] ParamTypeStr True,
+                param "pass" [Eq] ParamTypeStr True
+                ]
+
         API.Upload -> case apiType of 
             [API.Photo] -> [
                 param "name" [Eq]  (ParamTypeFileName ["jpg", "png", "bmp"]) True

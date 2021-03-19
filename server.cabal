@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 47ff457c21de964b7ca9584a95ea03c8e9e62207073d86231a2f441d271eb2e2
+-- hash: 0be52a569ab1959daaf53db07b4c8d908e96e07aaeb12d57395427ee84336bf0
 
 name:           server
 version:        0.1.0.0
@@ -28,6 +28,7 @@ source-repository head
 library
   exposed-modules:
       API
+      Auth
       Class
       Common
       Config

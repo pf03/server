@@ -11,7 +11,7 @@ module API where
 --SelectById -  возвращает 1 или 0 объектов, или например юзера или пустой объект
 import Data.Char
 data API = API QueryType [APIType] deriving (Show)
-data QueryType = Select | SelectById | Insert | Update | Delete | Upload deriving (Show, Read, Eq)  --это соответствует модулю
+data QueryType = Select | SelectById | Insert | Update | Delete | Upload | Auth deriving (Show, Read, Eq)  --это соответствует модулю
 data APIType = Post | User | Author | Category | Tag | Draft | Comment | Photo | Content | Id Int deriving (Show, Read, Eq)  --это соответствует таблице в бд или id
 
 
