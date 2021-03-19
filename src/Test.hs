@@ -429,7 +429,7 @@ listOfTestCases name qs = do
         catchT (do
             Log.colorTextT Color.Blue Log.Debug  $ template "Проверка {1}, тестовый случай {0}: " [show n, name]
             Log.debugT (pathInfo, query)
-            DB.getJSON (convert $ show pathInfo) pathInfo query
+            DB.getJSON (convert $ show pathInfo) pathInfo query (error "Тестирование производится без тела запроса")
             Log.colorTextT Color.Green Log.Debug  "Запрос успешно завершен..."
             ) $ \e -> do
                 Log.colorTextT Color.Yellow Log.Debug  "Запрос НЕуспешно завершен..."
@@ -442,7 +442,7 @@ listOfTestCasesByOne name qs = do
         catchT (do
             Log.colorTextT Color.Blue Log.Debug  $ template "Проверка {1}, тестовый случай {0}: " [show n, name]
             Log.debugT (pathInfo, query)
-            DB.getJSON (convert $ show pathInfo) pathInfo query
+            DB.getJSON (convert $ show pathInfo) pathInfo query (error "Тестирование производится без тела запроса")
             Log.colorTextT Color.Green Log.Debug  "Запрос успешно завершен. Нажмите Enter для следующего теста..."
             readLnT
             ) $ \e -> do

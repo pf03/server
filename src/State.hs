@@ -73,6 +73,7 @@ addChanged qt at n = do
     queryType Insert = "created"
     queryType Update = "edited"
     queryType Delete = "deleted"
+    queryType Upload = "uploaded"
 
 
 getChanged :: MonadState S m => m Changed 

@@ -2,6 +2,7 @@ module Params where
 import Control.Monad.Identity
 import Network.HTTP.Types.URI
 import Data.ByteString.Char8 as BC (ByteString, unpack)
+import qualified Data.ByteString as B
 import Control.Monad.Except
 import Types
 import Database.PostgreSQL.Simple.Time
@@ -32,6 +33,11 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
     param a b c d = (a, ParamDesc b c d False)
     paramNull a b c d = (a, ParamDesc b c d True)
     list = case queryType of
+        API.Upload -> case apiType of 
+            [API.Photo] -> [
+                param "name" [Eq]  (ParamTypeFileName ["jpg", "png", "bmp"]) True
+                ]
+
         API.Select -> case apiType of 
             [API.Post] -> map ($ False) [
                 param "created_at" [Eq, Lt, Gt, Bt] ParamTypeDate,
@@ -201,6 +207,7 @@ readParamAny paramType mtuple _  = do
         ParamTypeStr -> readParamStr mtuple
         ParamTypeDate -> readParamDate mtuple
         ParamTypeSort list -> readParamSort list mtuple
+        ParamTypeFileName list -> readParamFileName list mtuple
 
 
 --продумать, какие ограничения есть для каждой из трех функций
@@ -222,6 +229,7 @@ readParamDate mtuple = case mtuple of
     Just (Like, param, bs) -> throwE . RequestError $ template "Шаблон param__like допустим только для строковых параметров: {0}" [show param] 
     _ -> readParam Date "Date" mtuple
 
+--почему здесь Like? проверить в тестах!! 
 readParamSort :: [BSName] -> Maybe (Templ, BSKey, BSValue) -> Except E Param
 readParamSort list mtuple= do
     case mtuple of 
@@ -230,6 +238,22 @@ readParamSort list mtuple= do
             else throwE . RequestError $ template "Параметр {0} должен быть элементом списка {1}" [show param, show list]
         _ -> readParam Str "String" mtuple
 
+readParamFileName :: [BSName] -> Maybe (Templ, BSKey, BSValue) -> Except E Param
+readParamFileName list mtuple = case mtuple of 
+    Just (Eq, param, bs)  -> if any (helper bs) list
+        then readParam Str "String" mtuple
+        else throwE . RequestError $ template "Параметр {0} должен быть названием файла с одним из следующих разрешений: {1} в формате foo.png" [show param, show list]
+
+    where
+    --проверка на сответствие формату файла, например "foo.png"
+    helper :: ByteString -> ByteString -> Bool
+    helper bs format | B.length bs < 2 + B.length format = False 
+    helper bs format | takeEnd (1 + B.length format) bs  == "." <> format = True where takeEnd n xs = B.drop (B.length xs - n) xs
+    helper bs format = False
+
+
+    
+    
 
 
 readParam :: Read a => (a -> Val) -> String -> Maybe (Templ, BSKey, BSValue)  -> Except E Param

@@ -45,140 +45,32 @@ import Data.Aeson.Encode.Pretty
 import qualified Delete
 import qualified State as S
 import qualified Update
+import qualified Network.Wai as Wai
+import Network.Wai.Internal as Wai
+import qualified Data.ByteString as B
+import qualified Upload
 
--- testq :: IO ()
--- testq = runT $ DB.insertAuthor DB.testQueryInsert
+--это обертка для загрузки файлов, подумать о более красивом реешении
+getJSONwithUpload :: Request -> T LC.ByteString
+getJSONwithUpload req = do
+    let (rawPathInfo, pathInfo, qs) = ( Wai.rawPathInfo req, Wai.pathInfo req, Wai.queryString req)
+    getJSON rawPathInfo pathInfo qs req
 
--- testQueryInsert :: HTTP.Query
--- testQueryInsert = [
---         ("user_id", Just "666"),
---         ("description", Just "Unknown author"),
+--эта обертка для удобства тестирования, req нужен для upload
+getJSON:: BC.ByteString -> PathInfo -> HTTP.Query -> Request -> T LC.ByteString
+getJSON rawPathInfo pathInfo qs req = do
 
---         --("parent_id", Just "1"),
---         ("category_name", Just "Unknown category")
---     ]
-
-
-
-
-
---ВМЕСТО ВСЕГО ЭТОГО БЕЗОБРАЗИЯ МОЖНО СДЕЛАТЬ УНИВЕРСАЛЬНУЮ ФУНКЦИЮ, НО УЧЕСТЬ, ЧТО ОНА НЕ МОЖЕТ ВОЗВРАЩАТЬ РЕЗУЛЬТАТ РАЗНЫХ  ТИПОВ.
---ТАК ЧТО ОНА БУДЕТ ВОЗВРАЩАТЬ СРАЗУ json!!!
---ИЛИ НЕКОЛЬКО ФУНКЦИЙ НА РАЗНЫЕ ТИПЫ ЗАПРОСОВ
-
---проверить некорректные запросы, например некорректный синтаксис запроса, или два раза и тот же параметр запроса
---в выходном json убрать префиксы с названиями таблиц бд
--- getUsers :: HTTP.Query -> T [User]
--- getUsers qs = do 
---     Log.setSettings Color.Blue True "getUsers" 
---     Log.funcT Log.Debug "..."
---     params <- logT $ Params.parseParams qs $ API API.Select API.User 
---     query <- logT $ Select.usersQuery params
---     Query.query_ query
-
--- getAuthors :: HTTP.Query -> T [Author]
--- getAuthors qs = do
---     Log.setSettings Color.Blue True "getAuthors"
---     Log.funcT Log.Debug "..."
---     params <- logT $ Params.parseParams qs $ API API.Select API.Author 
---     query <- logT $ Select.authorsQuery params
---     selected <- Query.query_ query
---     return $ evalAuthors selected
-
--- getCategories :: HTTP.Query -> T [Category]
--- getCategories _ = getAllCategories
-
-
-
--- getTags :: HTTP.Query -> T [Tag]
--- getTags qs = do
---     Log.setSettings Color.Blue False "getTags" 
---     Log.funcT Log.Debug "..."
---     params <- logT $ Params.parseParams qs $ API API.Select API.Tag 
---     query <- logT $ Select.tagsQuery params
---     Query.query_ query
-
-
--- -- нужно добавить также новости в дочерних категориях!!
--- --а также конкретизировать ошибки, например ошибка при парсинге page
--- --вывести на консоль query в корректной кодировке
--- --сделать Query экземпляром convert
-
--- getPosts :: HTTP.Query -> T [Post]
--- getPosts qs = do
---     --эта строка первая, чтобы не перезаписывать настройки лога
---     categories <- DB.getAllCategories
---     Log.setSettings Color.Blue True "getPosts" 
---     Log.funcT Log.Debug "..."
---     params <- logT $ Params.parseParams qs $ API API.Select API.Post 
-
---     -- ifJust textParam (putStrLnT . fromJust $ textParam)  --это выводит на консоль корректно, а запрос в бд некорректный
---     -- ifJust textParam (putStrLnT . fromJust $ textParam1) --вообще виснет, а запрос в бд корректный
-
---     --Если новость принадлежит к некоторой категории, то она принадлежит также и ко всем родительским категориям
---     --ЗДЕСЬ ОБНОВИТЬ КАТЕГОРИЮ!!!
---     let newParams = evalParams params categories
-
---     --let query = Select.postsNewQuery pageParam tagParams categoryWithChildsParams textParam
---     --Log.debugT query
---     --это работает!!!!!!! подумать, как вывести на консоль
---     query1 <- logT $ Select.postsNewQuery newParams
---     selected <- Query.query_ query1
---     json <- logT $ JSON.evalUnitedPosts categories selected
---     writeResponse json
---     return json
-
-
-
--- --многострочные запросы некорректно выводятся на консоль
--- --их нужно выводить куда-нибудь в файл
-
--- insertTag :: HTTP.Query -> T()
--- insertTag qs = do
---     Log.setSettings Color.Blue True "insertTag" 
---     Log.funcT Log.Debug "..."
---     params <- logT $ Params.parseParams qs $ API API.Insert API.Tag 
---     Insert.tag params
---     -- Query.execute__ query
-
--- insertAuthor :: HTTP.Query -> T()
--- insertAuthor qs = do
---     Log.setSettings Color.Blue True "insertAuthor" 
---     Log.funcT Log.Debug "..."
---     params <- toT $ Params.parseParams qs $ API API.Insert API.Author 
---     Insert.author params
---     -- Query.execute__ query
-
--- insertCategory :: HTTP.Query -> T()
--- insertCategory qs = do
---     Log.setSettings Color.Blue True "insertCategory" 
---     Log.funcT Log.Debug "..."
---     params <- logT $ Params.parseParams qs $ API API.Insert API.Category 
---     Insert.category params
---     -- Query.execute__ query
-
-
--- editTag :: HTTP.Query -> T()
--- editTag = undefined
-
--- deleteTag :: HTTP.Query -> T()
--- deleteTag = undefined
-
---общая функция
-getJSON:: BC.ByteString -> PathInfo -> HTTP.Query -> T LC.ByteString
-getJSON rawPathinfo pathInfo qs = do
-
-
-
-    
     Log.setSettings Color.Blue True "DB.getJSON" 
     Log.funcT Log.Debug "..."
+    
     Log.debugT qs
     S.resetChanged
-    api@(API apiType queryTypes) <- logT $ router rawPathinfo pathInfo
+    api@(API apiType queryTypes) <- logT $ router rawPathInfo pathInfo
     params <- logT $ Params.parseParams qs api
     
     case api of
+        API Upload [API.Photo] -> encode $ Upload.photo req params
+
         --апи, которые не возвращают количество измененных строк
         API Insert [API.User] -> encode $ Insert.user params
         API Insert [API.Author] -> encode $ Insert.author params
@@ -297,29 +189,3 @@ getCategory pid = do
     allCats <- Select.allCategories
     mcat <- Select.category pid
     toT $ sequenceA $ evalCategory allCats <$> mcat
-
---функция, которая не возвращает json (insert,update,delete) 
--- execute :: BC.ByteString -> PathInfo -> HTTP.Query -> T()
--- execute rawPathinfo pathInfo qs = do
---     Log.setSettings Color.Blue True "DB.execute" 
---     Log.funcT Log.Debug "..."
---     api <- logT $ router rawPathinfo pathInfo
---     params <- logT $ Params.parseParams qs api
---     case api of
---         API Insert [API.User] -> Insert.user params
---         API Insert [API.Author] -> Insert.author params
---         API Insert [API.Category] -> Insert.category params
---         API Insert [API.Tag] -> Insert.tag params
---         API Insert [API.Draft] -> Insert.draft params
---         API Insert [API.Draft, Id pid, API.Post] -> Insert.publish pid  
---         API Insert [API.Post, Id pid, API.Comment] -> Insert.comment pid params
-
-
-
--- router _ ["users", "create"] = return $ API Insert [User]
--- router _ ["authors", "create"] = return $ API Insert [Author]
--- router _ ["categories", "create"] = return $ API Insert [Category]
--- router _ ["tags", "create"] = return $ API Insert [Tag]
--- router _ ["drafts", "create"] = return $ API Insert [Draft]
--- router _ ["drafts", n, "publish"] = withInt "post_id" n $ \pid -> API Insert [Draft, Id pid, Post] --метод drafts publish заменяет posts create и posts edit и подчеркивает, что новость нельзя опубликовать напрямую без черновика (премодерации)
--- router _ ["posts", n, "comments", "create"] = withInt "post_id" n $ \pid -> API Insert [Post, Id pid, Comment]

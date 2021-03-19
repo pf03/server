@@ -1,5 +1,5 @@
 import Network.Wai (responseLBS, Application)
-import Network.Wai.Internal ( Request, Response, ResponseReceived )
+import Network.Wai.Internal --( Request, Response, ResponseReceived )
 import Network.Wai.Handler.Warp (run)
 import Network.HTTP.Types (status200)
 import Network.HTTP.Types.Header (hContentType)
@@ -16,6 +16,8 @@ import Control.Concurrent
 import Control.Monad.State.Lazy
 import Control.Monad.Except
 import qualified Response
+import  qualified Data.ByteString as B
+import Common
 
 --с брузера почему то отправляется по два запроса при каждом обновлении страницы.
 --через postman один
@@ -33,4 +35,18 @@ app req f = do
     configString <- getEnv "configString"
     putStrLn "app"
     response <- evalTwithHandler  (Response.get req) Response.errorHandler configString
+    emptyBody 0 (getRequestBodyChunk req)
     f $ response
+
+
+--Если не считывать тело запроса (например при ошибочном запросе пользователя), то вылетает ошибка Error: write ECONNRESET
+--Поэтому используем этот костыль для опустошения тела запроса. Правильно решить этот вопрос у меня не хватает знаний.
+emptyBody :: Int -> IO B.ByteString -> IO ()
+emptyBody n str = do
+    bs <- str --опустошаем тело запроса
+    --print bs
+    if bs == mempty 
+        then do
+            putStrLn $ template "Успешно прочитано {0} чаcтей тела запроса" [show n]
+        else do
+            emptyBody (n+1) str
