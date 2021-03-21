@@ -34,3 +34,5 @@ data APIType = Post | User | Author | Category | Tag | Draft | Comment | Photo |
 
 -- instance Read API where
 --     readsPrec  = undefined --надо разобраться
+
+
