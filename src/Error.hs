@@ -13,7 +13,9 @@ instance Show E where
     show (ConfigError s) = "Ошибка конфигурации: "++s
     show (DBError s) = "Ошибка базы данных: "++s
     show (IOError s) = "Ошибка ввода-вывода: "++s
+    show (AuthError s) = "Ошибка авторизации: "++s
     show (SomeError s) = "Неведомая ошибка: "++s
+    
 
 instance Exception E
 

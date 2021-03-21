@@ -13,7 +13,7 @@ import Common
 
 router :: B.ByteString -> PathInfo -> Except E API
 ---AUTH---
-router _ ["auth"] = return $ API Auth []
+router _ ["login"] = return $ API Auth []
 ---UPLOAD---
 router _ ["photos", "upload"] = return $ API Upload [Photo]
 ---INSERT---

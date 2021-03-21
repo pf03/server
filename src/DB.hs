@@ -55,37 +55,44 @@ import Network.HTTP.Types
 --это обертка для загрузки файлов, подумать о более красивом реешении
 getJSONwithUpload :: Request -> T LC.ByteString
 getJSONwithUpload req = do
+    Log.setSettings Color.Blue True "DB.getJSONwithUpload" 
+    Log.funcT Log.Debug "..."
     let (rawPathInfo, pathInfo, qs) = ( Wai.rawPathInfo req, Wai.pathInfo req, Wai.queryString req)
-    getJSON rawPathInfo pathInfo qs req
+
+    requestBody <- toT $ streamOne (getRequestBodyChunk req)
+    Log.debugT requestBody
+    --эту функцию можно использовать для тестирования и эмуляции запросов
+    let qsBody = parseQuery requestBody
+    
+     
+    getJSON rawPathInfo pathInfo qs qsBody req
+
+
 
 --эта обертка для удобства тестирования, req нужен для upload
-getJSON:: BC.ByteString -> PathInfo -> HTTP.Query -> Request -> T LC.ByteString
-getJSON rawPathInfo pathInfo qs req = do
+getJSON:: BC.ByteString -> PathInfo -> HTTP.Query -> HTTP.Query -> Request -> T LC.ByteString
+getJSON rawPathInfo pathInfo qs qsBody req = do
 
     Log.setSettings Color.Blue True "DB.getJSON" 
     Log.funcT Log.Debug "..."
+    S.resetChanged
+
     Log.debugT req
     Log.debugT qs
+    Log.debugT qsBody 
     
 
-    bs <- toT (getRequestBodyChunk req) --учесть вариант, что за один проход не получили всю строку, тогда ошибка
-    
-    Log.debugT bs
 
-    --эту функцию можно использовать для тестирования и эмуляции запросов
-    let qsBody = parseQuery bs
-
-    Log.debugT qsBody
-
-
-    S.resetChanged
     api@(API apiType queryTypes) <- logT $ router rawPathInfo pathInfo
-    --params <- logT $ Params.parseParams qs api
-
-    params <- logT $ Params.parseParams qsBody api
+    
+    params <- if apiType `elem` [API.Auth, API.Delete, API.Insert, API.Update] 
+        then catchT (logT $ Params.parseParams qsBody api) $
+            \(RequestError e) -> throwT $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в теле запроса методом x-www-form-urlencoded" [e] 
+        else catchT (logT $ Params.parseParams qs api) $
+            \(RequestError e) -> throwT $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в строке запроса" [e] 
     
     case api of
-        API Auth [] -> convertL <$> Auth.token params
+        API Auth [] -> encode $ Auth.login params
 
         API Upload [API.Photo] -> encode $ Upload.photo req params
 

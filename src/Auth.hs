@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 module Auth where
 
 import Database.PostgreSQL.Simple.FromRow --hiding (FromRow(..) ) 
@@ -35,6 +36,8 @@ import qualified Data.Text.Encoding as T
 import qualified Data.Text as T
 import Data.Word
 import Numeric
+import Data.List.Split
+import Text.Read
 
 --простейший токен привязывается к пользователю, время жизни 1 сутки
 
@@ -45,14 +48,41 @@ import Numeric
 --как и многие другие не-select запросы
 --вобщем нужно реализовать оба варианта с возможностью простого переключения
 
-token :: ParamsMap Param  -> T Token
-token params  = do
+newtype Token = Token {token :: String}  deriving (Show, Generic, Eq)
+instance ToJSON Token
+
+--получение токена
+login :: ParamsMap Param  -> T Token
+login params  = do
     let userId = 1 :: Int
     let secret = "mySecretWord"
     date <- toT getCurrentTime 
     let day = iso8601Show . utctDay $ date
     let str = template "{0}_{1}_{2}" [secret, convert userId, convert day]
-    return $ template "{0}_{1}_{2}" [show userId, day, toHex . hash $ str]
+    return $ Token $ template "{0}_{1}_{2}" [show userId, day, toHex . hash $ str]
+
+--на github не выложился этот модуль
+--проверка токена, используется при каждом запросе
+--здесь IO нужен только для даты
+auth :: Token -> T (Maybe Int)
+auth (Token t)  = do
+    let strs = splitOn "_" t
+    case strs of
+        (str: _ : _) -> case readEither str of 
+            Right userId -> do
+                correctToken <- toT $ genToken userId
+                if correctToken == Token t then return (Just userId) else return Nothing
+            _ -> throwT $ AuthError "Неверный формат токена!"
+        _ -> throwT $ AuthError "Неверный формат токена!"
+
+genToken :: Int -> IO Token
+genToken userId = do
+    let secret = "mySecretWord"
+    date <- getCurrentTime 
+    let day = iso8601Show . utctDay $ date
+    let str = template "{0}_{1}_{2}" [secret, convert userId, convert day]
+    return $ Token $ template "{0}_{1}_{2}" [show userId, day, toHex . hash $ str]
+
 
 h :: IO()
 h = do

@@ -36,8 +36,8 @@ import Data.Aeson.Encode.Pretty
 
 get :: Request -> T Response
 get req = do
-    -- Log.setSettings Color.Blue  True "Response.get"
-    -- Log.dataT Log.Debug req
+    Log.setSettings Color.Blue  True "Response.get"
+    Log.dataT Log.Debug req
     -- let pathInfo = Wai.pathInfo req
     -- let queryString = Wai.queryString req
     -- saveBinary req

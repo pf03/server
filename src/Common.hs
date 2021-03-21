@@ -21,6 +21,7 @@ import Data.String
 import Database.PostgreSQL.Simple.Time
 import Data.Maybe
 import qualified Data.Map as M
+import Control.Monad.Except
 
 
 ----------------вспомогательные монадические функции -------------------------------------
@@ -223,5 +224,9 @@ forMap mp f = M.mapWithKey (\k _ -> f k) mp
 
 forWithKey :: p -> M.Map k a -> (k -> a -> b) -> M.Map k b
 forWithKey f = flip M.mapWithKey
+
+
+
+
 
 
