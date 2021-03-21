@@ -34,6 +34,3 @@ data APIType = Post | User | Author | Category | Tag | Draft | Comment | Photo |
 
 -- instance Read API where
 --     readsPrec  = undefined --надо разобраться
-
---хорошие изменения 4
---плохие изменения 4
