@@ -63,7 +63,7 @@ login params  = do
 
 --на github не выложился этот модуль
 --проверка токена, используется при каждом запросе
---здесь IO нужен только для даты
+--здесь IO нужен только для даты  
 auth :: Token -> T (Maybe Int)
 auth (Token t)  = do
     let strs = splitOn "_" t
