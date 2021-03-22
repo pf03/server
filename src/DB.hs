@@ -68,8 +68,19 @@ getJSONwithUpload req = do
     getJSON rawPathInfo pathInfo qs qsBody req
 
 
+--в state можно включить:
+--requst
+--params
+--paramsBody - чтото одно из них => можно делать вычисление по требованию прям в монаде state, а не хранить его - революция в коде
+--api
+--auth
+--хранить из этого можно только request, а остальное вычислять по необходимости
+--минус в том, что могут быть множественные вычисления, поэтому вычисления лучше оставить там, где они есть
+
 
 --эта обертка для удобства тестирования, req нужен для upload
+--подумать над тем, чтобы включить request в state а также auth. Как организовать тесты, и останется ли вообще чистый код?
+--в handle pattern handle в каждом модуле разный, а в моем state сотояние везде одинаковое
 getJSON:: BC.ByteString -> PathInfo -> HTTP.Query -> HTTP.Query -> Request -> T LC.ByteString
 getJSON rawPathInfo pathInfo qs qsBody req = do
 
@@ -81,8 +92,8 @@ getJSON rawPathInfo pathInfo qs qsBody req = do
     Log.debugT qs
     Log.debugT qsBody 
     
-
-    let authHeader = requestHeaders req
+    auth <- Auth.auth req
+    Log.debugT auth
 
 
     api@(API apiType queryTypes) <- logT $ router rawPathInfo pathInfo

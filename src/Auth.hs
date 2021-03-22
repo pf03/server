@@ -38,6 +38,7 @@ import Data.Word
 import Numeric
 import Data.List.Split
 import Text.Read
+import qualified Network.Wai as Wai
 
 --простейший токен привязывается к пользователю, время жизни 1 сутки
 
@@ -55,49 +56,60 @@ instance ToJSON Token
 --во избежание коллизий нужно сделать ограничения на формат логина, пароля, email
 login :: ParamsMap Param  -> T Token
 login params  = do
-    userIds <- query_ $ template [sql|SELECT id FROM users where login = 'pivan' and pass = md5 (CONCAT_WS(' ', {0}, {1}))|] [p $ params ! "login", p $ params ! "pass"] :: T [Only Int]   
+    users <- query_ $ template [sql|SELECT id, is_admin FROM users where login = 'pivan' and pass = md5 (CONCAT_WS(' ', {0}, {1}))|] [p $ params ! "login", p $ params ! "pass"] :: T [(Int, Bool)]   
     --Log.debugT users
-    case userIds of 
-        [Only userId]  -> do 
+    case users of 
+        [(userId, isAdmin)]  -> do
+            let role = if isAdmin then "admin" else "user"
+            toT $ genToken userId role 
             -- let curLogin = convert .  valStr . paramEq $ (params ! "login") 
             -- let curPass = convert .  valStr . paramEq $ (params ! "pass")
             
             -- if login == curLogin && pass == curPass then do
-                let secret = "mySecretWord"
-                date <- toT getCurrentTime 
-                let day = iso8601Show . utctDay $ date
-                let str = template "{0}_{1}_{2}" [secret, convert userId, convert day]
-                return $ Token $ template "{0}_{1}_{2}" [show userId, day, toHex . hash $ str]
+                -- let secret = "mySecretWord"
+                -- date <- toT getCurrentTime 
+                -- let day = iso8601Show . utctDay $ date
+                -- let str = template "{0}_{1}_{2}" [secret, convert userId, convert day]
+                -- return $ Token $ template "{0}_{1}_{2}" [show userId, day, toHex . hash $ str]
             -- else throwT $ AuthError "Неверный логин или пароль!"
         _ -> throwT $ AuthError "Неверный логин или пароль!"
 
+--проверка токена происходит без базы данных
+auth :: Wai.Request -> T Auth
+auth req  = do
+    let h = Wai.requestHeaders req
+    case lookup "Authorization" h of
+        Nothing -> return AuthNo --nothing только в случае отсутствия токена, в других случаях ошибка
+        Just a -> auth_ (Token $ BC.unpack a)
+
 --проверка токена, используется при каждом запросе
 --здесь IO нужен только для даты  
-auth :: Token -> T (Maybe Int)
-auth (Token t)  = do
+auth_ :: Token -> T Auth
+auth_ (Token t)  = do
     let strs = splitOn "_" t
     case strs of
-        (str: day : _) -> case readEither str of 
+        --во избежание коллизий нужно сделать ограничения на формат логина, пароля, email
+        [userIdStr, role, day, hash] | role =="admin" || role == "user" -> case readEither userIdStr of 
             Right userId -> do
                 curDay <-  toT $ iso8601Show . utctDay <$> getCurrentTime
                 if day == curDay then do
-                    correctToken <- toT $ genToken userId
+                    correctToken <- toT $ genToken userId role
                     if correctToken == Token t 
-                        then return (Just userId) 
+                        then return $ AuthUser userId
                         else do
                             --return Nothing
                             throwT $ AuthError "Неверный токен!"
                 else throwT $ AuthError "Неверная дата токена!"
-            _ -> throwT $ AuthError "Неверный формат токена!"
-        _ -> throwT $ AuthError "Неверный формат токена!"
+            _ -> throwT $ AuthError "Неверный токен!" --"Неверный формат токена!"
+        _ -> throwT $ AuthError "Неверный токен!" --"Неверный формат токена!"
 
-genToken :: Int -> IO Token
-genToken userId = do
+genToken :: Int -> String -> IO Token
+genToken userId role = do
     let secret = "mySecretWord"
     date <- getCurrentTime 
     let day = iso8601Show . utctDay $ date
-    let str = template "{0}_{1}_{2}" [secret, convert userId, convert day]
-    return $ Token $ template "{0}_{1}_{2}" [show userId, day, toHex . hash $ str]
+    let str = template "{0}_{1}_{2}_{3}" [convert userId, convert role, convert day, secret]
+    return $ Token $ template "{0}_{1}_{2}_{3}" [show userId, role, day, toHex . hash $ str]
 
 
 h :: IO()

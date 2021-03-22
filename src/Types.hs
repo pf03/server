@@ -170,6 +170,8 @@ data ParamDesc = ParamDesc {
 }      
 type APIName = String
 
+data Auth = AuthNo | AuthUser Int | AuthAdmin deriving (Show, Eq)
+
 -- type Modified = M.Map String Int64 
 --newtype Changed = Changed {fromChanged :: M.Map String (M.Map String Int64) } deriving (Show, Generic)
 newtype Changed = Changed  (M.Map String (M.Map String Int64))  deriving (Show, Generic)
