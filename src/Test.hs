@@ -13,6 +13,10 @@ import Common
 import Types
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy.Char8 as LC
+import Auth
+import Data.Aeson
+import Class
+import Error
 
 -- ЭТОТ МОДУЛЬ НЕ ДЛЯ РЕВЬЮ, А ДЛЯ ОТЛАДКИ
 
@@ -145,8 +149,18 @@ tagCases = ("insertTag", queries) where
             (,) ["tags", "create"][("name", Just "some_tag")],
 
             (,) ["tags", "10", "edit"][("name", Just "some_new_tag")],         (,) ["tags"] []
+        ]
 
+authTagCases :: (String, [(PathInfo, Query)])
+authTagCases = ("insertTag", queries) where
+    --pathInfos = repeat ["tags", "create"]
+    queries = [
+            (,) ["login"][("login", Just "login"),("pass", Just "pass")],  
+            -- {"created":{"tags":1}}
 
+            --Это неправильная ошибка
+            --Ошибка веб-запроса: Значение {0} в роутере должно быть целым числом
+            (,) ["tags", "create"][("name", Just "some_tag")],              (,) ["tags"] []
         ]
 
 insertCategoryCases :: (String, [(PathInfo, Query)])
@@ -406,7 +420,8 @@ cases = [
     --userCases,
     --deletePostCases,
     --commentsCases,
-    publishCases,
+    --publishCases,
+    authTagCases,
     ("fake", [])
     ]
 
@@ -414,6 +429,8 @@ cases = [
 -- casesById = [
 --     ("deleteAuthor", deleteAuthorQueries)
 --     ]
+
+
 
 -- --ВНИМАНИЕ!!! Данная функция для корректного тестирования сбрасывает БД до изначального состояния!
 --отслеживать выходной json можно в файле response.json (vscode обновляет автоматически)
@@ -423,34 +440,70 @@ testCases = runT $ do
     forM_ cases $ uncurry listOfTestCasesByOne
     Log.colorTextT Color.Blue Log.Debug  "Все запросы завершены..."
 
-listOfTestCases :: String -> [(PathInfo, Query)] -> T()
-listOfTestCases name qs = do
-    forM_ (zip [1,2..] qs) $ \(n, (pathInfo, query)) -> do
-        catchT (do
-            Log.colorTextT Color.Blue Log.Debug  $ template "Проверка {1}, тестовый случай {0}: " [show n, name]
-            Log.debugT (pathInfo, query)
-            DB.getJSON (convert $ show pathInfo) pathInfo query query (error "Тестирование производится без тела запроса")
-            Log.colorTextT Color.Green Log.Debug  "Запрос успешно завершен..."
-            ) $ \e -> do
-                Log.colorTextT Color.Yellow Log.Debug  "Запрос НЕуспешно завершен..."
-                Log.colorTextT Color.Yellow Log.Debug $ show (e::E)
+--это уже не работает
+-- listOfTestCases :: String -> [(PathInfo, Query)] -> T()
+-- listOfTestCases name qs = do
+--     forM_ (zip [1,2..] qs) $ \(n, (pathInfo, query)) -> do
+--         catchT (do
+--             Log.colorTextT Color.Blue Log.Debug  $ template "Проверка {1}, тестовый случай {0}: " [show n, name]
+--             Log.debugT (pathInfo, query)
+--             DB.getJSONTest (convert $ show pathInfo) pathInfo query query [("Authorization","")]
+--             Log.colorTextT Color.Green Log.Debug  "Запрос успешно завершен..."
+--             ) $ \e -> do
+--                 Log.colorTextT Color.Yellow Log.Debug  "Запрос НЕуспешно завершен..."
+--                 Log.colorTextT Color.Yellow Log.Debug $ show (e::E)
 
 --пошагово
-listOfTestCasesByOne :: String -> [(PathInfo, Query)] -> T()
+-- listOfTestCasesByOne :: String -> [(PathInfo, Query)] -> T()
+-- listOfTestCasesByOne name qs = do
+--     forM_ (zip [1,2..] qs) $ \(n, (pathInfo, query)) -> do
+--         catchT (do
+--             Log.colorTextT Color.Blue Log.Debug  $ template "Проверка {1}, тестовый случай {0}: " [show n, name]
+--             Log.debugT (pathInfo, query)
+--             --query в тестах для простоты дублируется и в строке запроса и в теле запроса.
+--             case pathInfo of
+--                 [login] -> do 
+--                     str <- DB.getJSONTest (convert $ show pathInfo) pathInfo query query [("Authorization","")]
+--                     token <- toT $ typeError ParseError . eitherDecode $ str :: T Token
+--                     undefined
+--             Log.colorTextT Color.Green Log.Debug  "Запрос успешно завершен. Нажмите Enter для следующего теста..."
+--             readLnT
+--             ) $ \e -> do
+--                 Log.colorTextT Color.Yellow Log.Debug  "Запрос НЕуспешно завершен."
+--                 Log.colorTextT Color.Yellow Log.Debug $ show (e::E)
+--                 Log.colorTextT Color.Yellow Log.Debug  " Нажмите Enter для следующего теста..."
+--                 readLnT
+
+--новая версия с сохранением токена!!
+listOfTestCasesByOne :: String -> [(PathInfo, Query)] -> T (Maybe Token) 
 listOfTestCasesByOne name qs = do
-    forM_ (zip [1,2..] qs) $ \(n, (pathInfo, query)) -> do
+    forMMem (zip [1,2..] qs) Nothing $ \mt (n, (pathInfo, query)) -> do
         catchT (do
             Log.colorTextT Color.Blue Log.Debug  $ template "Проверка {1}, тестовый случай {0}: " [show n, name]
             Log.debugT (pathInfo, query)
             --query в тестах для простоты дублируется и в строке запроса и в теле запроса.
-            DB.getJSON (convert $ show pathInfo) pathInfo query query (error "Тестирование производится без тела запроса")
+            headers <- case mt of
+                Nothing -> return []
+                Just (Token t) -> return [("Authorization", convert t)]
+            newmt <- case pathInfo of
+                [login] -> do 
+                    str <- DB.getJSONTest (convert $ show pathInfo) pathInfo query query headers
+                    catchT (toT . (Just <$>) . typeError ParseError . eitherDecode $ str) (\e -> return Nothing)
+                _ -> do 
+                    DB.getJSONTest (convert $ show pathInfo) pathInfo query query headers
+                    return mt
             Log.colorTextT Color.Green Log.Debug  "Запрос успешно завершен. Нажмите Enter для следующего теста..."
             readLnT
+            return newmt
             ) $ \e -> do
                 Log.colorTextT Color.Yellow Log.Debug  "Запрос НЕуспешно завершен."
                 Log.colorTextT Color.Yellow Log.Debug $ show (e::E)
                 Log.colorTextT Color.Yellow Log.Debug  " Нажмите Enter для следующего теста..."
                 readLnT
+                return mt
+
+forMMem :: (Foldable t, Monad m) => t a -> b -> (b -> a -> m b) -> m b
+forMMem cont init f = foldM f init cont
 
 
 -- listOfTestCases :: String -> [Query] -> (Query -> T()) -> T()

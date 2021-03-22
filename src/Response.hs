@@ -43,7 +43,7 @@ get req = do
     -- saveBinary req
     --undefined
     -- json <- DB.getJSON (rawPathInfo req) pathInfo queryString
-    json <- DB.getJSONwithUpload req
+    json <- DB.getJSON_ req
     Response.json json
 
 json :: LC.ByteString -> T Response

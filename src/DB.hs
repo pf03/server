@@ -52,9 +52,10 @@ import qualified Upload
 import qualified Auth
 import Network.HTTP.Types
 
---это обертка для загрузки файлов, подумать о более красивом реешении
-getJSONwithUpload :: Request -> T LC.ByteString
-getJSONwithUpload req = do
+--эту обертку перенести в Response
+getJSON_ :: Request -> T LC.ByteString
+getJSON_ req = do
+    S.resetChanged
     Log.setSettings Color.Blue True "DB.getJSONwithUpload" 
     Log.funcT Log.Debug "..."
     let (rawPathInfo, pathInfo, qs) = ( Wai.rawPathInfo req, Wai.pathInfo req, Wai.queryString req)
@@ -63,9 +64,21 @@ getJSONwithUpload req = do
     Log.debugT requestBody
     --эту функцию можно использовать для тестирования и эмуляции запросов
     let qsBody = parseQuery requestBody
+    --Log.debugT req  
+    logT $ Auth.auth req
+
+    Auth.auth req
+    auth <- S.getAuth
+
+    api@(API apiType queryTypes) <- logT $ router rawPathInfo pathInfo auth
     
-     
-    getJSON rawPathInfo pathInfo qs qsBody req
+    params <- if apiType `elem` [API.Auth, API.Delete, API.Insert, API.Update] 
+        then catchT (logT $ Params.parseParams qsBody api) $
+            \(RequestError e) -> throwT $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в теле запроса методом x-www-form-urlencoded" [e] 
+        else catchT (logT $ Params.parseParams qs api) $
+            \(RequestError e) -> throwT $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в строке запроса" [e] 
+    
+    getJSON api params req
 
 
 --в state можно включить:
@@ -77,33 +90,31 @@ getJSONwithUpload req = do
 --хранить из этого можно только request, а остальное вычислять по необходимости
 --минус в том, что могут быть множественные вычисления, поэтому вычисления лучше оставить там, где они есть
 
-
---эта обертка для удобства тестирования, req нужен для upload
---подумать над тем, чтобы включить request в state а также auth. Как организовать тесты, и останется ли вообще чистый код?
---в handle pattern handle в каждом модуле разный, а в моем state сотояние везде одинаковое
-getJSON:: BC.ByteString -> PathInfo -> HTTP.Query -> HTTP.Query -> Request -> T LC.ByteString
-getJSON rawPathInfo pathInfo qs qsBody req = do
-
-    Log.setSettings Color.Blue True "DB.getJSON" 
-    Log.funcT Log.Debug "..."
+--эта обертка для удобства тестирования--эту обертку перенести в Test
+getJSONTest :: BC.ByteString -> PathInfo -> HTTP.Query -> HTTP.Query -> RequestHeaders -> T LC.ByteString
+getJSONTest rawPathInfo pathInfo qs qsBody headers = do
     S.resetChanged
+    Log.setSettings Color.Blue True "DB.getJSONTest" 
+    Log.funcT Log.Debug "..."
+    let req  = Wai.defaultRequest {requestHeaders = headers}
+    Auth.auth req
+    auth <- S.getAuth
 
-    Log.debugT req
-    Log.debugT qs
-    Log.debugT qsBody 
-    
-    auth <- Auth.auth req
-    Log.debugT auth
-
-
-    api@(API apiType queryTypes) <- logT $ router rawPathInfo pathInfo
+    api@(API apiType queryTypes) <- logT $ router rawPathInfo pathInfo auth
     
     params <- if apiType `elem` [API.Auth, API.Delete, API.Insert, API.Update] 
         then catchT (logT $ Params.parseParams qsBody api) $
             \(RequestError e) -> throwT $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в теле запроса методом x-www-form-urlencoded" [e] 
         else catchT (logT $ Params.parseParams qs api) $
             \(RequestError e) -> throwT $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в строке запроса" [e] 
-    
+    getJSON api params req
+
+
+--req нужен для upload
+--подумать над тем, чтобы включить request в state а также auth. Как организовать тесты, и останется ли вообще чистый код?
+--в handle pattern handle в каждом модуле разный, а в моем state сотояние везде одинаковое
+getJSON:: API -> ParamsMap Param -> Request -> T LC.ByteString
+getJSON api params req = do
     case api of
         API Auth [] -> encode $ Auth.login params
 

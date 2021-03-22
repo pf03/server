@@ -28,6 +28,11 @@ instance ToTransformer T where
 instance ToTransformer (Except E) where
     toT = lift . except . runExcept 
 
+instance ToTransformer (Either E) where
+    toT = toT . helper where
+        helper :: Either E a -> Except E a
+        helper = except
+
 instance ToTransformer (ExceptT E IO) where
     toT = lift
 

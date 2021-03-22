@@ -51,6 +51,7 @@ import qualified Network.Wai as Wai
 
 newtype Token = Token {token :: String}  deriving (Show, Generic, Eq)
 instance ToJSON Token
+instance FromJSON Token
 
 --получение токена
 --во избежание коллизий нужно сделать ограничения на формат логина, пароля, email
@@ -75,30 +76,33 @@ login params  = do
         _ -> throwT $ AuthError "Неверный логин или пароль!"
 
 --проверка токена происходит без базы данных
-auth :: Wai.Request -> T Auth
+auth :: Wai.Request -> T ()
 auth req  = do
     let h = Wai.requestHeaders req
     case lookup "Authorization" h of
-        Nothing -> return AuthNo --nothing только в случае отсутствия токена, в других случаях ошибка
+        Nothing -> S.setAuth AuthNo --nothing только в случае отсутствия токена, в других случаях ошибка
         Just a -> auth_ (Token $ BC.unpack a)
 
 --проверка токена, используется при каждом запросе
 --здесь IO нужен только для даты  
-auth_ :: Token -> T Auth
+--сделать рефакторинг
+auth_ :: Token -> T ()
 auth_ (Token t)  = do
     let strs = splitOn "_" t
     case strs of
         --во избежание коллизий нужно сделать ограничения на формат логина, пароля, email
-        [userIdStr, role, day, hash] | role =="admin" || role == "user" -> case readEither userIdStr of 
+        [userIdStr, role, day, hash] | role =="admin" || role == "user" || role == "author" -> case readEither userIdStr of 
             Right userId -> do
                 curDay <-  toT $ iso8601Show . utctDay <$> getCurrentTime
                 if day == curDay then do
                     correctToken <- toT $ genToken userId role
-                    if correctToken == Token t 
-                        then return $ AuthUser userId
-                        else do
-                            --return Nothing
-                            throwT $ AuthError "Неверный токен!"
+                    if correctToken == Token t && role == "user"
+                        then S.setAuth $ AuthUser userId
+                        else if correctToken == Token t && role == "admin"
+                            then S.setAuth AuthAdmin
+                            else do
+                                --return Nothing
+                                throwT $ AuthError "Неверный токен!"
                 else throwT $ AuthError "Неверная дата токена!"
             _ -> throwT $ AuthError "Неверный токен!" --"Неверный формат токена!"
         _ -> throwT $ AuthError "Неверный токен!" --"Неверный формат токена!"

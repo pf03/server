@@ -82,6 +82,12 @@ getChanged = gets changed
 resetChanged :: MonadState S m => m ()
 resetChanged = modify $ \st -> st {changed = mempty}
 
+getAuth :: MonadState S m => m Auth 
+getAuth = gets auth
+
+setAuth :: MonadState S m => Auth -> m () 
+setAuth auth = modify $ \s-> s{auth = auth}
+
 instance Semigroup Changed where
     (<>) = mappend
 
