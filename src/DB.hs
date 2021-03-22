@@ -82,6 +82,8 @@ getJSON rawPathInfo pathInfo qs qsBody req = do
     Log.debugT qsBody 
     
 
+    let authHeader = requestHeaders req
+
 
     api@(API apiType queryTypes) <- logT $ router rawPathInfo pathInfo
     

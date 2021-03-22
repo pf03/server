@@ -52,26 +52,42 @@ newtype Token = Token {token :: String}  deriving (Show, Generic, Eq)
 instance ToJSON Token
 
 --получение токена
+--во избежание коллизий нужно сделать ограничения на формат логина, пароля, email
 login :: ParamsMap Param  -> T Token
 login params  = do
-    let userId = 1 :: Int
-    let secret = "mySecretWord"
-    date <- toT getCurrentTime 
-    let day = iso8601Show . utctDay $ date
-    let str = template "{0}_{1}_{2}" [secret, convert userId, convert day]
-    return $ Token $ template "{0}_{1}_{2}" [show userId, day, toHex . hash $ str]
+    userIds <- query_ $ template [sql|SELECT id FROM users where login = 'pivan' and pass = md5 (CONCAT_WS(' ', {0}, {1}))|] [p $ params ! "login", p $ params ! "pass"] :: T [Only Int]   
+    --Log.debugT users
+    case userIds of 
+        [Only userId]  -> do 
+            -- let curLogin = convert .  valStr . paramEq $ (params ! "login") 
+            -- let curPass = convert .  valStr . paramEq $ (params ! "pass")
+            
+            -- if login == curLogin && pass == curPass then do
+                let secret = "mySecretWord"
+                date <- toT getCurrentTime 
+                let day = iso8601Show . utctDay $ date
+                let str = template "{0}_{1}_{2}" [secret, convert userId, convert day]
+                return $ Token $ template "{0}_{1}_{2}" [show userId, day, toHex . hash $ str]
+            -- else throwT $ AuthError "Неверный логин или пароль!"
+        _ -> throwT $ AuthError "Неверный логин или пароль!"
 
---на github не выложился этот модуль
 --проверка токена, используется при каждом запросе
 --здесь IO нужен только для даты  
 auth :: Token -> T (Maybe Int)
 auth (Token t)  = do
     let strs = splitOn "_" t
     case strs of
-        (str: _ : _) -> case readEither str of 
+        (str: day : _) -> case readEither str of 
             Right userId -> do
-                correctToken <- toT $ genToken userId
-                if correctToken == Token t then return (Just userId) else return Nothing
+                curDay <-  toT $ iso8601Show . utctDay <$> getCurrentTime
+                if day == curDay then do
+                    correctToken <- toT $ genToken userId
+                    if correctToken == Token t 
+                        then return (Just userId) 
+                        else do
+                            --return Nothing
+                            throwT $ AuthError "Неверный токен!"
+                else throwT $ AuthError "Неверная дата токена!"
             _ -> throwT $ AuthError "Неверный формат токена!"
         _ -> throwT $ AuthError "Неверный формат токена!"
 

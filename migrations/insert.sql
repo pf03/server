@@ -70,5 +70,9 @@ FROM posts
         LEFT JOIN categories ON categories.id = contents.category_id
         LEFT JOIN authors ON authors.id = contents.author_id
         LEFT JOIN users ON users.id = authors.user_id
-    WHERE posts.id IN (1,2)
->>>>>>> 965a6632ac4e7e4eeebc74ef4ad97bf6dbdb781c
+    WHERE posts.id IN (1,2);
+
+SELECT id FROM users where login = 'pivan' and pass = md5 (CONCAT_WS(' ', 'pivan', 'equalpass'));
+
+SELECT id FROM users where login = 'pivan' and
+    pass = md5 ('pivan equalpass')
