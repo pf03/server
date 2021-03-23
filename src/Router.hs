@@ -23,25 +23,26 @@ router _ ["authors", "create"] AuthAdmin = return $ API Insert [Author]
 router _ ["categories", "create"] AuthAdmin = return $ API Insert [Category]
 router _ ["tags", "create"] AuthAdmin = return $ API Insert [Tag]
 router _ ["drafts", "create"] a  = withUser a $ API Insert [Draft]
-router _ ["drafts", n, "publish"] AuthAdmin = withInt "post_id" n $ \pid -> API Insert [Draft, Id pid, Post] --метод drafts publish заменяет posts create и posts edit и подчеркивает, что новость нельзя опубликовать напрямую без черновика (премодерации)
-router _ ["posts", n, "comments", "create"] a  = withUserE a $ withInt "post_id" n $ \pid -> API Insert [Post, Id pid, Comment]
+--во всех остальных апи на втором месте должно быть число. Если его нет - не выдаем существование этого апи
+router p ["drafts", n, "publish"] AuthAdmin = withInt p n $ \pid -> API Insert [Draft, Id pid, Post] --метод drafts publish заменяет posts create и posts edit и подчеркивает, что новость нельзя опубликовать напрямую без черновика (премодерации)
+router p ["posts", n, "comments", "create"] a  = withUserE a $ withInt p n $ \pid -> API Insert [Post, Id pid, Comment]
 
 ---UPDATE---
-router _ ["users", n, "edit"] a  = withUserE a $ withInt "user_id" n $ \pid -> API Update [User, Id pid]
-router _ ["authors", n, "edit"] AuthAdmin = withInt "author_id" n $ \pid -> API Update [Author, Id pid]
-router _ ["categories", n, "edit"] AuthAdmin = withInt "category_id" n $ \pid -> API Update [Category, Id pid]
-router _ ["tags", n, "edit"] AuthAdmin = withInt "tag_id" n $ \pid -> API Update [Tag, Id pid]
-router _ ["drafts", n, "edit"] a = withUserE a $ withInt "draft_id" n $ \pid -> API Update [Draft, Id pid]
-router _ ["posts", n, "edit"] a = withUserE a $ withInt "post_id" n $ \pid -> API Update [Post, Id pid] 
+router p ["users", n, "edit"] a  = withUserE a $ withInt p n $ \pid -> API Update [User, Id pid]
+router p ["authors", n, "edit"] AuthAdmin = withInt p n $ \pid -> API Update [Author, Id pid]
+router p ["categories", n, "edit"] AuthAdmin = withInt p n $ \pid -> API Update [Category, Id pid]
+router p ["tags", n, "edit"] AuthAdmin = withInt p n $ \pid -> API Update [Tag, Id pid]
+router p ["drafts", n, "edit"] a = withUserE a $ withInt p n $ \pid -> API Update [Draft, Id pid]
+router p ["posts", n, "edit"] a = withUserE a $ withInt p n $ \pid -> API Update [Post, Id pid] 
 
 ---DELETE---
-router _ ["users", n, "delete"] AuthAdmin = withInt "user_id" n $ \pid -> API Delete [User, Id pid]
-router _ ["authors", n, "delete"] AuthAdmin = withInt "author_id" n $ \pid -> API Delete [Author, Id pid]
-router _ ["categories", n, "delete"] AuthAdmin = withInt "category_id" n $ \pid -> API Delete [Category, Id pid]
-router _ ["tags", n, "delete"] AuthAdmin = withInt "tag_id" n $ \pid -> API Delete [Tag, Id pid]
-router _ ["drafts", n, "delete"] a  = withUserE a $ withInt "draft_id" n $ \pid -> API Delete [Draft, Id pid]
-router _ ["posts", n, "delete"] AuthAdmin = withInt "post_id" n $ \pid -> API Delete [Post, Id pid] 
-router _ ["comments", n, "delete"] a  = withUserE a $ withInt "comment_id" n $ \pid -> API Delete [Comment, Id pid] 
+router p ["users", n, "delete"] AuthAdmin = withInt p n $ \pid -> API Delete [User, Id pid]
+router p ["authors", n, "delete"] AuthAdmin = withInt p n $ \pid -> API Delete [Author, Id pid]
+router p ["categories", n, "delete"] AuthAdmin = withInt p n $ \pid -> API Delete [Category, Id pid]
+router p ["tags", n, "delete"] AuthAdmin = withInt p n $ \pid -> API Delete [Tag, Id pid]
+router p ["drafts", n, "delete"] a  = withUserE a $ withInt p n $ \pid -> API Delete [Draft, Id pid]
+router p ["posts", n, "delete"] AuthAdmin = withInt p n $ \pid -> API Delete [Post, Id pid] 
+router p ["comments", n, "delete"] a  = withUserE a $ withInt p n $ \pid -> API Delete [Comment, Id pid] 
 
 --у новости также есть еще фотографии
 ---SELECT MANY---
@@ -54,15 +55,16 @@ router _ ["drafts"] _ = return $ API Select [Draft]
 router _ ["posts", n, "comments"] _ = withInt "post_id" n $ \pid -> API Select [Post, Id pid, Comment]
 
 --SELECT BY ID---
-router _ ["users", n ] _ = withInt "user_id" n $ \pid -> API SelectById [User, Id pid]
-router _ ["authors", n] _ = withInt "author_id" n $ \pid -> API SelectById [Author, Id pid]
-router _ ["categories", n] _ = withInt "category_id" n $ \pid -> API SelectById [Category, Id pid]
-router _ ["tags", n] _ = withInt "tag_id" n $ \pid -> API SelectById [Tag, Id pid]
-router _ ["posts", n] _ = withInt "post_id" n $ \pid -> API SelectById [Post, Id pid]
-router _ ["drafts", n] _ = withInt "draft_id" n $ \pid -> API SelectById [Draft, Id pid]
+router p ["users", n ] _ = withInt p n $ \pid -> API SelectById [User, Id pid]
+router p ["authors", n] _ = withInt p n $ \pid -> API SelectById [Author, Id pid]
+router p ["categories", n] _ = withInt p n $ \pid -> API SelectById [Category, Id pid]
+router p ["tags", n] _ = withInt p n $ \pid -> API SelectById [Tag, Id pid]
+router p ["posts", n] _ = withInt p n $ \pid -> API SelectById [Post, Id pid]
+router p ["drafts", n] _ = withInt p n $ \pid -> API SelectById [Draft, Id pid]
 
 --UNKNOWN---
-router rawPathInfo _ _ = throwE . RequestError $ template "Неизвестный путь: {0}" [show rawPathInfo]
+--router rawPathInfo _ _ = throwE . RequestError $ template "Неизвестный путь: {0}" [show rawPathInfo]
+rawPathInfo p _ _ = unknownPath p
 
 -- routerById name text apiType = withInt name text $ \pid -> API Select [User, Id pid]
 
@@ -71,17 +73,20 @@ router rawPathInfo _ _ = throwE . RequestError $ template "Неизвестны�
 --     int <- ereadInt (show name) text
 --     return (API Update Tag, M.fromList [(name, ParamEq (Int int))])
 
-ereadInt :: String -> Text -> Except E Int 
-ereadInt name text = do
+ereadInt :: B.ByteString -> Text -> Except E Int 
+ereadInt p text = do
     let str = unpack text
     catchE (except . readEither $ str) $ \e -> do
-        throwE . RequestError $ template "Значение {0} в роутере должно быть целым числом" [str] -- тут скорей нужно пропустить роутер дальше, типа функция неизвестна
+        unknownPath p
+        --throwE . RequestError $ template "Значение {0} в роутере должно быть целым числом" [str] -- тут скорей нужно пропустить роутер дальше, типа функция неизвестна
 
-withInt :: String -> Text -> (Int -> API) -> Except E API
-withInt name text f = do
-    pid <- ereadInt name text
+withInt :: B.ByteString -> Text -> (Int -> API) -> Except E API
+withInt p text f = do
+    pid <- ereadInt p text 
     return $ f pid
 
+--можно из типа E вычислить код ошибки
+--ошибка 401
 --апи функция, которая требует авторизации
 withUserE :: Auth -> Except E API -> Except E API
 withUserE AuthNo _ = throwE . AuthError $ "Данная функция требует авторизации"
@@ -95,6 +100,10 @@ withUser _ api = return api
 user :: Auth -> Bool 
 user AuthNo = False 
 user _ = True
+
+--ошибка 400
+unknownPath :: B.ByteString -> Except E a
+unknownPath rawPathInfo = throwE . RequestError $ template "Неизвестный путь: {0}" [show rawPathInfo]
 
 
 

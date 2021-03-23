@@ -5,6 +5,7 @@ import Control.Exception
 import Control.Monad.Except
 import Control.Monad.Trans.Except
 import Types  --100
+import Network.HTTP.Types
 
 
 instance Show E where
@@ -15,6 +16,15 @@ instance Show E where
     show (IOError s) = "Ошибка ввода-вывода: "++s
     show (AuthError s) = "Ошибка авторизации: "++s
     show (SomeError s) = "Неведомая ошибка: "++s
+
+getStatus :: E -> Status
+getStatus (ParseError s) = internalServerError500  --есть ли такие ошибки??
+getStatus (RequestError s) = badRequest400
+getStatus (ConfigError s) = internalServerError500
+getStatus (DBError s) = badRequest400
+getStatus (IOError s) = internalServerError500
+getStatus (AuthError s) = unauthorized401
+getStatus (SomeError s) = internalServerError500
     
 
 instance Exception E

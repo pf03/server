@@ -49,7 +49,7 @@ get req = do
 json :: LC.ByteString -> T Response
 json = return . Wai.responseLBS status200 [(hContentType, "text/plain")] 
 
+--для некоторых типов ошибки нельзя выводить текст, например ошибка конфига
 errorHandler :: E -> Response
-errorHandler e = do
-    Wai.responseLBS badRequest400 [(hContentType, "text/plain")] (convertL . show $ e)
+errorHandler e = Wai.responseLBS (getStatus e) [(hContentType, "text/plain")] (convertL . show $ e)
 
