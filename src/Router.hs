@@ -10,6 +10,7 @@ import Control.Monad.Trans.Except
 import API
 import qualified Data.ByteString as B
 import Common
+import Error
 
 --роутер проверяет только роли, а не соответстсвие id в токене и id в апи и params
 router :: B.ByteString -> PathInfo -> Auth -> Except E API
@@ -19,29 +20,29 @@ router _ ["login"] _ = return $ API Auth []
 router _ ["photos", "upload"] _ = return $ API Upload [Photo]
 ---INSERT---
 router _ ["users", "create"] _ = return $ API Insert [User]
-router _ ["authors", "create"] AuthAdmin = return $ API Insert [Author]
-router _ ["categories", "create"] AuthAdmin = return $ API Insert [Category]
-router _ ["tags", "create"] AuthAdmin = return $ API Insert [Tag]
+router _ ["authors", "create"] (AuthAdmin _) = return $ API Insert [Author]
+router _ ["categories", "create"] (AuthAdmin _) = return $ API Insert [Category]
+router _ ["tags", "create"] (AuthAdmin _) = return $ API Insert [Tag]
 router _ ["drafts", "create"] a  = withUser a $ API Insert [Draft]
 --во всех остальных апи на втором месте должно быть число. Если его нет - не выдаем существование этого апи
-router p ["drafts", n, "publish"] AuthAdmin = withInt p n $ \pid -> API Insert [Draft, Id pid, Post] --метод drafts publish заменяет posts create и posts edit и подчеркивает, что новость нельзя опубликовать напрямую без черновика (премодерации)
+router p ["drafts", n, "publish"] (AuthAdmin _) = withInt p n $ \pid -> API Insert [Draft, Id pid, Post] --метод drafts publish заменяет posts create и posts edit и подчеркивает, что новость нельзя опубликовать напрямую без черновика (премодерации)
 router p ["posts", n, "comments", "create"] a  = withUserE a $ withInt p n $ \pid -> API Insert [Post, Id pid, Comment]
 
 ---UPDATE---
 router p ["users", n, "edit"] a  = withUserE a $ withInt p n $ \pid -> API Update [User, Id pid]
-router p ["authors", n, "edit"] AuthAdmin = withInt p n $ \pid -> API Update [Author, Id pid]
-router p ["categories", n, "edit"] AuthAdmin = withInt p n $ \pid -> API Update [Category, Id pid]
-router p ["tags", n, "edit"] AuthAdmin = withInt p n $ \pid -> API Update [Tag, Id pid]
+router p ["authors", n, "edit"] (AuthAdmin _) = withInt p n $ \pid -> API Update [Author, Id pid]
+router p ["categories", n, "edit"] (AuthAdmin _) = withInt p n $ \pid -> API Update [Category, Id pid]
+router p ["tags", n, "edit"] (AuthAdmin _) = withInt p n $ \pid -> API Update [Tag, Id pid]
 router p ["drafts", n, "edit"] a = withUserE a $ withInt p n $ \pid -> API Update [Draft, Id pid]
 router p ["posts", n, "edit"] a = withUserE a $ withInt p n $ \pid -> API Update [Post, Id pid] 
 
 ---DELETE---
-router p ["users", n, "delete"] AuthAdmin = withInt p n $ \pid -> API Delete [User, Id pid]
-router p ["authors", n, "delete"] AuthAdmin = withInt p n $ \pid -> API Delete [Author, Id pid]
-router p ["categories", n, "delete"] AuthAdmin = withInt p n $ \pid -> API Delete [Category, Id pid]
-router p ["tags", n, "delete"] AuthAdmin = withInt p n $ \pid -> API Delete [Tag, Id pid]
+router p ["users", n, "delete"] (AuthAdmin _) = withInt p n $ \pid -> API Delete [User, Id pid]
+router p ["authors", n, "delete"] (AuthAdmin _) = withInt p n $ \pid -> API Delete [Author, Id pid]
+router p ["categories", n, "delete"] (AuthAdmin _) = withInt p n $ \pid -> API Delete [Category, Id pid]
+router p ["tags", n, "delete"] (AuthAdmin _) = withInt p n $ \pid -> API Delete [Tag, Id pid]
 router p ["drafts", n, "delete"] a  = withUserE a $ withInt p n $ \pid -> API Delete [Draft, Id pid]
-router p ["posts", n, "delete"] AuthAdmin = withInt p n $ \pid -> API Delete [Post, Id pid] 
+router p ["posts", n, "delete"] (AuthAdmin _) = withInt p n $ \pid -> API Delete [Post, Id pid] 
 router p ["comments", n, "delete"] a  = withUserE a $ withInt p n $ \pid -> API Delete [Comment, Id pid] 
 
 --у новости также есть еще фотографии
@@ -89,12 +90,12 @@ withInt p text f = do
 --ошибка 401
 --апи функция, которая требует авторизации
 withUserE :: Auth -> Except E API -> Except E API
-withUserE AuthNo _ = throwE . AuthError $ "Данная функция требует авторизации"
+withUserE AuthNo _ = throwE authErrorDefault
 withUserE _ eapi = eapi
 
 --то же с другой сигнатурой
 withUser :: Auth -> API -> Except E API
-withUser AuthNo _ = throwE . AuthError $ "Данная функция требует авторизации"
+withUser AuthNo _ = throwE authErrorDefault
 withUser _ api = return api
 
 user :: Auth -> Bool 

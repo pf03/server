@@ -33,6 +33,7 @@ import qualified State as S
 import Data.Time
 import Data.Time.Format.ISO8601
 import Crypto.Hash.MD5 (hash)
+import Error
 
 -- Должно быть отдельные API для сущностей:
 -- авторов — и создание, и редактирование, и получение, и удаление, только для админов, 
@@ -75,14 +76,18 @@ tag params = do
 --тут еще добавить теги и фотографии
 draft :: Maybe Int -> ParamsMap Param -> T Changed
 draft mpostId params = do
-    when (params ! "author_id" == ParamEq (Int 1)) $ throwT $ DBError "Невозможно создать черновик от удаленного автора (автора по умолчанию) id = 1"
+
+    authorIdParam <- authAuthorIdParam
+    let newParams = M.insert "author_id" authorIdParam params
+
+    when (newParams ! "author_id" == ParamEq (Int 1)) $ throwT $ DBError "Невозможно создать черновик от удаленного автора (автора по умолчанию) id = 1"
     postIdParam <- case mpostId of 
         Nothing -> return ParamNo
         Just postId -> return $ ParamEq (Int postId)
-    checkExist params "author_id" [sql|SELECT 1 FROM authors WHERE authors.id = {0}|]
-    checkExist params "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
+    --checkExist params "author_id" [sql|SELECT 1 FROM authors WHERE authors.id = {0}|] --уже проверили в авторизации
+    checkExist newParams "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
     [Only cid] <- query_ $ template [sql|INSERT into contents (author_id, name, creation_date, category_id, text, photo) values {0} RETURNING id|] 
-        [rowEither params [Left "author_id", Left "name", Right [sql|current_date|], Left "category_id", Left "text", Left "photo"]] :: T[Only Int]
+        [rowEither newParams [Left "author_id", Left "name", Right [sql|current_date|], Left "category_id", Left "text", Left "photo"]] :: T[Only Int]
     S.addChanged Insert Content 1
     insert Draft [sql|INSERT into drafts (content_id, post_id) values ({0}, {1})|] 
         [cell $ ParamEq (Int cid), cell postIdParam]
@@ -177,6 +182,28 @@ rowEither params nqs = list $ map helper nqs where
 cell :: Param -> Query
 cell (ParamEq v) = val v
 cell ParamNo = [sql|null|]
+
+
+--админ может ЗАПИСЫВАТЬ только свои публикации публикации
+authAuthorIdParam :: T Param
+authAuthorIdParam = do
+    auth <- S.getAuth
+    paramUserId <- case auth of
+            AuthAdmin userId -> return $ ParamEq (Int userId)
+            AuthUser userId -> return $ ParamEq (Int userId)
+            _ -> throwT authErrorDefault
+    
+    mauthorId <- fromOnly <<$>> listToMaybe  <$> query_ (template [sql|
+    SELECT authors.id FROM authors
+        LEFT JOIN users
+        ON authors.user_id = users.id
+        WHERE users.id = {0}
+    |] [p paramUserId]) :: T (Maybe Int)
+    case mauthorId of
+        Nothing -> throwT $ AuthError "Данная функция доступна только авторам"
+        Just 1 -> throwT $ AuthError "Невозможна аутентификация удаленного автора"
+        Just authorId -> return $ ParamEq (Int authorId)
+
 
 
 

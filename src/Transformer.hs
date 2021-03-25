@@ -290,3 +290,9 @@ streamEmpty source = do
     if a == mempty 
         then return ()
         else throwE $ RequestError "Тело запроса должно быть пустым"
+
+
+-- ltest :: IO ()
+-- ltest = runT $ do
+--     Log.colorTextT Color.Yellow Log.Debug  "Yellow." :: T()
+--     Log.colorTextT Color.Blue Log.Debug  "Blue."

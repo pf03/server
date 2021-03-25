@@ -57,10 +57,12 @@ instance FromJSON Token
 --во избежание коллизий нужно сделать ограничения на формат логина, пароля, email
 login :: ParamsMap Param  -> T Token
 login params  = do
-    users <- query_ $ template [sql|SELECT id, is_admin FROM users where login = 'pivan' and pass = md5 (CONCAT_WS(' ', {0}, {1}))|] [p $ params ! "login", p $ params ! "pass"] :: T [(Int, Bool)]   
+
+    users <- query_ $ template [sql|SELECT id, is_admin FROM users where login = {0} and pass = md5 (CONCAT_WS(' ', {0}, {1}))|] [p $ params ! "login", p $ params ! "pass"] :: T [(Int, Bool)]   
     --Log.debugT users
     case users of 
         [(userId, isAdmin)]  -> do
+            when (userId == 1) $ throwT $ AuthError "Невозможно авторизоваться удаленным пользователем" 
             let role = if isAdmin then "admin" else "user"
             toT $ genToken userId role 
             -- let curLogin = convert .  valStr . paramEq $ (params ! "login") 
@@ -99,7 +101,7 @@ auth_ (Token t)  = do
                     if correctToken == Token t && role == "user"
                         then S.setAuth $ AuthUser userId
                         else if correctToken == Token t && role == "admin"
-                            then S.setAuth AuthAdmin
+                            then S.setAuth $ AuthAdmin userId
                             else do
                                 --return Nothing
                                 throwT $ AuthError "Неверный токен!"

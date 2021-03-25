@@ -94,8 +94,8 @@ getJSON_ req = do
 getJSONTest :: BC.ByteString -> PathInfo -> HTTP.Query -> HTTP.Query -> RequestHeaders -> T LC.ByteString
 getJSONTest rawPathInfo pathInfo qs qsBody headers = do
     S.resetChanged
-    Log.setSettings Color.Blue True "DB.getJSONTest" 
-    Log.funcT Log.Debug "..."
+    --Log.setSettings Color.Blue True "DB.getJSONTest" 
+    --Log.funcT Log.Debug "..."
     let req  = Wai.defaultRequest {requestHeaders = headers}
     Auth.auth req
     auth <- S.getAuth

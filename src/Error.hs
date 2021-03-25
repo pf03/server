@@ -27,6 +27,9 @@ getStatus (AuthError s) = unauthorized401
 getStatus (SomeError s) = internalServerError500
     
 
+authErrorDefault :: E 
+authErrorDefault = AuthError $ "Данная функция требует авторизации"
+
 instance Exception E
 
 --конкретизируем тип ошибки конструктором c

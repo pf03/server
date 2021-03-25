@@ -51,5 +51,10 @@ json = return . Wai.responseLBS status200 [(hContentType, "text/plain")]
 
 --для некоторых типов ошибки нельзя выводить текст, например ошибка конфига
 errorHandler :: E -> Response
-errorHandler e = Wai.responseLBS (getStatus e) [(hContentType, "text/plain")] (convertL . show $ e)
+errorHandler e = do
+    let status = getStatus e
+    let text = if status == internalServerError500 
+        then convertL ("Внутренняя ошибка сервера" :: String) --проверить (вообще есть ли такие ошибки? как правило сервер просто не запускается в таких случаях)
+        else convertL . show $ e
+    Wai.responseLBS status [(hContentType, "text/plain")] text
 

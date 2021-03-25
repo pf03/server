@@ -22,6 +22,9 @@ import qualified Data.ByteString as BC
 import Control.Monad.Identity
 import Data.Map as M ((!))
 import Data.Maybe
+import qualified State as S
+import Transformer
+import Error
 ----------------------------------User-----------------------------------------------------------
 type User =  Row.User 
 
@@ -87,25 +90,37 @@ type Content = Row.Content :. Row.Category :. Row.Author :. Row.User :. Maybe Ro
 type Draft = Row.Draft :. Select.Content
 
 draft::  Int -> T [Draft]
-draft pid = query_ query where
-        query = selectDraftsQuery <+> template [sql|WHERE drafts.id = {0}|] [q pid]
+draft pid = do
+    paramUserId <- authUserIdParam
+    let conditions =  [
+            cond [sql|drafts.id|] $ ParamEq (Int pid),
+            cond [sql|users.id|] paramUserId
+            ]
+    let query =  selectDraftsQuery `whereAll` conditions;
+    query_ query
 
 drafts :: ParamsMap Param -> T [Draft]
-drafts params = query_ $ draftsQuery params
+drafts params = do
+    paramUserId <- authUserIdParam
+    let conditions =  [
+            cond [sql|users.id|] paramUserId
+            ]
+    let query =  selectDraftsQuery `whereAll` conditions <+> pagination (params ! "page");
+    query_ query
 
 selectDraftsQuery ::  Query
 selectDraftsQuery = [sql|
-        SELECT * FROM drafts
-        LEFT JOIN contents ON contents.id = drafts.content_id
-        LEFT JOIN categories ON categories.id = contents.category_id
-        LEFT JOIN authors ON authors.id = contents.author_id
-        LEFT JOIN users ON users.id = authors.user_id
-        LEFT JOIN tags_to_contents ON contents.id = tags_to_contents.content_id
-        LEFT JOIN tags ON tags.id = tags_to_contents.tag_id
-        LEFT JOIN photos ON photos.content_id = contents.id|]
+    SELECT * FROM drafts
+    LEFT JOIN contents ON contents.id = drafts.content_id
+    LEFT JOIN categories ON categories.id = contents.category_id
+    LEFT JOIN authors ON authors.id = contents.author_id
+    LEFT JOIN users ON users.id = authors.user_id
+    LEFT JOIN tags_to_contents ON contents.id = tags_to_contents.content_id
+    LEFT JOIN tags ON tags.id = tags_to_contents.tag_id
+    LEFT JOIN photos ON photos.content_id = contents.id|]
 
-draftsQuery :: ParamsMap Param -> Query
-draftsQuery params = selectDraftsQuery <+> pagination (params ! "page")
+-- draftsQuery :: ParamsMap Param -> Query
+-- draftsQuery params = selectDraftsQuery <+> pagination (params ! "page")
 
 -------------------------Post-------------------------------------------------------------
 
@@ -278,7 +293,17 @@ cond field param = helper param where
         helper (ParamBt (v1,v2)) = template [sql|{0} BETWEEN {1} AND {2}|] [field, val v1, val v2]
         helper (ParamLike (Str s)) = template [sql|{0} ILIKE '%{1}%'|] [field, q s]
         helper ParamNo = [sql|TRUE|]  --это только для Select, для других запросов может быть по другому!!!!
+        helper ParamNull = template [sql|{0} = null|] [field] --не проверено
         helper param = error $ template "Нет шаблона для {0}" [show param]
+
+--админ может ЧИТАТЬ все публикации
+authUserIdParam :: T Param
+authUserIdParam = do
+        auth <- S.getAuth
+        case auth of
+                AuthAdmin _ -> return ParamNo
+                AuthUser userId -> return $ ParamEq (Int userId)
+                _ -> throwT authErrorDefault
 
 
 
