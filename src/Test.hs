@@ -19,6 +19,7 @@ import Class
 import Error
 import qualified State as S
 import System.Console.ANSI
+import Text.Read
 
 -- ЭТОТ МОДУЛЬ НЕ ДЛЯ РЕВЬЮ, А ДЛЯ ОТЛАДКИ
 
@@ -346,14 +347,15 @@ commentsCases = ("selectComment", tuples) where
 --отдельное апи для загрузки фотографии? Фотографию можно привязать по ид или по имени?? или загрузить новую?
 --прогнать одни и те же тесты с разнми логинами и без такового!
 
---каждый тест проходится с одним из логинов: не авторизован, иванов (не автор), пушкин (автор). Тест с админом отдельно (все функции должны быть доступны)
+--каждый тест проходится с одним из логинов: , , . Тест с админом отдельно (все функции должны быть доступны)
 
 logins :: [Query]
 logins = [
-        [("login", Just "fake"),("pass", Just "fake")],
-        [("login", Just "pivan"),("pass", Just "equalpass")],
-        [("login", Just "psergey"),("pass", Just "psergeypass")]
-        -- [("login", Just "fake"),("pass", Just "fake")]
+        [("login", Just "fake"),("pass", Just "fake")],  --не авторизован
+        [("login", Just "pivan"),("pass", Just "equalpass")],  -- иванов (не автор)
+        [("login", Just "vmayakovskiy"),("pass", Just "vmayakovskiypass")],  --удаленный автор
+        [("login", Just "psergey"),("pass", Just "psergeypass")],  --пушкин (автор)
+        [("login", Just "admin"),("pass", Just "123456")]  --админ
     ]
 
 publishCaseswithAuth :: (String, [(PathInfo, Query)])
@@ -362,62 +364,60 @@ publishCaseswithAuth = (,) (fst publishCases) $ concat $ for (snd publishCases) 
 publishCases :: (String, [(PathInfo, Query)])
 publishCases = ("publish", tuples) where
     tuples = [
-        
-        -- Ошибка авторизации: Данная функция требует авторизации; []; успех
-        -- (,) ["drafts"] [],
-        -- -- null, null, null
-        -- (,) ["drafts", "0"] [],
-        -- (,) ["drafts", "1"] [],        
-        -- -- успех, успех, успех
-        -- (,) ["posts"] [],
+        -- 0
+        (,) ["authors", "3", "delete"] [], -- {"edited": {"posts": 1},"deleted": {"authors": 1}} 
 
-        -- Ошибка базы данных: Указан несуществующий параметр "category_id": 0
+        -- 1 Ошибка авторизации: Данная функция требует авторизации; []; успех
+        (,) ["drafts"] [],
+        -- 2 null, null, null
+        (,) ["drafts", "0"] [],
+        -- 3 null, null, null
+        (,) ["drafts", "1"] [],        
+        -- 4 успех, успех, успех
+        (,) ["posts"] [],
+
+        -- 5 Ошибка базы данных: Указан несуществующий параметр "category_id": 0
         (,) ["drafts", "create"] [
             ("name", Just "name"),
             ("category_id", Just "0"),
             ("text", Just "text"),
             ("photo", Just "photo.jpg")
         ],
-        -- Ошибка базы данных: Невозможно создать черновик от удаленного автора (автора по умолчанию) id = 1
-        -- для этого теста нужна некорректная аутентификация
-        -- (,) ["drafts", "create"] [
-        --     ("name", Just "name"),
-        --     ("category_id", Just "1"),
-        --     ("text", Just "text"),
-        --     ("photo", Just "photo.jpg")
-        -- ],
-        -- {"created":{"contents":1,"drafts":1}}
+
+        -- 6 {"created":{"contents":1,"drafts":1}}
         (,) ["drafts", "create"] [
             ("name", Just "name"),
             ("category_id", Just "1"),
             ("text", Just "text"),
             ("photo", Just "photo.jpg")
         ],
-        (,) ["drafts"] [],
+        -- 7 (,) ["drafts"] [],
         -- Ошибка базы данных: Указан несуществующий параметр "id": 0
         (,) ["drafts", "0","edit"] [
             ("category_id", Just "2")
         ],
-        -- Ошибка базы данных: Указан несуществующий параметр "category_id": 0
+        -- 8 Ошибка базы данных: Указан несуществующий параметр "category_id": 0
         (,) ["drafts", "2","edit"] [
             ("category_id", Just "0")
         ],
-        -- {"edited":{"contents":1}}
+        -- 9 {"edited":{"contents":1}}
         (,) ["drafts", "2","edit"] [
             ("category_id", Just "2")
         ],
-        -- {"edited":{"contents":1}}
+        -- 10 {"edited":{"contents":1}}
         (,) ["drafts", "2","edit"] [
             ("name", Just "edited_name"),
             ("category_id", Just "3"),
             ("text", Just "edited_text"),
             ("photo", Just "edited_photo.jpg")
-        ],
-        -- {"created":{"posts":1},"deleted":{"drafts":1}}
+        ], --ДО ЭТОГО МОМЕНТА РАБОТАЕТ
+        -- 11 {"created":{"posts":1},"deleted":{"drafts":1}} --работает
         (,) ["drafts", "2","publish"] [],
-        (,) ["drafts"] [],
-        (,) ["posts"] [],
-        -- {"created":{"contents":1,"drafts":1}}
+        -- 12 
+        (,) ["drafts", "2","delete"] [], --работает
+        -- 13
+        (,) ["posts"] [], --работает
+        -- 14 {"created":{"contents":1,"drafts":1}}
         (,) ["posts", "3","edit"] [
             ("author_id", Just "3"),
             ("name", Just "edited_name2"),
@@ -425,11 +425,13 @@ publishCases = ("publish", tuples) where
             ("text", Just "edited_text2"),
             ("photo", Just "edited_photo2.jpg")
         ],
+        -- 15
         (,) ["drafts"] [],
+        -- 16
         (,) ["posts"] [],
-        -- {"edited":{"posts":1},"deleted":{"drafts":1}} -- ТУТ ЕЩЕ НУЖНО УДАЛИТЬ СТАРЫЙ КОНТЕНТ, а к контенту привязанные фото и теги
+        -- 17 {"edited":{"posts":1},"deleted":{"drafts":1}} -- ТУТ ЕЩЕ НУЖНО УДАЛИТЬ СТАРЫЙ КОНТЕНТ, а к контенту привязанные фото и теги
         (,) ["drafts", "3","publish"] [],
-
+        -- 18
         (,) ["posts", "3"] []
         ]
 
@@ -470,13 +472,16 @@ testCases = runT $ do
 
 --новая версия с сохранением токена!!
 --нужен рефакторинг! отдельная ветка для логина, и отдельная для другого запроса
-listOfTestCasesByOne :: String -> [(PathInfo, Query)] -> T (Maybe Token) 
+--перепрыгиваем через тесты
+listOfTestCasesByOne :: String -> [(PathInfo, Query)] -> T (Maybe Token, Maybe Int) 
 listOfTestCasesByOne name qs = do
     Log.colorTextT Color.Yellow Log.Debug  " Нажмите Enter для начала теста..."
     readLnT
-    forMMem (zip [1,2..] qs) Nothing $ \mt (n, (pathInfo, query)) -> do
+    forMMem (zip [1,2..] qs) (Nothing, Nothing) $ \(mt, mn) (n, (pathInfo, query)) -> do
         catchT (do
-            toT $ clearScreen
+            
+            toT clearScreen
+            --Log.debugT (mt, mn)
             Log.colorTextT Color.Blue Log.Debug  $ template "Проверка {1}, тестовый случай {0}: " [show n, name]
             Log.debugT (pathInfo, query)
             Log.colorTextT Color.Cyan Log.Debug  $ template "Token: {0}" [show mt]
@@ -491,7 +496,7 @@ listOfTestCasesByOne name qs = do
                     str <- catchT (DB.getJSONTest (convert $ show pathInfo) pathInfo query query headers) (\e -> return "")
                     catchT (do 
                         tmp <- toT . (Just <$>) . typeError ParseError . eitherDecode $ str
-                        Log.colorTextT Color.Green Log.Debug $ template "Аутентификация успешно завершена, токен: {0} . Нажмите Enter для следующего теста, q + Enter для выхода..." [show tmp]
+                        Log.colorTextT Color.Green Log.Debug $ template "Аутентификация успешно завершена, токен: {0} . Нажмите Enter для следующего теста, q + Enter для выхода или номер_теста + Enter..." [show tmp]
                         return tmp
                         ) 
                     
@@ -501,22 +506,35 @@ listOfTestCasesByOne name qs = do
                 _ -> do 
                     Log.on
                     DB.getJSONTest (convert $ show pathInfo) pathInfo query query headers
-                    Log.colorTextT Color.Green Log.Debug  "Запрос успешно завершен. Нажмите Enter для следующего теста, q + Enter для выхода..."
+                    Log.colorTextT Color.Green Log.Debug  "Запрос успешно завершен. Нажмите Enter для следующего теста, q + Enter для выхода или номер_теста + Enter..."
+
                     return mt
-            answ <- readLnT
-            when (answ == "q") $ throwT $ IOError "Выход из теста по требованию пользователя"
+            newmn <- readCommand n mn
             Log.debugT newmt
-            return newmt
+            return (newmt, newmn)
             ) $ \e -> do
                 case e of 
                     IOError _ -> throwT e
                     _ -> do
                         Log.colorTextT Color.Yellow Log.Debug  "Запрос НЕуспешно завершен."
                         Log.colorTextT Color.Yellow Log.Debug $ show (e::E)
-                        Log.colorTextT Color.Yellow Log.Debug  " Нажмите Enter для следующего теста, q + Enter для выхода..."
-                        answ <- readLnT
-                        when (answ == "q") $ throwT $ IOError "Выход из теста по требованию пользователя"
-                        return mt
+                        Log.colorTextT Color.Yellow Log.Debug  "Нажмите Enter для следующего теста, q + Enter для выхода или номер_теста + Enter..."
+                        newmn <- readCommand n mn
+                        return (mt, newmn)
+
+                        
+    where
+        readCommand :: Int -> Maybe Int -> T (Maybe Int)
+        readCommand n mn = if Just n < mn  then return mn else do
+            answ <- readLnT
+            when (answ == "q") $ throwT $ IOError "Выход из теста по требованию пользователя"
+            case readEither answ of
+                Right newn -> return (Just newn)
+                _ -> return Nothing
+            
+            
+        
+    
 
 forMMem :: (Foldable t, Monad m) => t a -> b -> (b -> a -> m b) -> m b
 forMMem cont init f = foldM f init cont

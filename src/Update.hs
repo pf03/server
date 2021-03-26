@@ -26,6 +26,8 @@ import Data.Maybe
 import API
 import Insert
 import Select
+import qualified State as S
+import Error
 
 user :: Int -> ParamsMap Param -> T Changed
 user pid params = do
@@ -54,12 +56,35 @@ category pid params = do
 
 draft :: Int -> ParamsMap Param -> T Changed
 draft pid params = do
+    --проверка существования параметров
+    
     let allParams = M.insert "id" (ParamEq (Int pid)) params
     checkExist allParams "id" [sql|SELECT 1 FROM drafts WHERE drafts.id = {0}|]
     checkExist allParams "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
+
+    authDraft pid
+    
     [Only contentId] <- query_ $ template [sql|SELECT content_id FROM drafts WHERE drafts.id = {0}|] [q pid] :: T [Only Int]
     update Content [sql|UPDATE contents SET {0} WHERE id = {1}|] 
         [updates params ["name", "category_id", "text", "photo"], q contentId]
+    
+    where 
+
+authDraft :: Int -> T ()
+authDraft pid = do
+    userIdParam <- authUserIdParam
+    --let cond = []
+    exist <- query_ $ [sql|
+        SELECT 1 FROM drafts
+        LEFT JOIN contents ON contents.id = drafts.content_id
+        LEFT JOIN authors ON authors.id = contents.author_id
+        LEFT JOIN users ON users.id = authors.user_id
+    |] `whereAll` [cond [sql|users.id|] userIdParam, cond [sql|drafts.id|] $ ParamEq (Int pid)] :: T [Only Int]
+    case exist of
+        [] -> throwT authErrorDefault
+        _ -> return ()
+
+
 
 -- см. Insert.draft
 -- post :: Int -> ParamsMap Param -> T Changed
@@ -87,3 +112,22 @@ updates params names = Query.concat "," $ mapMaybe helper names where
     upd field ParamNull = Just $ template [sql|{0} = null|] [field]
     upd field param = error $ template "Нет шаблона для {0}" [show param]
 
+-- --админ может РЕДАКТИРОВАТЬ все публикации (модерация)
+-- authAuthorIdParam :: T Param
+-- authAuthorIdParam = do
+--     auth <- S.getAuth
+--     paramUserId <- case auth of
+--             AuthAdmin userId -> return ParamNo
+--             AuthUser userId -> return $ ParamEq (Int userId)
+--             _ -> throwT authErrorDefault
+    
+--     mauthorId <- fromOnly <<$>> listToMaybe  <$> query_ (template [sql|
+--     SELECT authors.id FROM authors
+--         LEFT JOIN users
+--         ON authors.user_id = users.id
+--         WHERE users.id = {0}
+--     |] [p paramUserId]) :: T (Maybe Int)
+--     case mauthorId of
+--         Nothing -> throwT $ AuthError "Данная функция доступна только авторам"
+--         Just 1 -> throwT $ AuthError "Невозможна аутентификация удаленного автора"
+--         Just authorId -> return $ ParamEq (Int authorId)

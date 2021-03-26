@@ -20,7 +20,7 @@ import Query
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
 import Control.Monad.Identity
-import Select ( p, val )
+import Select ( p, val, authUserIdParam, cond )
 import Data.Map as M ((!), fromList)
 import qualified Data.Map as M (insert)
 import Class
@@ -74,6 +74,7 @@ tag params = do
 
 --"author_id", "name", "creation_date", "category_id", "text", "photo", "news_id" - необязательный (ParamNo если создаем с нуля, ParamEq если к существующей новости)
 --тут еще добавить теги и фотографии
+--ндо разделить функции, сделать более прямую логику - Insert.draft и Update.post. Первая по авторизации пользователя вторая доступна и для админа
 draft :: Maybe Int -> ParamsMap Param -> T Changed
 draft mpostId params = do
 
@@ -92,10 +93,30 @@ draft mpostId params = do
     insert Draft [sql|INSERT into drafts (content_id, post_id) values ({0}, {1})|] 
         [cell $ ParamEq (Int cid), cell postIdParam]
 
+
+-- authDraft :: Maybe Int -> T ()
+-- authDraft mpid = do
+--     userIdParam <- authUserIdParam
+--     case mpid 
+--     --let cond = []
+--     -- exist <- query_ $ [sql|
+--     --     SELECT 1 FROM drafts
+--     --     LEFT JOIN contents ON contents.id = drafts.content_id
+--     --     LEFT JOIN authors ON authors.id = contents.author_id
+--     --     LEFT JOIN users ON users.id = authors.user_id
+--     -- |] `whereAll` [cond [sql|users.id|] userIdParam, cond [sql|drafts.id|] $ ParamEq (Int pid)] :: T [Only Int]
+--     -- case exist of
+--     --     [] -> throwT authErrorDefault
+--     --     _ -> return ()
+
+
 --опубликовать новость из черновика, черновик привязывется к новости, для дальнейшего редактирования
 --"draft_id"
+-- только для админа, решается на уровне роутера!!
 publish :: Int -> T Changed
 publish pid = do
+
+
     let params = M.fromList [("draft_id", ParamEq (Int pid))] --костыль??
     checkExist params "draft_id" [sql|SELECT 1 FROM drafts WHERE drafts.id = {0}|]
     [(contentId, mpostId)] <- query_ $ template [sql|SELECT content_id, post_id FROM drafts WHERE drafts.id = {0}|] 
@@ -184,7 +205,7 @@ cell (ParamEq v) = val v
 cell ParamNo = [sql|null|]
 
 
---админ может ЗАПИСЫВАТЬ только свои публикации публикации
+--админ может CОЗДАВАТЬ только свои публикации
 authAuthorIdParam :: T Param
 authAuthorIdParam = do
     auth <- S.getAuth

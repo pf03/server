@@ -83,7 +83,7 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
             [API.Tag] -> [param "name" [Eq] ParamTypeStr True]
             --тут еще добавить список тегов!!!
             [API.Draft] -> [
-                --param "author_id" [Eq] ParamTypeInt True, --эта информация уже в токене? там есть только user, но автор может быть только один
+                --param "author_id" [Eq] ParamTypeInt True, --эта информация уже в токене? там есть только user, но автор может быть только один --админ может создавать черновики и публиковать под любым автором??
                 param "name" [Eq] ParamTypeStr True,
                 --param "creation_date" [Eq] ParamTypeStr True,  --дата берется на серваке
                 param "category_id" [Eq] ParamTypeInt True,

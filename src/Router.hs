@@ -64,8 +64,7 @@ router p ["posts", n] _ = withInt p n $ \pid -> API SelectById [Post, Id pid]
 router p ["drafts", n] _ = withInt p n $ \pid -> API SelectById [Draft, Id pid]
 
 --UNKNOWN---
---router rawPathInfo _ _ = throwE . RequestError $ template "Неизвестный путь: {0}" [show rawPathInfo]
-rawPathInfo p _ _ = unknownPath p
+router p _ _ = unknownPath p
 
 -- routerById name text apiType = withInt name text $ \pid -> API Select [User, Id pid]
 

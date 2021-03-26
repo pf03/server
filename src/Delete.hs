@@ -30,6 +30,8 @@ import Data.Monoid
 import Data.Int
 import API
 import qualified State as S
+import Select
+import Update
 
 --перенес в Types пока
 -- data Changed = Changed {
@@ -159,8 +161,22 @@ post pid = do
             delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [q contentId]   
             delete Comment [sql|DELETE FROM comments WHERE post_id = {0}|] [q pid]
 
+--сначала проверка существования, потом провера авторизациию Если сущности нет, то считаем, что успешно удалили 0 сущностей.
 draft :: Int -> T Changed
-draft pid = delete Draft undefined []
+draft pid = do
+    existDraft <- query_ $ template [sql|SELECT drafts.content_id  FROM drafts WHERE id = {0}|] [q pid] :: T[Only Int] 
+    case existDraft of
+        [] -> return mempty 
+        [Only contentId] -> do 
+
+            authDraft pid
+
+            delete Draft [sql|DELETE FROM drafts WHERE id = {0}|] [q pid]   
+            delete Content [sql|DELETE FROM contents WHERE id = {0}|] [q contentId]   
+            execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [q contentId]   
+            delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [q contentId]
+
+
 
 comment :: Int -> T Changed
 comment pid = delete Comment [sql|DELETE FROM comments WHERE id = {0}|] [q pid] 
