@@ -57,40 +57,54 @@ category pid params = do
 draft :: Int -> ParamsMap Param -> T Changed
 draft pid params = do
     --проверка существования параметров
+    (_, _, contentId) <- checkAuthExistDraft pid
+    --let allParams = M.insert "id" (ParamEq (Int pid)) params
+    --checkExist allParams "id" [sql|SELECT 1 FROM drafts WHERE drafts.id = {0}|]
+    checkExist params "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
     
-    let allParams = M.insert "id" (ParamEq (Int pid)) params
-    checkExist allParams "id" [sql|SELECT 1 FROM drafts WHERE drafts.id = {0}|]
-    checkExist allParams "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
-
-    authDraft pid
-    
-    [Only contentId] <- query_ $ template [sql|SELECT content_id FROM drafts WHERE drafts.id = {0}|] [q pid] :: T [Only Int]
+    --[Only contentId] <- query_ $ template [sql|SELECT content_id FROM drafts WHERE drafts.id = {0}|] [q pid] :: T [Only Int]
     update Content [sql|UPDATE contents SET {0} WHERE id = {1}|] 
         [updates params ["name", "category_id", "text", "photo"], q contentId]
-    
-    where 
 
-authDraft :: Int -> T ()
-authDraft pid = do
-    userIdParam <- authUserIdParam
-    --let cond = []
-    exist <- query_ $ [sql|
-        SELECT 1 FROM drafts
+--проверка существования вместе с авторизацией, для запросов update и delete
+checkAuthExistDraft :: Int -> T (Int, Int, Int)
+checkAuthExistDraft pid = do
+    let query = [sql|
+        SELECT users.id, authors.id, contents.id FROM drafts
         LEFT JOIN contents ON contents.id = drafts.content_id
         LEFT JOIN authors ON authors.id = contents.author_id
         LEFT JOIN users ON users.id = authors.user_id
-    |] `whereAll` [cond [sql|users.id|] userIdParam, cond [sql|drafts.id|] $ ParamEq (Int pid)] :: T [Only Int]
-    case exist of
-        [] -> throwT authErrorDefault
-        _ -> return ()
+    |] `whereAll` [cond [sql|drafts.id|] $ ParamEq (Int pid)]
+    checkAuthExist pid "draft_id" query
 
 
 
--- см. Insert.draft
--- post :: Int -> ParamsMap Param -> T Changed
--- post pid params = do
---     let allParams = M.insert "id" (ParamEq (Int pid)) params
---     undefined
+
+post :: Int -> ParamsMap Param -> T Changed
+post pid params = do
+
+    (_, authorId, _) <- checkAuthExistPost pid
+    let newParams = M.insert "author_id" (ParamEq $ Int authorId) params
+    when (newParams ! "author_id" == ParamEq (Int 1)) $ throwT $ DBError "Невозможно создать черновик от удаленного автора (автора по умолчанию) id = 1"
+    checkExist newParams "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
+    [Only cid] <- query_ $ template [sql|INSERT into contents (author_id, name, creation_date, category_id, text, photo) values {0} RETURNING id|]
+        [rowEither newParams [Left "author_id", Left "name", Right [sql|current_date|], Left "category_id", Left "text", Left "photo"]] :: T[Only Int]
+    S.addChanged Insert Content 1
+    insert Draft [sql|INSERT into drafts (content_id, post_id) values ({0}, {1})|] 
+        [q cid, q pid]
+
+checkAuthExistPost :: Int -> T (Int, Int, Int) --возвращаем authorId для запроса
+checkAuthExistPost pid = do
+    --проверка на удаленного пользователя и удаленного автора!!
+    --аутентификация удаленным пользователем не пройдет. Удаленный автор привязан к удаленному пользователю.
+    --таким образом посты с удаленными авторами и пользователями сможет редактировать только админ
+    let query = [sql|
+        SELECT users.id, authors.id, contents.id FROM posts
+        LEFT JOIN contents ON contents.id = posts.content_id
+        LEFT JOIN authors ON authors.id = contents.author_id
+        LEFT JOIN users ON users.id = authors.user_id
+    |] `whereAll` [cond [sql|posts.id|] $ ParamEq (Int pid)]
+    checkAuthExist pid "post_id" query
 
 tag :: Int -> ParamsMap Param -> T Changed
 tag pid params = do
@@ -131,3 +145,17 @@ updates params names = Query.concat "," $ mapMaybe helper names where
 --         Nothing -> throwT $ AuthError "Данная функция доступна только авторам"
 --         Just 1 -> throwT $ AuthError "Невозможна аутентификация удаленного автора"
 --         Just authorId -> return $ ParamEq (Int authorId)
+
+
+checkAuthExist :: Int -> BSName -> Query ->  T (Int, Int, Int)
+checkAuthExist pid name query = do
+    exist <- query_ query
+    case exist of
+        [] -> throwT $ DBError  (template "Указан несуществующий параметр {0}: {1}" [show name, show pid]) 
+        [(uid, aid, cid)] -> do
+            auth <- S.getAuth
+            case auth of
+                AuthNo -> throwT authErrorDefault
+                AuthAdmin _ -> return (uid, aid, cid)
+                AuthUser authuid | uid == authuid -> return (uid, aid, cid)
+                _ -> throwT authErrorWrong

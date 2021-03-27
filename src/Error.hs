@@ -28,7 +28,10 @@ getStatus (SomeError s) = internalServerError500
     
 
 authErrorDefault :: E 
-authErrorDefault = AuthError $ "Данная функция требует авторизации"
+authErrorDefault = AuthError "Данная функция требует авторизации"
+
+authErrorWrong :: E
+authErrorWrong = AuthError "Неверная авторизация"
 
 instance Exception E
 

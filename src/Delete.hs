@@ -143,40 +143,26 @@ author pid = do
 --для поста каскадное удаление
 post :: Int -> T Changed 
 post pid = do 
-    --проверка на связанные сущности
-    -- checkNotExist pid "пост" "черновик" $ template [sql|
-    --     SELECT posts.id, contents.name FROM posts
-    --     LEFT JOIN contents ON contents.id = posts.content_id   
-    --     WHERE contents.author_id = {0}
-    -- |] [q pid]   
-    existPost <- query_ $ template [sql|SELECT posts.content_id  FROM posts WHERE id = {0}|] [q pid] :: T[Only Int] 
-    --[Only contentId] <- query_ $ template [sql|SELECT posts.content_id FROM posts WHERE id = {0}|] [q pid] :: T[Only Int] 
-    case existPost of
-        [] -> return mempty 
-        [Only contentId] -> do 
-            delete Post [sql|DELETE FROM posts WHERE id = {0}|] [q pid]   
-            delete Content [sql|DELETE FROM contents WHERE id = {0}|] [q contentId]   
-            delete Draft [sql|DELETE FROM drafts WHERE post_id = {0}|] [q pid] 
-            execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [q contentId]   
-            delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [q contentId]   
-            delete Comment [sql|DELETE FROM comments WHERE post_id = {0}|] [q pid]
+    (_, _, contentId) <- checkAuthExistPost pid
+    --[Only contentId] <- query_ $ template [sql|SELECT posts.content_id  FROM posts WHERE id = {0}|] [q pid] :: T[Only Int]
+    delete Post [sql|DELETE FROM posts WHERE id = {0}|] [q pid]   
+    delete Content [sql|DELETE FROM contents WHERE id = {0}|] [q contentId]   
+    delete Draft [sql|DELETE FROM drafts WHERE post_id = {0}|] [q pid] 
+    execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [q contentId]   
+    delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [q contentId]   
+    delete Comment [sql|DELETE FROM comments WHERE post_id = {0}|] [q pid]
 
---сначала проверка существования, потом провера авторизациию Если сущности нет, то считаем, что успешно удалили 0 сущностей.
 draft :: Int -> T Changed
 draft pid = do
-    existDraft <- query_ $ template [sql|SELECT drafts.content_id  FROM drafts WHERE id = {0}|] [q pid] :: T[Only Int] 
-    case existDraft of
-        [] -> return mempty 
-        [Only contentId] -> do 
+    (_, _, contentId) <- checkAuthExistDraft pid
+    --[Only contentId] <- query_ $ template [sql|SELECT drafts.content_id  FROM drafts WHERE id = {0}|] [q pid] :: T[Only Int] 
+    delete Draft [sql|DELETE FROM drafts WHERE id = {0}|] [q pid]   
+    delete Content [sql|DELETE FROM contents WHERE id = {0}|] [q contentId]   
+    execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [q contentId]   
+    delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [q contentId]
 
-            authDraft pid
-
-            delete Draft [sql|DELETE FROM drafts WHERE id = {0}|] [q pid]   
-            delete Content [sql|DELETE FROM contents WHERE id = {0}|] [q contentId]   
-            execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [q contentId]   
-            delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [q contentId]
-
-
+--для внутреннего использования - будут циклические ссылки
+-- content :: Int -> T Changed
 
 comment :: Int -> T Changed
 comment pid = delete Comment [sql|DELETE FROM comments WHERE id = {0}|] [q pid] 

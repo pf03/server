@@ -126,7 +126,7 @@ getJSON api params req = do
         API Insert [API.Author] -> encode $ Insert.author params
         API Insert [API.Category] -> encode $ Insert.category params
         API Insert [API.Tag] -> encode $ Insert.tag params
-        API Insert [API.Draft] -> encode $ Insert.draft Nothing params
+        API Insert [API.Draft] -> encode $ Insert.draft params
         API Insert [API.Draft, Id n, API.Post] -> encode $ Insert.publish n
         API Insert [API.Post, Id n, API.Comment] -> encode $ Insert.comment n params
 
@@ -135,7 +135,7 @@ getJSON api params req = do
         API Update [API.Category, Id n] -> encode $ DB.updateCategory n params
         API Update [API.Tag, Id n] -> encode $ Update.tag n params
         API Update [API.Draft, Id n] -> encode $ Update.draft n params
-        API Update [API.Post, Id n] -> encode $ Insert.draft (Just n) params
+        API Update [API.Post, Id n] -> encode $ Update.post n params
 
         API Delete [API.User, Id n] -> encode $ Delete.user n
         API Delete [API.Author, Id n] -> encode $ Delete.author n

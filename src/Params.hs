@@ -131,11 +131,11 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
                 param "text" [Eq] ParamTypeStr False
                 ]
             [API.Post, Id _] -> [
-                param "author_id" [Eq] ParamTypeInt False,
-                param "name" [Eq] ParamTypeStr False,
-                param "category_id" [Eq] ParamTypeInt False,
-                param "text" [Eq] ParamTypeStr False,
-                param "photo" [Eq] ParamTypeStr False
+                --param "author_id" [Eq] ParamTypeInt False,
+                param "name" [Eq] ParamTypeStr True,  --для создания нового контента эти параметры обязательны. Фронтенд может взять их из оригинального поста
+                param "category_id" [Eq] ParamTypeInt True,
+                param "text" [Eq] ParamTypeStr True,
+                param "photo" [Eq] ParamTypeStr True
                 ]
         
 

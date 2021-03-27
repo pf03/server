@@ -42,7 +42,7 @@ router p ["authors", n, "delete"] (AuthAdmin _) = withInt p n $ \pid -> API Dele
 router p ["categories", n, "delete"] (AuthAdmin _) = withInt p n $ \pid -> API Delete [Category, Id pid]
 router p ["tags", n, "delete"] (AuthAdmin _) = withInt p n $ \pid -> API Delete [Tag, Id pid]
 router p ["drafts", n, "delete"] a  = withUserE a $ withInt p n $ \pid -> API Delete [Draft, Id pid]
-router p ["posts", n, "delete"] (AuthAdmin _) = withInt p n $ \pid -> API Delete [Post, Id pid] 
+router p ["posts", n, "delete"] a = withUserE a $ withInt p n $ \pid -> API Delete [Post, Id pid] 
 router p ["comments", n, "delete"] a  = withUserE a $ withInt p n $ \pid -> API Delete [Comment, Id pid] 
 
 --у новости также есть еще фотографии

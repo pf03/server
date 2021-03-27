@@ -419,7 +419,7 @@ publishCases = ("publish", tuples) where
         (,) ["posts"] [], --работает
         -- 14 {"created":{"contents":1,"drafts":1}}
         (,) ["posts", "3","edit"] [
-            ("author_id", Just "3"),
+            --("author_id", Just "3"), --авторство никогда не меняется
             ("name", Just "edited_name2"),
             ("category_id", Just "4"),
             ("text", Just "edited_text2"),
@@ -428,11 +428,23 @@ publishCases = ("publish", tuples) where
         -- 15
         (,) ["drafts"] [],
         -- 16
+        (,) ["drafts", "4","edit"] [
+            --("author_id", Just "3"), --авторство никогда не меняется
+            ("name", Just "edited_name2"),
+            ("category_id", Just "4"),
+            ("text", Just "edited_text2"),
+            ("photo", Just "edited_photo2.jpg")
+        ],
+        -- 17
+        --(,) ["drafts", "4","delete"] [],
+        -- 17
         (,) ["posts"] [],
-        -- 17 {"edited":{"posts":1},"deleted":{"drafts":1}} -- ТУТ ЕЩЕ НУЖНО УДАЛИТЬ СТАРЫЙ КОНТЕНТ, а к контенту привязанные фото и теги
-        (,) ["drafts", "3","publish"] [],
-        -- 18
-        (,) ["posts", "3"] []
+        -- 18 {"edited":{"posts":1},"deleted":{"drafts":1}} -- ТУТ ЕЩЕ НУЖНО УДАЛИТЬ СТАРЫЙ КОНТЕНТ, а к контенту привязанные фото и теги
+        (,) ["drafts", "4","publish"] [],
+        -- 19
+        (,) ["posts", "3"] [],
+        -- 20
+        (,) ["posts", "3", "delete"] []
         ]
 
 cases :: [(String, [(PathInfo, Query)])]

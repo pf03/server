@@ -75,39 +75,17 @@ tag params = do
 --"author_id", "name", "creation_date", "category_id", "text", "photo", "news_id" - необязательный (ParamNo если создаем с нуля, ParamEq если к существующей новости)
 --тут еще добавить теги и фотографии
 --ндо разделить функции, сделать более прямую логику - Insert.draft и Update.post. Первая по авторизации пользователя вторая доступна и для админа
-draft :: Maybe Int -> ParamsMap Param -> T Changed
-draft mpostId params = do
-
-    authorIdParam <- authAuthorIdParam
+draft :: ParamsMap Param -> T Changed
+draft params = do
+    authorIdParam <- authAuthorIdParam 
     let newParams = M.insert "author_id" authorIdParam params
-
     when (newParams ! "author_id" == ParamEq (Int 1)) $ throwT $ DBError "Невозможно создать черновик от удаленного автора (автора по умолчанию) id = 1"
-    postIdParam <- case mpostId of 
-        Nothing -> return ParamNo
-        Just postId -> return $ ParamEq (Int postId)
-    --checkExist params "author_id" [sql|SELECT 1 FROM authors WHERE authors.id = {0}|] --уже проверили в авторизации
     checkExist newParams "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
     [Only cid] <- query_ $ template [sql|INSERT into contents (author_id, name, creation_date, category_id, text, photo) values {0} RETURNING id|] 
         [rowEither newParams [Left "author_id", Left "name", Right [sql|current_date|], Left "category_id", Left "text", Left "photo"]] :: T[Only Int]
     S.addChanged Insert Content 1
-    insert Draft [sql|INSERT into drafts (content_id, post_id) values ({0}, {1})|] 
-        [cell $ ParamEq (Int cid), cell postIdParam]
-
-
--- authDraft :: Maybe Int -> T ()
--- authDraft mpid = do
---     userIdParam <- authUserIdParam
---     case mpid 
---     --let cond = []
---     -- exist <- query_ $ [sql|
---     --     SELECT 1 FROM drafts
---     --     LEFT JOIN contents ON contents.id = drafts.content_id
---     --     LEFT JOIN authors ON authors.id = contents.author_id
---     --     LEFT JOIN users ON users.id = authors.user_id
---     -- |] `whereAll` [cond [sql|users.id|] userIdParam, cond [sql|drafts.id|] $ ParamEq (Int pid)] :: T [Only Int]
---     -- case exist of
---     --     [] -> throwT authErrorDefault
---     --     _ -> return ()
+    insert Draft [sql|INSERT into drafts (content_id) values ({0})|] 
+        [cell $ ParamEq (Int cid)]
 
 
 --опубликовать новость из черновика, черновик привязывется к новости, для дальнейшего редактирования
@@ -122,11 +100,16 @@ publish pid = do
     [(contentId, mpostId)] <- query_ $ template [sql|SELECT content_id, post_id FROM drafts WHERE drafts.id = {0}|] 
         [p $ params ! "draft_id" ] :: T [(Int, Maybe Int)]
     case mpostId of 
-        Nothing -> insert Post [sql|INSERT into posts (content_id) values ({0})|] [q contentId] --новость публикуется в первый раз
+        Nothing -> do --тут еще добавить теги и фотографии?? 
+            insert Post [sql|INSERT into posts (content_id) values ({0})|] [q contentId] --новость публикуется в первый раз
         Just postId -> do
+            [Only oldContentId] <- query_ $ template [sql|SELECT content_id FROM posts WHERE posts.id = {0}|] [q postId] :: T [Only Int]
             update Post [sql|UPDATE posts SET content_id = {0} WHERE posts.id = {1}|] [q contentId, q postId]
             --удалить старый контент с тегами и фотографиями? если он нигде не используется?
             --контент привязан или к черновику или к посту, поэтому нигде больше не используется
+            delete Content [sql|DELETE FROM contents WHERE contents.id = {0} |] [q oldContentId]
+            execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [q oldContentId]   
+            delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [q oldContentId]
     delete Draft [sql|DELETE FROM drafts WHERE drafts.id = {0}|] [p $ params ! "draft_id"]
 
 

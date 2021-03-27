@@ -76,3 +76,7 @@ SELECT id FROM users where login = 'pivan' and pass = md5 (CONCAT_WS(' ', 'pivan
 
 SELECT id FROM users where login = 'pivan' and
     pass = md5 ('pivan equalpass')
+
+
+SELECT (users.id, authors.id) FROM posts LEFT JOIN contents ON contents.id = posts.content_id
+    LEFT JOIN authors ON authors.id = contents.author_id LEFT JOIN users ON users.id = authors.user_id WHERE posts.id = 3
