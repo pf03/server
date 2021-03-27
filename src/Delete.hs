@@ -110,34 +110,24 @@ author pid = do
     when (pid == 1) $ throwT $ DBError "Невозможно удалить автора по умолчанию с id = 1"
     --проверка на связанные сущности 
     
-    updatedPosts <- fmap (fromOnly . head ) $ query_ $ template [sql|
-            SELECT COUNT(posts.id) FROM posts
-            LEFT JOIN contents ON contents.id = posts.content_id   
-            WHERE contents.author_id = {0}
-        |] [q pid] :: T Int64
-    S.addChanged Update Post updatedPosts
-    updatedDrafts <- fmap (fromOnly . head ) $ query_ $ template [sql|
-            SELECT COUNT(drafts.id) FROM drafts
-            LEFT JOIN contents ON contents.id = drafts.content_id   
-            WHERE contents.author_id = {0}
-        |] [q pid] :: T Int64
-    S.addChanged Update Draft updatedDrafts
-    Log.debugT updatedPosts
-    execute_ [sql|UPDATE contents SET author_id = 1 WHERE author_id = {0}|] [q pid] 
+    --это все заменяется на updateContents, более линейный код
+    -- updatedPosts <- fmap (fromOnly . head ) $ query_ $ template [sql|
+    --         SELECT COUNT(posts.id) FROM posts
+    --         LEFT JOIN contents ON contents.id = posts.content_id   
+    --         WHERE contents.author_id = {0}
+    --     |] [q pid] :: T Int64
+    -- S.addChanged Update Post updatedPosts
+    -- updatedDrafts <- fmap (fromOnly . head ) $ query_ $ template [sql|
+    --         SELECT COUNT(drafts.id) FROM drafts
+    --         LEFT JOIN contents ON contents.id = drafts.content_id   
+    --         WHERE contents.author_id = {0}
+    --     |] [q pid] :: T Int64
+    -- S.addChanged Update Draft updatedDrafts
+    -- Log.debugT updatedPosts
+    update Content [sql|UPDATE contents SET author_id = 1 WHERE author_id = {0}|] [q pid] 
     --удаление делается в последнюю очередь
     delete Author [sql|DELETE FROM authors WHERE id = {0}|] [q pid]
     -- undefined
-
-    -- return $ M.fromList [
-    --         ("edited", M.fromList [("posts", updatedPosts),("drafts", updatedDrafts)]),
-    --         ("deleted", M.fromList [("authors", deletedAuthors)])
-    --     ]
-
-    -- return $ mempty {
-    --     created = mempty,
-    --     edited = mempty {posts = updatedPosts, drafts = updatedDrafts},
-    --     deleted = mempty {authors = deletedAuthors}
-    -- }
 
 
 --для поста каскадное удаление
