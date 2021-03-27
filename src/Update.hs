@@ -29,13 +29,16 @@ import Select
 import qualified State as S
 import Error
 
+--редактирование пароля не верно
 user :: Int -> ParamsMap Param -> T Changed
 user pid params = do
     let allParams = M.insert "id" (ParamEq (Int pid)) params
-    checkExist allParams "id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
+    checkExist allParams "id" [sql|SELECT 1 FROM users WHERE users.id = {0}|] 
+    [Only login] <- query_ $ template [sql|SELECT users.login FROM users WHERE users.id = {0}|] [q pid]  --это можно включить в checkExist
+    let allParams = M.insert "login" (ParamEq (Str login)) params
     --{0} может быть пустым
     update User [sql|UPDATE users SET {0} WHERE id = {1}|] 
-        [updates params ["first_name", "last_name", "avatar", "pass"], q pid]
+        [updates allParams ["first_name", "last_name", "avatar", "pass"], q pid]
         --[updates params []]
 
 author :: Int -> ParamsMap Param -> T Changed
@@ -120,7 +123,8 @@ updates params names = Query.concat "," $ mapMaybe helper names where
     helper name = upd (q name) (params ! name)
 
     upd :: Query -> Param -> Maybe Query 
-    upd "pass" (ParamEq v) = Just $ template [sql|pass = md5({0})|] [val v] --костыль для pass
+    --upd "pass" (ParamEq v) = Just $ template [sql|pass = md5({0})|] [val v] --костыль для pass --так не работает
+    upd "pass" (ParamEq v) = Just $ template [sql|pass = md5 (CONCAT_WS(' ', {0}, {1}))|] [p $ params ! "login", val v] -- логина может и не быть, нужно его получить дополнительно
     upd field (ParamEq v) = Just $ template [sql|{0} = {1}|] [field, val v]
     upd field ParamNo = Nothing 
     upd field ParamNull = Just $ template [sql|{0} = null|] [field]

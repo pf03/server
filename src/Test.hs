@@ -244,7 +244,9 @@ userCases :: (String, [(PathInfo, Query)])
 userCases = ("user", tuples) where
     tuples = [
             --CREATE--
-            (,) ["users"] [],
+            (,) ["users"] [], --только для админа
+            (,) ["user"] [],  --для авторизованного
+            (,) ["users", "3"] [],  --только для админа
             -- {"created":{"users":1}}
             (,) ["users", "create"] [
                     ("last_name", Just "last_name"),
@@ -261,6 +263,8 @@ userCases = ("user", tuples) where
                     ("login", Just "login"),
                     ("pass", Just "pass")
                 ],
+
+            
             --EDIT--
             (,) ["users"] [],
             -- Ошибка веб-запроса: Необходимо указать хотя бы один параметр для редактирвания из следующего списка : ["avatar","first_name","last_name","pass"]
@@ -269,13 +273,24 @@ userCases = ("user", tuples) where
             (,) ["users", "0", "edit"] [("last_name", Just "new_last_name")],
             (,) ["users", "8", "edit"] [("last_name", Just "new_last_name")],
             (,) ["users", "8", "edit"] [("pass", Just "new_pass")],
+
+            
+
             (,) ["users", "8", "edit"] [
                     ("last_name", Just "foo"),
                     ("first_name", Just "bar"),
-                    ("avatar", Just "foo.jpg"), --подумать над загрузкой фото
+                    ("avatar", Just "foo.jpg"), 
                     ("pass", Just "foo")
                 ],
-            (,) ["users","8"] [],
+
+            (,) ["login"] [("login", Just "login"),("pass", Just "foo")],  --проверка логина после редактирвоания - работает
+            
+            (,) ["user", "edit"] [
+                    ("last_name", Just "edited"),
+                    ("first_name", Just "edited"),
+                    ("avatar", Just "edited.jpg")
+                ],
+            (,) ["users"] [],
             (,) ["authors"] [],
             -- (,) ["posts"] [],
             --DELETE--
@@ -360,6 +375,9 @@ logins = [
 
 publishCaseswithAuth :: (String, [(PathInfo, Query)])
 publishCaseswithAuth = (,) (fst publishCases) $ concat $ for (snd publishCases) $ \c -> concat $ for logins $ \login -> [(["login"], login), c]
+
+casesWithAuth :: (String, [(PathInfo, Query)]) -> (String, [(PathInfo, Query)])
+casesWithAuth cases = (,) (fst cases) $ concat $ for (snd cases) $ \c -> concat $ for logins $ \login -> [(["login"], login), c]
 
 publishCases :: (String, [(PathInfo, Query)])
 publishCases = ("publish", tuples) where
@@ -456,11 +474,11 @@ cases = [
     -- tagCases,
     -- insertCategoryCases,
     --updateCategoryCases,
-    --userCases,
+    casesWithAuth userCases,
     --deletePostCases,
     --commentsCases,
     --publishCases,
-    publishCaseswithAuth,
+    --publishCaseswithAuth,
     --authTagCases,
     ("fake", [])
     ]

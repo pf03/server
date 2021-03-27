@@ -124,7 +124,7 @@ user :: ParamsMap Param -> T Changed
 user params = do
     checkNotExist "Пользователь" params "login" [sql|SELECT 1 FROM users WHERE users.login = {0}|]
     insert User [sql|INSERT into users (last_name, first_name, avatar, login, pass, creation_date, is_admin) values {0}|]
-        [rowEither params [Left "last_name", Left "first_name", Left "avatar", Left "login", Right $ template [sql|md5({0}), current_date, FALSE|] [cell(params ! "pass")]]]
+        [rowEither params [Left "last_name", Left "first_name", Left "avatar", Left "login", Right $ template [sql|md5 (CONCAT_WS(' ', {0}, {1})), current_date, FALSE|] [cell(params ! "login"), cell(params ! "pass")]]]  --нужен рефакторинг
 
 
 

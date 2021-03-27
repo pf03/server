@@ -12,7 +12,8 @@ import qualified Data.ByteString as B
 import Common
 import Error
 
---роутер проверяет только роли, а не соответстсвие id в токене и id в апи и params
+--роутер проверяет только роли, иногда id, НО роутер не использует БД (у него даже нет доступа к соединению)
+--использование БД в компетенции АПИ функций.
 router :: B.ByteString -> PathInfo -> Auth -> Except E API
 ---AUTH---
 router _ ["login"] _ = return $ API Auth []
@@ -29,7 +30,8 @@ router p ["drafts", n, "publish"] (AuthAdmin _) = withInt p n $ \pid -> API Inse
 router p ["posts", n, "comments", "create"] a  = withUserE a $ withInt p n $ \pid -> API Insert [Post, Id pid, Comment]
 
 ---UPDATE---
-router p ["users", n, "edit"] a  = withUserE a $ withInt p n $ \pid -> API Update [User, Id pid]
+router p ["users", n, "edit"] (AuthAdmin _)  = withInt p n $ \pid -> API Update [User, Id pid]
+router p ["user", "edit"] a  = withAuth a $ \pid -> API Update [User, Id pid]
 router p ["authors", n, "edit"] (AuthAdmin _) = withInt p n $ \pid -> API Update [Author, Id pid]
 router p ["categories", n, "edit"] (AuthAdmin _) = withInt p n $ \pid -> API Update [Category, Id pid]
 router p ["tags", n, "edit"] (AuthAdmin _) = withInt p n $ \pid -> API Update [Tag, Id pid]
@@ -47,8 +49,8 @@ router p ["comments", n, "delete"] a  = withUserE a $ withInt p n $ \pid -> API 
 
 --у новости также есть еще фотографии
 ---SELECT MANY---
-router _ ["users"] _ = return $ API Select [User]
-router _ ["authors"] _ = return $ API Select [Author]
+router _ ["users"] (AuthAdmin _) = return $ API Select [User]
+router _ ["authors"] (AuthAdmin _) = return $ API Select [Author]
 router _ ["categories"] _ = return $ API Select [Category]
 router _ ["tags"] _ = return $ API Select [Tag]
 router _ ["posts"] _ = return $ API Select [Post]
@@ -56,7 +58,8 @@ router _ ["drafts"] _ = return $ API Select [Draft]
 router _ ["posts", n, "comments"] _ = withInt "post_id" n $ \pid -> API Select [Post, Id pid, Comment]
 
 --SELECT BY ID---
-router p ["users", n ] _ = withInt p n $ \pid -> API SelectById [User, Id pid]
+router p ["users", n] (AuthAdmin _) = withInt p n $ \pid -> API SelectById [User, Id pid]
+router p ["user"] a = withAuth a $ \pid -> API SelectById [User, Id pid] --получение своего пользователя (здесь используется не только роль, но и id пользователя, НО роутер не использует БД)
 router p ["authors", n] _ = withInt p n $ \pid -> API SelectById [Author, Id pid]
 router p ["categories", n] _ = withInt p n $ \pid -> API SelectById [Category, Id pid]
 router p ["tags", n] _ = withInt p n $ \pid -> API SelectById [Tag, Id pid]
@@ -72,6 +75,8 @@ router p _ _ = unknownPath p
 -- helper api name text = do
 --     int <- ereadInt (show name) text
 --     return (API Update Tag, M.fromList [(name, ParamEq (Int int))])
+
+
 
 ereadInt :: B.ByteString -> Text -> Except E Int 
 ereadInt p text = do
@@ -96,6 +101,13 @@ withUserE _ eapi = eapi
 withUser :: Auth -> API -> Except E API
 withUser AuthNo _ = throwE authErrorDefault
 withUser _ api = return api
+
+withAuth :: Auth -> (Int -> API) -> Except E API
+withAuth AuthNo f = throwE authErrorDefault
+withAuth (AuthAdmin uid) f = return $ f uid
+withAuth (AuthUser uid) f = return $ f uid
+
+    
 
 user :: Auth -> Bool 
 user AuthNo = False 
