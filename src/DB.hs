@@ -139,6 +139,7 @@ getJSON api params req = do
 
         API Delete [API.User, Id n] -> encode $ Delete.user n
         API Delete [API.Author, Id n] -> encode $ Delete.author n
+        API Delete [API.Category, Id n] -> encode $ Delete.category n
         API Delete [API.Post, Id n] -> encode $ Delete.post n
         API Delete [API.Draft, Id n] -> encode $ Delete.draft n
         API Delete [API.Comment, Id n] -> encode $ Delete.comment n

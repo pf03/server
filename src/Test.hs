@@ -122,7 +122,7 @@ updateAuthorCases = ("author", tuples) where
         ]
 
 deleteAuthorCases :: (String, [(PathInfo, Query)])
-deleteAuthorCases = ("updateAuthor", tuples) where
+deleteAuthorCases = ("deleteAuthor", tuples) where
     tuples = [
             (,) ["authors"] [],
             (,) ["posts"] [],
@@ -240,6 +240,44 @@ updateCategoryCases = ("updateCategory", tuples) where
             (,) ["categories"] []
         ]
 
+
+deleteCategoryCases :: (String, [(PathInfo, Query)])
+deleteCategoryCases = ("deleteCategory", tuples) where
+    tuples = [
+            (,) ["login"] [("login", Just "admin"),("pass", Just "123456")],
+            (,) ["categories"] [],
+            (,) ["categories", "0", "delete"] [], -- {}
+            (,) ["categories", "1", "delete"] [],
+            (,) ["categories", "2", "delete"] [],
+
+            --редактируем черновик
+            (,) ["drafts", "1","edit"] [
+                ("category_id", Just "4")
+                ],
+
+            (,) ["categories", "2", "delete"] [],
+
+            --редактируем пост
+            (,) ["posts", "2","edit"] [
+                    ("name", Just "edited_name2"),
+                    ("category_id", Just "4"),
+                    ("text", Just "edited_text2"),
+                    ("photo", Just "edited_photo2.jpg")
+                ],
+
+            (,) ["drafts"] [],
+
+            --и публикуем
+
+            (,) ["drafts", "2","publish"] [], 
+
+            --и пытаемся снова.. успех! да, удалить категорию непросто
+            (,) ["categories", "2", "delete"] [],
+            (,) ["categories", "8", "delete"] [],
+            (,) ["categories"] []
+        ]
+
+
 userCases :: (String, [(PathInfo, Query)])
 userCases = ("user", tuples) where
     tuples = [
@@ -275,7 +313,7 @@ userCases = ("user", tuples) where
             (,) ["users", "8", "edit"] [("pass", Just "new_pass")],
 
             
-
+            -- 11
             (,) ["users", "8", "edit"] [
                     ("last_name", Just "foo"),
                     ("first_name", Just "bar"),
@@ -293,7 +331,7 @@ userCases = ("user", tuples) where
             (,) ["users"] [],
             (,) ["authors"] [],
             -- (,) ["posts"] [],
-            --DELETE--
+            --DELETE--16
             (,) ["users", "0", "delete"] [], -- {}
             (,) ["users", "1", "delete"] [], -- Ошибка базы данных: Невозможно удалить пользователя по умолчанию с id = 1
             (,) ["users", "2", "delete"] [], -- Ошибка базы данных: Невозможно удалить админа с id = 2
@@ -362,22 +400,7 @@ commentsCases = ("selectComment", tuples) where
 --отдельное апи для загрузки фотографии? Фотографию можно привязать по ид или по имени?? или загрузить новую?
 --прогнать одни и те же тесты с разнми логинами и без такового!
 
---каждый тест проходится с одним из логинов: , , . Тест с админом отдельно (все функции должны быть доступны)
 
-logins :: [Query]
-logins = [
-        [("login", Just "fake"),("pass", Just "fake")],  --не авторизован
-        [("login", Just "pivan"),("pass", Just "equalpass")],  -- иванов (не автор)
-        [("login", Just "vmayakovskiy"),("pass", Just "vmayakovskiypass")],  --удаленный автор
-        [("login", Just "psergey"),("pass", Just "psergeypass")],  --пушкин (автор)
-        [("login", Just "admin"),("pass", Just "123456")]  --админ
-    ]
-
-publishCaseswithAuth :: (String, [(PathInfo, Query)])
-publishCaseswithAuth = (,) (fst publishCases) $ concat $ for (snd publishCases) $ \c -> concat $ for logins $ \login -> [(["login"], login), c]
-
-casesWithAuth :: (String, [(PathInfo, Query)]) -> (String, [(PathInfo, Query)])
-casesWithAuth cases = (,) (fst cases) $ concat $ for (snd cases) $ \c -> concat $ for logins $ \login -> [(["login"], login), c]
 
 publishCases :: (String, [(PathInfo, Query)])
 publishCases = ("publish", tuples) where
@@ -465,16 +488,35 @@ publishCases = ("publish", tuples) where
         (,) ["posts", "3", "delete"] []
         ]
 
+--каждый тест проходится с одним из логинов: , , . Тест с админом отдельно (все функции должны быть доступны)
+
+logins :: [Query]
+logins = [
+        [("login", Just "fake"),("pass", Just "fake")],  --не авторизован
+        [("login", Just "pivan"),("pass", Just "equalpass")],  -- иванов (не автор)
+        [("login", Just "vmayakovskiy"),("pass", Just "vmayakovskiypass")],  --удаленный автор
+        [("login", Just "psergey"),("pass", Just "psergeypass")],  --пушкин (автор)
+        [("login", Just "admin"),("pass", Just "123456")]  --админ
+    ]
+
+publishCaseswithAuth :: (String, [(PathInfo, Query)])
+publishCaseswithAuth = (,) (fst publishCases) $ concat $ for (snd publishCases) $ \c -> concat $ for logins $ \login -> [(["login"], login), c]
+
+casesWithAuth :: (String, [(PathInfo, Query)]) -> (String, [(PathInfo, Query)])
+casesWithAuth cases = (,) (fst cases) $ concat $ for (snd cases) $ \c -> concat $ for logins $ \login -> [(["login"], login), c]
+
+
 cases :: [(String, [(PathInfo, Query)])]
 cases = [
     -- selectPostCases,
-    -- insertAuthorCases,
-    --updateAuthorCases,
-    -- deleteAuthorCases,
+    -- casesWithAuth insertAuthorCases,
+    -- updateAuthorCases,
+    -- casesWithAuth deleteAuthorCases,
     -- tagCases,
     -- insertCategoryCases,
     --updateCategoryCases,
-    casesWithAuth userCases,
+    deleteCategoryCases,
+    --casesWithAuth userCases,
     --deletePostCases,
     --commentsCases,
     --publishCases,
@@ -492,8 +534,8 @@ cases = [
 
 -- --ВНИМАНИЕ!!! Данная функция для корректного тестирования сбрасывает БД до изначального состояния!
 --отслеживать выходной json можно в файле response.json (vscode обновляет автоматически)
-testCases :: IO ()
-testCases = runT $ do
+test :: IO ()
+test = runT $ do
     Migrations.allForce  --сброс БД!!!
     forM_ cases $ uncurry listOfTestCasesByOne
     Log.colorTextT Color.Blue Log.Debug  "Все запросы завершены..."

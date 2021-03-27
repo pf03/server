@@ -60,7 +60,7 @@ router _ ["posts", n, "comments"] _ = withInt "post_id" n $ \pid -> API Select [
 --SELECT BY ID---
 router p ["users", n] (AuthAdmin _) = withInt p n $ \pid -> API SelectById [User, Id pid]
 router p ["user"] a = withAuth a $ \pid -> API SelectById [User, Id pid] --получение своего пользователя (здесь используется не только роль, но и id пользователя, НО роутер не использует БД)
-router p ["authors", n] _ = withInt p n $ \pid -> API SelectById [Author, Id pid]
+router p ["authors", n] (AuthAdmin _) = withInt p n $ \pid -> API SelectById [Author, Id pid]
 router p ["categories", n] _ = withInt p n $ \pid -> API SelectById [Category, Id pid]
 router p ["tags", n] _ = withInt p n $ \pid -> API SelectById [Tag, Id pid]
 router p ["posts", n] _ = withInt p n $ \pid -> API SelectById [Post, Id pid]

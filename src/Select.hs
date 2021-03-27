@@ -42,9 +42,6 @@ selectUsersQuery = [sql|SELECT * FROM users|]
 usersQuery :: ParamsMap Param -> Query
 usersQuery params = selectUsersQuery <+> pagination (params ! "page")
 
--- checkUser :: Param -> T Bool
--- checkUser param = isJust <$> Select.user param
-
 -------------------------------Author---------------------------------------------------------
 type Author = Row.Author :. Row.User
 
@@ -64,8 +61,7 @@ authorsQuery :: ParamsMap Param -> Query
 authorsQuery params = selectAuthorsQuery <+> pagination (params ! "page")
 
 ----------------------------Category-----------------------------------------------------------
---категории возвращаются все без пагинации, считается, что их немного
---можно сделать запрос без пагинации для внутреннего использования и с пагинацией для внешнего
+--запрос без пагинации для внутреннего использования и с пагинацией для внешнего
 type Category = Row.Category 
 
 category::  Int -> T (Maybe Category)

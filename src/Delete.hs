@@ -33,108 +33,33 @@ import qualified State as S
 import Select
 import Update
 
---перенес в Types пока
--- data Changed = Changed {
---     created :: Modified,
---     edited :: Modified,
---     deleted :: Modified
---     } deriving (Show, Generic)
+-- Удаление 4 типов
+-- 1. Удаленная сущность заменяется на значение по умолчанию. Используется для users и authors
+-- 2. Каскадное удаление вместе с привязанными сущностями. Используется для posts и drafts
+-- 3. Удаление строго по условию, если к данной сущности ничего не привязано. Сначала нужно отредактировать или удалить 
+--связанные сущности, а потом продолжить удаление. Используется для categories.
+-- 4. Простое удаление, если от сущности ничего не зависит. Используется для comments
 
--- instance Semigroup Changed where 
---     (<>) = mappend
-
--- instance Monoid Changed where
---     mempty = Changed mempty mempty mempty
---     mappend (Changed a1 b1 c1) (Changed a2 b2 c2) = Changed (mappend a1 a2) (mappend b1 b2) (mappend c1 c2)
-
--- instance ToJSON Changed
-
--- data Modified = Modified {
---     users :: Int64,
---     authors :: Int64,
---     cetegories :: Int64,
---     tags :: Int64,
---     posts :: Int64,
---     drafts :: Int64,
---     photos :: Int64,
---     comments :: Int64
--- } deriving (Show, Generic)
-
--- instance ToJSON Modified
--- instance Semigroup Modified where 
---     (<>) = mappend
-
--- instance Monoid Modified where
---     mempty = Modified 0 0 0 0 0 0 0 0
---     mappend (Modified a1 b1 c1 d1 e1 f1 g1 h1) (Modified a2 b2 c2 d2 e2 f2 g2 h2) = Modified (a1 + a2) (b1 + b2) (c1 + c2) (d1 + d2) (e1 + e2) (f1 + f2) (g1 + g2) (h1 + h2)
-
---связанные сущности - авторы, комменты 
---юзер удаляется, автор привязывается к дефолтному юзеру
+--юзер удаляется, автор привязывается к дефолтному юзеру, авторизация админ на уровне роутера
 user :: Int -> T Changed
 user pid = do 
     when (pid == 1) $ throwT $ DBError "Невозможно удалить пользователя по умолчанию с id = 1"
     when (pid == 2) $ throwT $ DBError "Невозможно удалить админа с id = 2"
-    --проверка на связанные сущности
-    -- checkNotExist pid "автора" "новости" $ template [sql|
-    --     SELECT posts.id, contents.name FROM posts
-    --     LEFT JOIN contents ON contents.id = posts.content_id   
-    --     WHERE contents.author_id = {0}
-    -- |] [q pid]   
-
-    --set default user
-    existAuthor <- query_ $ template [sql|SELECT id FROM authors WHERE user_id = {0}|] [q pid] :: T[Only Int] 
-    case existAuthor of 
-        [Only author] -> update Author [sql|UPDATE authors SET user_id = 1 WHERE user_id = {0}|] [q pid]
-        [] -> return mempty
+    update Author [sql|UPDATE authors SET user_id = 1 WHERE user_id = {0}|] [q pid]
     update Comment [sql|UPDATE comments SET user_id = 1 WHERE user_id = {0}|] [q pid]
     delete User [sql|DELETE FROM users WHERE id = {0}|] [q pid]
 
-
---юзеров и авторов на практике удаляют часто, поэтому весь контент ими созданный нужно переписать на удаленного юзера. Или же самого юзера пометить в базе данных как удаленного
---тогда в других апи нужно это обрабатывать
--- author :: Int -> T Changed
--- author pid = do 
---     --проверка на связанные сущности
---     checkNotExist pid "автора" "новости" $ template [sql|
---         SELECT posts.id, contents.name FROM posts
---         LEFT JOIN contents ON contents.id = posts.content_id   
---         WHERE contents.author_id = {0}
---     |] [q pid]   
---     authors <- execute_ $ template [sql|DELETE FROM authors WHERE id = {0}|] [q pid]
---     return $ mempty {Delete.deleted = mempty {Delete.authors = authors}}
-
---связанные сущности - контент, пост, черновик 
---юзер удаляется, автор привязывается к дефолтному юзеру
+--юзер удаляется, автор привязывается к дефолтному юзеру, авторизация админ на уровне роутера
 author :: Int -> T Changed
 author pid = do 
     when (pid == 1) $ throwT $ DBError "Невозможно удалить автора по умолчанию с id = 1"
-    --проверка на связанные сущности 
-    
-    --это все заменяется на updateContents, более линейный код
-    -- updatedPosts <- fmap (fromOnly . head ) $ query_ $ template [sql|
-    --         SELECT COUNT(posts.id) FROM posts
-    --         LEFT JOIN contents ON contents.id = posts.content_id   
-    --         WHERE contents.author_id = {0}
-    --     |] [q pid] :: T Int64
-    -- S.addChanged Update Post updatedPosts
-    -- updatedDrafts <- fmap (fromOnly . head ) $ query_ $ template [sql|
-    --         SELECT COUNT(drafts.id) FROM drafts
-    --         LEFT JOIN contents ON contents.id = drafts.content_id   
-    --         WHERE contents.author_id = {0}
-    --     |] [q pid] :: T Int64
-    -- S.addChanged Update Draft updatedDrafts
-    -- Log.debugT updatedPosts
     update Content [sql|UPDATE contents SET author_id = 1 WHERE author_id = {0}|] [q pid] 
-    --удаление делается в последнюю очередь
     delete Author [sql|DELETE FROM authors WHERE id = {0}|] [q pid]
-    -- undefined
-
 
 --для поста каскадное удаление
 post :: Int -> T Changed 
 post pid = do 
     (_, _, contentId) <- checkAuthExistPost pid
-    --[Only contentId] <- query_ $ template [sql|SELECT posts.content_id  FROM posts WHERE id = {0}|] [q pid] :: T[Only Int]
     delete Post [sql|DELETE FROM posts WHERE id = {0}|] [q pid]   
     delete Content [sql|DELETE FROM contents WHERE id = {0}|] [q contentId]   
     delete Draft [sql|DELETE FROM drafts WHERE post_id = {0}|] [q pid] 
@@ -142,21 +67,44 @@ post pid = do
     delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [q contentId]   
     delete Comment [sql|DELETE FROM comments WHERE post_id = {0}|] [q pid]
 
+--для черновика каскадное удаление
 draft :: Int -> T Changed
 draft pid = do
     (_, _, contentId) <- checkAuthExistDraft pid
-    --[Only contentId] <- query_ $ template [sql|SELECT drafts.content_id  FROM drafts WHERE id = {0}|] [q pid] :: T[Only Int] 
     delete Draft [sql|DELETE FROM drafts WHERE id = {0}|] [q pid]   
     delete Content [sql|DELETE FROM contents WHERE id = {0}|] [q contentId]   
     execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [q contentId]   
     delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [q contentId]
 
---для внутреннего использования - будут циклические ссылки
--- content :: Int -> T Changed
-
 comment :: Int -> T Changed
 comment pid = delete Comment [sql|DELETE FROM comments WHERE id = {0}|] [q pid] 
 
+--удаление строго по условию, если не привязаны другие категории и контент
+category :: Int -> T Changed
+category pid = do
+    --проверка на связанные сущности
+    checkNotExist pid "категорию" "дочерние категории" $ template [sql|
+        SELECT id, category_name FROM categories
+        WHERE categories.parent_id = {0}
+    |] [q pid]
+
+    checkNotExist pid "категорию" "черновики" $ template [sql|
+        SELECT drafts.id, contents.name FROM drafts
+        LEFT JOIN contents ON contents.id = drafts.content_id   
+        LEFT JOIN categories ON categories.id = contents.category_id  
+        WHERE categories.id = {0}
+    |] [q pid]
+
+    checkNotExist pid "категорию" "посты" $ template [sql|
+        SELECT posts.id, contents.name FROM posts
+        LEFT JOIN contents ON contents.id = posts.content_id   
+        LEFT JOIN categories ON categories.id = contents.category_id  
+        WHERE categories.id = {0}
+    |] [q pid]
+
+    delete Category [sql|DELETE FROM categories WHERE id = {0}|] [q pid] 
+
+-- используется для категорий
 checkNotExist :: Int -> String -> String -> Query -> T() 
 checkNotExist pid name1 name2 templ = do
     results <- query_ $ template templ [q pid] :: T [(Int, String)]
@@ -166,16 +114,3 @@ checkNotExist pid name1 name2 templ = do
             showResults = concatMap helper results
             helper :: (Int, String) -> String 
             helper (pid2, name2) = template "id = {0}, name = {1}\n" [show pid2, name2]
-
-
--- strdddd = "CREATE TABLE IF NOT EXISTS mails ( \
---             \    id TEXT PRIMARY KEY NOT NULL, \
---             \    \"from\" TEXT NOT NULL, \
---             \    \"to\" TEXT NOT NULL, \
---             \    subject TEXT NOT NULL, \
---             \    source TEXT NOT NULL \
---             \)"
-
-        -- SELECT (posts.id, contents.name) FROM posts  --в скобках row
-        -- LEFT JOIN contents ON contents.id = posts.content_id   
-        -- WHERE contents.author_id = {0}
