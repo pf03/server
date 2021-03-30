@@ -62,6 +62,7 @@ login params  = do
     --Log.debugT users
     case users of 
         [(userId, isAdmin)]  -> do
+            Log.debugT users
             when (userId == 1) $ throwT $ AuthError "Невозможно авторизоваться удаленным пользователем" 
             let role = if isAdmin then "admin" else "user"
             toT $ genToken userId role 

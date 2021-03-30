@@ -151,7 +151,13 @@ tagCases = ("insertTag", queries) where
             --Ошибка базы данных: Тег с таким "name" = "some_tag" уже существует
             (,) ["tags", "create"][("name", Just "some_tag")],
 
-            (,) ["tags", "10", "edit"][("name", Just "some_new_tag")],         (,) ["tags"] []
+            (,) ["tags", "10", "edit"][("name", Just "some_new_tag")],         (,) ["tags"] [],
+
+            (,) ["posts"] [],
+
+            --каскадное удаление (удаляются привязки к посту и черновику)
+            (,) ["tags", "2", "delete"] [],         (,) ["tags"] [],   (,) ["posts"] []
+
         ]
 
 authTagCases :: (String, [(PathInfo, Query)])
@@ -268,7 +274,6 @@ deleteCategoryCases = ("deleteCategory", tuples) where
             (,) ["drafts"] [],
 
             --и публикуем
-
             (,) ["drafts", "2","publish"] [], 
 
             --и пытаемся снова.. успех! да, удалить категорию непросто
@@ -276,7 +281,6 @@ deleteCategoryCases = ("deleteCategory", tuples) where
             (,) ["categories", "8", "delete"] [],
             (,) ["categories"] []
         ]
-
 
 userCases :: (String, [(PathInfo, Query)])
 userCases = ("user", tuples) where
@@ -341,8 +345,6 @@ userCases = ("user", tuples) where
             (,) ["posts"] []
         ]
 
-
-
 deletePostCases :: (String, [(PathInfo, Query)])
 deletePostCases = ("deletePost", tuples) where
     tuples = [
@@ -363,33 +365,24 @@ commentsCases = ("selectComment", tuples) where
 
             -- Ошибка базы данных: Указан несуществующий параметр "post_id": 666
             (,) ["posts", "666", "comments", "create"] [
-                ("user_id", Just "2"),
+                --("user_id", Just "2"),
                 ("text", Just "Some new comment to wrong post")
-                ],
-
-            -- Ошибка базы данных: Указан несуществующий параметр "user_id": 666
-            (,) ["posts", "1", "comments", "create"] [
-                ("user_id", Just "666"),
-                ("text", Just "Some new comment from wrong user")
-                ],
-
-            -- Ошибка базы данных: Невозможно создать комментарий от удаленного пользователя (пользователя по умолчанию) id = 1
-            (,) ["posts", "1", "comments", "create"] [
-                ("user_id", Just "1"),
-                ("text", Just "Some new comment from deleted user")
                 ],
 
             -- {"created": {"comments": 1}}
             (,) ["posts", "1", "comments", "create"] [
-                ("user_id", Just "2"),
                 ("text", Just "Some new comment from right user")
                 ],
+            (,) ["posts", "1", "comments"] [],
 
             -- {"edited":{"comments":1},"deleted":{"users":1}}
             (,) ["users", "3", "delete"] [],        (,) ["posts", "1", "comments"] [],
 
             -- {"deleted":{"comments":1}}
             (,) ["comments", "2", "delete"] [],     (,) ["posts", "1", "comments"] [],
+
+            -- {"deleted":{"comments":1}}
+            (,) ["comments", "6", "delete"] [],     (,) ["posts", "1", "comments"] [],
             
             -- {"deleted":{"photos":2,"comments":3,"posts":1}}
             (,) ["posts", "1", "delete"] [],        (,) ["posts", "1", "comments"] []
@@ -399,8 +392,6 @@ commentsCases = ("selectComment", tuples) where
 --проверить отдельно в БД, не остаются ли лишние contents, не привязанные к drafts или news
 --отдельное апи для загрузки фотографии? Фотографию можно привязать по ид или по имени?? или загрузить новую?
 --прогнать одни и те же тесты с разнми логинами и без такового!
-
-
 
 publishCases :: (String, [(PathInfo, Query)])
 publishCases = ("publish", tuples) where
@@ -493,6 +484,7 @@ publishCases = ("publish", tuples) where
 logins :: [Query]
 logins = [
         [("login", Just "fake"),("pass", Just "fake")],  --не авторизован
+        --[("login", Just "DELETED_USER"),("pass", Just "DELETED_USER")],  --удаленный
         [("login", Just "pivan"),("pass", Just "equalpass")],  -- иванов (не автор)
         [("login", Just "vmayakovskiy"),("pass", Just "vmayakovskiypass")],  --удаленный автор
         [("login", Just "psergey"),("pass", Just "psergeypass")],  --пушкин (автор)
@@ -512,13 +504,13 @@ cases = [
     -- casesWithAuth insertAuthorCases,
     -- updateAuthorCases,
     -- casesWithAuth deleteAuthorCases,
-    -- tagCases,
+    casesWithAuth tagCases,
     -- insertCategoryCases,
-    --updateCategoryCases,
-    deleteCategoryCases,
+    -- updateCategoryCases,
+    -- deleteCategoryCases,
     --casesWithAuth userCases,
     --deletePostCases,
-    --commentsCases,
+    --casesWithAuth commentsCases,
     --publishCases,
     --publishCaseswithAuth,
     --authTagCases,
@@ -565,15 +557,16 @@ listOfTestCasesByOne name qs = do
             newmt <- case pathInfo of
                 ["login"] -> do 
                     Log.off
-                    str <- catchT (DB.getJSONTest (convert $ show pathInfo) pathInfo query query headers) (\e -> return "")
+                    --str <- catchT (DB.getJSONTest (convert $ show pathInfo) pathInfo query query headers) (\e -> return "")
                     catchT (do 
+                        str <- DB.getJSONTest (convert $ show pathInfo) pathInfo query query headers
                         tmp <- toT . (Just <$>) . typeError ParseError . eitherDecode $ str
                         Log.colorTextT Color.Green Log.Debug $ template "Аутентификация успешно завершена, токен: {0} . Нажмите Enter для следующего теста, q + Enter для выхода или номер_теста + Enter..." [show tmp]
                         return tmp
                         ) 
                     
                         (\e -> do
-                        Log.colorTextT Color.Yellow Log.Debug  "Ошибка аутентификации!"
+                        Log.colorTextT Color.Yellow Log.Debug $ show e
                         return Nothing)
                 _ -> do 
                     Log.on

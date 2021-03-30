@@ -94,7 +94,7 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
             [API.Draft, Id n, Post] -> [] --publish
             [API.Post] -> [] --[param "draft_id" [Eq] ParamTypeInt True] --draft_id уже в роутере
             [API.Post, Id n, API.Comment] -> [
-                param "user_id" [Eq] ParamTypeInt True,
+                --param "user_id" [Eq] ParamTypeInt True,  --это из авторизации
                 --param "creation_date" [Eq] ParamTypeDate True,   --дата берется на серваке
                 param "text" [Eq] ParamTypeStr True
                 ]

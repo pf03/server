@@ -77,7 +77,9 @@ draft pid = do
     delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [q contentId]
 
 comment :: Int -> T Changed
-comment pid = delete Comment [sql|DELETE FROM comments WHERE id = {0}|] [q pid] 
+comment pid = do 
+    checkAuthExistComment pid
+    delete Comment [sql|DELETE FROM comments WHERE id = {0}|] [q pid] 
 
 --удаление строго по условию, если не привязаны другие категории и контент
 category :: Int -> T Changed
@@ -103,6 +105,12 @@ category pid = do
     |] [q pid]
 
     delete Category [sql|DELETE FROM categories WHERE id = {0}|] [q pid] 
+
+--Каскадное удаление. Удаляется тег и все привязки тега к контенту
+tag :: Int -> T Changed
+tag pid = do
+    execute_ [sql|DELETE FROM tags_to_contents WHERE tag_id = {0}|] [q pid] 
+    delete Tag [sql|DELETE FROM tags WHERE id = {0}|] [q pid] 
 
 -- используется для категорий
 checkNotExist :: Int -> String -> String -> Query -> T() 

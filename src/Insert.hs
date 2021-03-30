@@ -93,8 +93,6 @@ draft params = do
 -- только для админа, решается на уровне роутера!!
 publish :: Int -> T Changed
 publish pid = do
-
-
     let params = M.fromList [("draft_id", ParamEq (Int pid))] --костыль??
     checkExist params "draft_id" [sql|SELECT 1 FROM drafts WHERE drafts.id = {0}|]
     [(contentId, mpostId)] <- query_ $ template [sql|SELECT content_id, post_id FROM drafts WHERE drafts.id = {0}|] 
@@ -111,8 +109,6 @@ publish pid = do
             execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [q oldContentId]   
             delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [q oldContentId]
     delete Draft [sql|DELETE FROM drafts WHERE drafts.id = {0}|] [p $ params ! "draft_id"]
-
-
     --checkExist params "content_id" [sql|SELECT 1 FROM contents WHERE contents.id = {0}|] мы его достали из базы, а не из параметров, поэтому проверять не надо
     --checkNotExist params "content_id" [sql|SELECT 1 FROM posts WHERE posts.contents_id = {0}|]  --проверка, что данная новость еще не опубликована
     
@@ -130,13 +126,14 @@ user params = do
 
 comment :: Int -> ParamsMap Param -> T Changed
 comment postId params = do
-    when (params ! "user_id" == ParamEq (Int 1)) $ throwT $ DBError "Невозможно создать комментарий от удаленного пользователя (пользователя по умолчанию) id = 1"
-    let allParams = M.insert "post_id" (ParamEq (Int postId)) params
+    userIdParam <- Insert.authUserIdParam 
+    let allParams = params <> M.fromList [("user_id", userIdParam),("post_id", ParamEq (Int postId))]
+    when (allParams ! "user_id" == ParamEq (Int 1)) $ throwT $ DBError "Невозможно создать комментарий от удаленного пользователя (пользователя по умолчанию) id = 1"
     checkExist allParams "post_id" [sql|SELECT 1 FROM posts WHERE posts.id = {0}|]
     checkExist allParams "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
     insert Comment [sql|INSERT into comments (post_id, user_id, creation_date, text) values {0}|]
         [rowEither allParams [Left "post_id", Left "user_id", Right [sql|current_date|], Left "text"]]
-    
+
 
 --query Select 1 ...
 --в шаблон подставляется внутренний pid, если параметр обязательный, то ParamNo никогда не выскочит
@@ -191,11 +188,7 @@ cell ParamNo = [sql|null|]
 --админ может CОЗДАВАТЬ только свои публикации
 authAuthorIdParam :: T Param
 authAuthorIdParam = do
-    auth <- S.getAuth
-    paramUserId <- case auth of
-            AuthAdmin userId -> return $ ParamEq (Int userId)
-            AuthUser userId -> return $ ParamEq (Int userId)
-            _ -> throwT authErrorDefault
+    paramUserId <- Insert.authUserIdParam
     
     mauthorId <- fromOnly <<$>> listToMaybe  <$> query_ (template [sql|
     SELECT authors.id FROM authors
@@ -208,6 +201,13 @@ authAuthorIdParam = do
         Just 1 -> throwT $ AuthError "Невозможна аутентификация удаленного автора"
         Just authorId -> return $ ParamEq (Int authorId)
 
-
+--админ может СОЗДАВАТЬ только свои публикации (комментарии)
+authUserIdParam :: T Param
+authUserIdParam = do
+    auth <- S.getAuth
+    case auth of
+        AuthAdmin userId -> return $ ParamEq (Int userId)
+        AuthUser userId -> return $ ParamEq (Int userId)
+        _ -> throwT authErrorDefault
 
 

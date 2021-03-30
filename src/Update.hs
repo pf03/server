@@ -109,6 +109,12 @@ checkAuthExistPost pid = do
     |] `whereAll` [cond [sql|posts.id|] $ ParamEq (Int pid)]
     checkAuthExist pid "post_id" query
 
+--в общем случае checkAuthExist возвращает три параметра, поэтому здесь небольшой костыль
+checkAuthExistComment :: Int -> T Int --возвращаем userId
+checkAuthExistComment pid = do
+    let query = template [sql| SELECT user_id, 0, 0 FROM comments WHERE id = {0}|] [q pid]
+    (\(a,b,c) -> a) <$> checkAuthExist pid "comment_id" query
+
 tag :: Int -> ParamsMap Param -> T Changed
 tag pid params = do
     let allParams = M.insert "id" (ParamEq (Int pid)) params
