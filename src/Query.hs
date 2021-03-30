@@ -41,24 +41,24 @@ execute_ q qs = do
     conn <- S.getConnection
     toT $ SQL.execute_ conn query
 
-_execute :: QueryType -> APIType -> Query -> [Query] ->  T Changed
+_execute :: QueryType -> APIType -> Query -> [Query] ->  T ()
 _execute queryType apiType q qs   = do
     let query = template q qs
     Log.debugT query 
     conn <- S.getConnection
     rows <- toT $ SQL.execute_ conn query
     S.addChanged queryType apiType rows
-    S.getChanged
+    --S.getChanged
 
 
 --новая версия включает в себя template и автоматическую запись в State количество модифицированных строк
-insert  :: APIType -> Query -> [Query] ->  T Changed
+insert  :: APIType -> Query -> [Query] ->  T ()
 insert = _execute Insert
 
-update  :: APIType -> Query -> [Query] ->  T Changed
+update  :: APIType -> Query -> [Query] ->  T ()
 update = _execute Update
 
-delete  :: APIType -> Query -> [Query] ->  T Changed
+delete  :: APIType -> Query -> [Query] ->  T ()
 delete = _execute Delete
 
 execute__ :: Query -> T ()

@@ -396,34 +396,55 @@ commentsCases = ("selectComment", tuples) where
 publishCases :: (String, [(PathInfo, Query)])
 publishCases = ("publish", tuples) where
     tuples = [
-        -- 0
-        (,) ["authors", "3", "delete"] [], -- {"edited": {"posts": 1},"deleted": {"authors": 1}} 
+        -- -- 0
+        -- (,) ["authors", "3", "delete"] [], -- {"edited": {"posts": 1},"deleted": {"authors": 1}} 
 
-        -- 1 Ошибка авторизации: Данная функция требует авторизации; []; успех
-        (,) ["drafts"] [],
-        -- 2 null, null, null
-        (,) ["drafts", "0"] [],
-        -- 3 null, null, null
-        (,) ["drafts", "1"] [],        
-        -- 4 успех, успех, успех
-        (,) ["posts"] [],
+        -- -- 1 Ошибка авторизации: Данная функция требует авторизации; []; успех
+        -- (,) ["drafts"] [],
+        -- -- 2 null, null, null
+        -- (,) ["drafts", "0"] [],
+        -- -- 3 null, null, null
+        -- (,) ["drafts", "1"] [],        
+        -- -- 4 успех, успех, успех
+        -- (,) ["posts"] [],
 
-        -- 5 Ошибка базы данных: Указан несуществующий параметр "category_id": 0
-        (,) ["drafts", "create"] [
-            ("name", Just "name"),
-            ("category_id", Just "0"),
-            ("text", Just "text"),
-            ("photo", Just "photo.jpg")
-        ],
+        -- -- 5 Ошибка базы данных: Указан несуществующий параметр "category_id": 0
+        -- (,) ["drafts", "create"] [
+        --     ("name", Just "name"),
+        --     ("category_id", Just "0"),
+        --     ("text", Just "text"),
+        --     ("photo", Just "photo.jpg")
+        -- ],
 
         -- 6 {"created":{"contents":1,"drafts":1}}
         (,) ["drafts", "create"] [
             ("name", Just "name"),
             ("category_id", Just "1"),
             ("text", Just "text"),
-            ("photo", Just "photo.jpg")
+            ("photo", Just "photo.jpg"),
+            ("tag_id__all", Just "[]"),
+            ("photos__all", Just "[\"photo1.jpg\",\"photo2.jpg\"]")
         ],
-        -- 7 (,) ["drafts"] [],
+
+        (,) ["drafts", "create"] [
+            ("name", Just "name"),
+            ("category_id", Just "1"),
+            ("text", Just "text"),
+            ("photo", Just "photo.jpg"),
+            ("tag_id__all", Just "[1,2,666,3589,3]"),
+            ("photos__all", Just "[\"photo1.jpg\",\"photo2.jpg\"]")
+        ],
+
+        (,) ["drafts", "create"] [
+            ("name", Just "name"),
+            ("category_id", Just "1"),
+            ("text", Just "text"),
+            ("photo", Just "photo.jpg"),
+            ("tag_id__all", Just "[1,2,3]"),
+            ("photos__all", Just "[\"photo1.jpg\",\"photo2.jpg\"]")
+        ],
+
+        (,) ["drafts"] [],
         -- Ошибка базы данных: Указан несуществующий параметр "id": 0
         (,) ["drafts", "0","edit"] [
             ("category_id", Just "2")
@@ -483,16 +504,16 @@ publishCases = ("publish", tuples) where
 
 logins :: [Query]
 logins = [
-        [("login", Just "fake"),("pass", Just "fake")],  --не авторизован
-        --[("login", Just "DELETED_USER"),("pass", Just "DELETED_USER")],  --удаленный
-        [("login", Just "pivan"),("pass", Just "equalpass")],  -- иванов (не автор)
-        [("login", Just "vmayakovskiy"),("pass", Just "vmayakovskiypass")],  --удаленный автор
-        [("login", Just "psergey"),("pass", Just "psergeypass")],  --пушкин (автор)
-        [("login", Just "admin"),("pass", Just "123456")]  --админ
+        -- [("login", Just "fake"),("pass", Just "fake")],  --не авторизован
+        -- --[("login", Just "DELETED_USER"),("pass", Just "DELETED_USER")],  --удаленный
+        -- [("login", Just "pivan"),("pass", Just "equalpass")],  -- иванов (не автор)
+        -- [("login", Just "vmayakovskiy"),("pass", Just "vmayakovskiypass")],  --удаленный автор
+        [("login", Just "psergey"),("pass", Just "psergeypass")]  --пушкин (автор)
+        -- [("login", Just "admin"),("pass", Just "123456")]  --админ
     ]
 
-publishCaseswithAuth :: (String, [(PathInfo, Query)])
-publishCaseswithAuth = (,) (fst publishCases) $ concat $ for (snd publishCases) $ \c -> concat $ for logins $ \login -> [(["login"], login), c]
+-- publishCaseswithAuth :: (String, [(PathInfo, Query)])
+-- publishCaseswithAuth = (,) (fst publishCases) $ concat $ for (snd publishCases) $ \c -> concat $ for logins $ \login -> [(["login"], login), c]
 
 casesWithAuth :: (String, [(PathInfo, Query)]) -> (String, [(PathInfo, Query)])
 casesWithAuth cases = (,) (fst cases) $ concat $ for (snd cases) $ \c -> concat $ for logins $ \login -> [(["login"], login), c]
@@ -504,15 +525,14 @@ cases = [
     -- casesWithAuth insertAuthorCases,
     -- updateAuthorCases,
     -- casesWithAuth deleteAuthorCases,
-    casesWithAuth tagCases,
+    -- casesWithAuth tagCases,
     -- insertCategoryCases,
     -- updateCategoryCases,
     -- deleteCategoryCases,
     --casesWithAuth userCases,
     --deletePostCases,
     --casesWithAuth commentsCases,
-    --publishCases,
-    --publishCaseswithAuth,
+    casesWithAuth publishCases,
     --authTagCases,
     ("fake", [])
     ]

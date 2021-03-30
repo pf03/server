@@ -66,7 +66,7 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
                 --Просто URL до картинки. URL должен вести до твоего сервера, по запросу на этот URL сама картинка должна возвращаться
                 param "last_name" [Eq] ParamTypeStr True,
                 param "first_name" [Eq] ParamTypeStr True,
-                param "avatar" [Eq] ParamTypeStr True,  --потом подумать над загрузкой фото
+                param "avatar" [Eq] ParamTypeStr True,
                 param "login" [Eq] ParamTypeStr True,
                 param "pass" [Eq] ParamTypeStr True
                 ]
@@ -83,13 +83,14 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
             [API.Tag] -> [param "name" [Eq] ParamTypeStr True]
             --тут еще добавить список тегов!!!
             [API.Draft] -> [
-                --param "author_id" [Eq] ParamTypeInt True, --эта информация уже в токене? там есть только user, но автор может быть только один --админ может создавать черновики и публиковать под любым автором??
                 param "name" [Eq] ParamTypeStr True,
-                --param "creation_date" [Eq] ParamTypeStr True,  --дата берется на серваке
                 param "category_id" [Eq] ParamTypeInt True,
                 param "text" [Eq] ParamTypeStr True,
-                param "photo" [Eq] ParamTypeStr True
-                --param "post_id" [Eq] ParamTypeInt False --это отдельная функция posts/m/edit  ??
+                param "photo" [Eq] ParamTypeStr True,
+                --возможно в данном случае более правильно использовать json, но в тз были именно такие конструкции
+                --по крайней мере такие запросы единообразны с запросами select
+                param "tag_id" [All] ParamTypeInt True,
+                param "photos" [All] ParamTypeStr True --отличаем от главного фото
                 ]
             [API.Draft, Id n, Post] -> [] --publish
             [API.Post] -> [] --[param "draft_id" [Eq] ParamTypeInt True] --draft_id уже в роутере

@@ -140,7 +140,7 @@ type FuncName = String
 --новая версия
 data Templ = Eq | In | All | Lt | Gt | Bt | Like  deriving (Show, Eq)  
 data Param = ParamEq {paramEq :: Val} | ParamIn [Val] | ParamAll [Val] | ParamLt Val | ParamGt Val | ParamBt (Val, Val) | ParamLike Val | ParamNull | ParamNo   deriving (Show, Eq)
-data Val = Str { valStr :: String} | Int Int | Date Date deriving (Show, Eq)
+data Val = Str { valStr :: String} | Int { valInt :: Int} | Date { valDate :: Date} deriving (Show, Eq)
 --data Val = Str {getStr :: String} | Int {getInt :: Int} | Date {getDate :: Date} deriving Show
 
 data ParamType = ParamTypePage | ParamTypeStr | ParamTypeInt | ParamTypeDate | ParamTypeSort  [BSName] | ParamTypeFileName [BSName] deriving Show

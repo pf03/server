@@ -83,7 +83,7 @@ checkAuthExistDraft pid = do
 
 
 
-post :: Int -> ParamsMap Param -> T Changed
+post :: Int -> ParamsMap Param -> T (Changed)
 post pid params = do
 
     (_, authorId, _) <- checkAuthExistPost pid
@@ -95,6 +95,7 @@ post pid params = do
     S.addChanged Insert Content 1
     insert Draft [sql|INSERT into drafts (content_id, post_id) values ({0}, {1})|] 
         [q cid, q pid]
+    
 
 checkAuthExistPost :: Int -> T (Int, Int, Int) --возвращаем authorId для запроса
 checkAuthExistPost pid = do

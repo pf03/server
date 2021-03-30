@@ -164,7 +164,8 @@ getJSON api params req = do
 encode :: ToJSON a => T a -> T LC.ByteString
 encode ta = do
     a <- ta
-    let json = encodePretty a
+    let tmp = encodePretty a
+    json <- if tmp == "()" then do encodePretty <$> S.getChanged else return tmp
     writeResponseJSON json
     return json
 

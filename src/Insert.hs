@@ -74,18 +74,48 @@ tag params = do
 
 --"author_id", "name", "creation_date", "category_id", "text", "photo", "news_id" - необязательный (ParamNo если создаем с нуля, ParamEq если к существующей новости)
 --тут еще добавить теги и фотографии
---ндо разделить функции, сделать более прямую логику - Insert.draft и Update.post. Первая по авторизации пользователя вторая доступна и для админа
+--возможно params сделать частью state?? стоит ли? тогда будет меньше путаницы с передачей и изменением params
+--а зачем мы возвращаем Changed, если оно есть в State?
 draft :: ParamsMap Param -> T Changed
 draft params = do
     authorIdParam <- authAuthorIdParam 
     let newParams = M.insert "author_id" authorIdParam params
+    let tagIds = valInt <$> (\(ParamAll list) -> list) (params ! "tag_id") -- :: [Val]
+    
     when (newParams ! "author_id" == ParamEq (Int 1)) $ throwT $ DBError "Невозможно создать черновик от удаленного автора (автора по умолчанию) id = 1"
     checkExist newParams "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
+    --checkExistAll newParams "tag_id" [sql|SELECT id FROM tags WHERE id IN {0}|]
+    checkExistAll "tag_id" tagIds $ [sql|SELECT id FROM tags|] `whereAll` [cond [sql|id|] $ ParamIn (Int <$> tagIds)]
     [Only cid] <- query_ $ template [sql|INSERT into contents (author_id, name, creation_date, category_id, text, photo) values {0} RETURNING id|] 
         [rowEither newParams [Left "author_id", Left "name", Right [sql|current_date|], Left "category_id", Left "text", Left "photo"]] :: T[Only Int]
     S.addChanged Insert Content 1
+    let tmpp = M.insert "content_id" (ParamEq (Int cid)) params
+    unless (emptyParam $ tmpp ! "tag_id") $ do
+        execute_ [sql|INSERT into tags_to_contents (tag_id, content_id) values {0}|] [rows tmpp ["tag_id", "content_id"]] 
+        return ()
+    unless (emptyParam $ tmpp ! "photos") $ do
+        insert Photo [sql|INSERT into photos (photo, content_id) values {0}|] [rows tmpp ["photos", "content_id"]] 
+        return ()
     insert Draft [sql|INSERT into drafts (content_id) values ({0})|] 
         [cell $ ParamEq (Int cid)]
+    
+--сначала должна идти проверочная часть, потом часть с записью в бд!!
+tagToContent :: ParamsMap Param -> T Changed
+tagToContent params = do
+    let tagIds = valInt <$> (\(ParamAll list) -> list) (params ! "tag_id") -- :: [Val]
+    checkExistAll "tag_id" tagIds $ [sql|SELECT id FROM tags|] `whereAll` [cond [sql|id|] $ ParamIn (Int <$> tagIds)]
+    unless (emptyParam $ params ! "tag_id") $ do
+        execute_ [sql|INSERT into tags_to_contents (tag_id, content_id) values {0}|] [rows params ["tag_id", "content_id"]] 
+        return ()
+    return mempty
+
+photos :: ParamsMap Param -> T Changed
+photos params = do
+    unless (emptyParam $ tmpp ! "photos") $ do
+        insert Photo [sql|INSERT into photos (photo, content_id) values {0}|] [rows tmpp ["photos", "content_id"]] 
+        return ()
+    
+
 
 
 --опубликовать новость из черновика, черновик привязывется к новости, для дальнейшего редактирования
@@ -110,7 +140,7 @@ publish pid = do
             delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [q oldContentId]
     delete Draft [sql|DELETE FROM drafts WHERE drafts.id = {0}|] [p $ params ! "draft_id"]
     --checkExist params "content_id" [sql|SELECT 1 FROM contents WHERE contents.id = {0}|] мы его достали из базы, а не из параметров, поэтому проверять не надо
-    --checkNotExist params "content_id" [sql|SELECT 1 FROM posts WHERE posts.contents_id = {0}|]  --проверка, что данная новость еще не опубликована
+    --checkNotExist params "content_id" [sql|SELECT 1 FROM posts WHERE posts.contents_id = {0}|]  --проверка, что данная новость еще не опубликована - по идее контент привязывается или к посту или к черновику - так что такого не должно быть
     
     
 
@@ -149,6 +179,18 @@ checkExist params name templ = helper name (params ! name) templ where
             --x:xs -> ??
         --unless exist $ throwT $ DBError  (template "Уазан несуществующий parent_id: {0}" [show parentId]) 
 
+--проверка на существование ВСЕХ сущностей из списка
+checkExistAll :: BSName -> [Int] -> Query -> T() 
+checkExistAll name all templ = do 
+        --let tagIdVals = (\(ParamAll list) -> list) $ params ! "tag_id"
+        -- let all = map valInt vals
+        --exist <- fromOnly <<$>> (query_ $ templ) :: T [Only Int]
+        exist <- fromOnly <<$>> query_ templ
+        when (length exist /= length all) $ do
+            let notExist = filter (`notElem` exist) all 
+            throwT $ DBError $ template "Параметры {0} из списка {1} не существуют" [show name, show notExist]
+
+
 checkNotExist :: String -> ParamsMap Param -> BSName -> Query -> T() 
 checkNotExist description params name templ = helper name (params ! name) templ where
     helper name ParamNo templ = return ()
@@ -171,6 +213,24 @@ row params names = list $ map (\name -> cell (params ! name)) names where
     --     ParamEq v -> val v
     --     ParamNo -> [sql|null|]
 
+--количество строк определяется по первому параметру, который должен быть ParamAll! 
+--должен быть хотя бы один параметр!
+rows :: ParamsMap Param -> [BSName] -> Query
+rows params names = res where
+    (ParamAll first) = params ! head names
+    len = length first
+    listOfRows = map helper [0..len-1]
+    helper :: Int -> Query
+    helper n = list $ map (\name -> cellByNumber (params ! name) n) names
+    res = Query.concat [sql|,|] listOfRows
+
+emptyParam:: Param -> Bool 
+emptyParam ParamNo = True 
+emptyParam (ParamAll []) = True 
+emptyParam (ParamIn []) = True
+emptyParam _ = False
+
+
 --обобщенный ряд
 rowEither :: ParamsMap Param -> [Either BSName Query] -> Query
 rowEither params nqs = list $ map helper nqs where
@@ -183,6 +243,11 @@ rowEither params nqs = list $ map helper nqs where
 cell :: Param -> Query
 cell (ParamEq v) = val v
 cell ParamNo = [sql|null|]
+
+cellByNumber :: Param -> Int -> Query
+cellByNumber (ParamEq v) _ = val v
+cellByNumber (ParamAll list) n = val (list !! n)
+cellByNumber ParamNo _ = [sql|null|]
 
 
 --админ может CОЗДАВАТЬ только свои публикации
