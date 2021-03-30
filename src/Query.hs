@@ -61,12 +61,18 @@ update = _execute Update
 delete  :: APIType -> Query -> [Query] ->  T ()
 delete = _execute Delete
 
-execute__ :: Query -> T ()
-execute__ q = do
-    -- Log.debugT q --это добавить во все функции
-    n <- Query.execute_ q []
+-- execute__ :: Query -> T ()
+-- execute__ q = do
+--     n <- Query.execute_ q []
+--     Log.textT Log.Debug $ template "Выполнен запрос, изменено {0} строк" [show n] --и это, т .е результат выполнения
+--     return()
+
+execute__ :: Query -> [Query] -> T ()
+execute__ q qs = do
+    n <- Query.execute_ q qs 
     Log.textT Log.Debug $ template "Выполнен запрос, изменено {0} строк" [show n] --и это, т .е результат выполнения
-    return()
+    --return()
+
 
 -- q :: Convert a => a -> SQL.Query 
 -- q = Query . convert

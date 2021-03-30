@@ -41,7 +41,7 @@ import Update
 -- 4. Простое удаление, если от сущности ничего не зависит. Используется для comments
 
 --юзер удаляется, автор привязывается к дефолтному юзеру, авторизация админ на уровне роутера
-user :: Int -> T Changed
+user :: Int -> T ()
 user pid = do 
     when (pid == 1) $ throwT $ DBError "Невозможно удалить пользователя по умолчанию с id = 1"
     when (pid == 2) $ throwT $ DBError "Невозможно удалить админа с id = 2"
@@ -50,14 +50,14 @@ user pid = do
     delete User [sql|DELETE FROM users WHERE id = {0}|] [q pid]
 
 --юзер удаляется, автор привязывается к дефолтному юзеру, авторизация админ на уровне роутера
-author :: Int -> T Changed
+author :: Int -> T ()
 author pid = do 
     when (pid == 1) $ throwT $ DBError "Невозможно удалить автора по умолчанию с id = 1"
     update Content [sql|UPDATE contents SET author_id = 1 WHERE author_id = {0}|] [q pid] 
     delete Author [sql|DELETE FROM authors WHERE id = {0}|] [q pid]
 
 --для поста каскадное удаление
-post :: Int -> T Changed 
+post :: Int -> T () 
 post pid = do 
     (_, _, contentId) <- checkAuthExistPost pid
     delete Post [sql|DELETE FROM posts WHERE id = {0}|] [q pid]   
@@ -68,7 +68,7 @@ post pid = do
     delete Comment [sql|DELETE FROM comments WHERE post_id = {0}|] [q pid]
 
 --для черновика каскадное удаление
-draft :: Int -> T Changed
+draft :: Int -> T ()
 draft pid = do
     (_, _, contentId) <- checkAuthExistDraft pid
     delete Draft [sql|DELETE FROM drafts WHERE id = {0}|] [q pid]   
@@ -76,13 +76,13 @@ draft pid = do
     execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [q contentId]   
     delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [q contentId]
 
-comment :: Int -> T Changed
+comment :: Int -> T ()
 comment pid = do 
     checkAuthExistComment pid
     delete Comment [sql|DELETE FROM comments WHERE id = {0}|] [q pid] 
 
 --удаление строго по условию, если не привязаны другие категории и контент
-category :: Int -> T Changed
+category :: Int -> T ()
 category pid = do
     --проверка на связанные сущности
     checkNotExist pid "категорию" "дочерние категории" $ template [sql|
@@ -107,7 +107,7 @@ category pid = do
     delete Category [sql|DELETE FROM categories WHERE id = {0}|] [q pid] 
 
 --Каскадное удаление. Удаляется тег и все привязки тега к контенту
-tag :: Int -> T Changed
+tag :: Int -> T ()
 tag pid = do
     execute_ [sql|DELETE FROM tags_to_contents WHERE tag_id = {0}|] [q pid] 
     delete Tag [sql|DELETE FROM tags WHERE id = {0}|] [q pid] 

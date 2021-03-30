@@ -30,7 +30,7 @@ import qualified State as S
 import Error
 
 --редактирование пароля не верно
-user :: Int -> ParamsMap Param -> T Changed
+user :: Int -> ParamsMap Param -> T ()
 user pid params = do
     let allParams = M.insert "id" (ParamEq (Int pid)) params
     checkExist allParams "id" [sql|SELECT 1 FROM users WHERE users.id = {0}|] 
@@ -41,7 +41,7 @@ user pid params = do
         [updates allParams ["first_name", "last_name", "avatar", "pass"], q pid]
         --[updates params []]
 
-author :: Int -> ParamsMap Param -> T Changed
+author :: Int -> ParamsMap Param -> T ()
 author pid params = do
     let allParams = M.insert "id" (ParamEq (Int pid)) params
     checkExist allParams "id" [sql|SELECT 1 FROM authors WHERE authors.id = {0}|]
@@ -49,7 +49,7 @@ author pid params = do
     update Author [sql|UPDATE authors SET {0} WHERE id = {1}|] 
         [updates params ["user_id", "description"], q pid]
 
-category :: Int -> ParamsMap Param -> T Changed
+category :: Int -> ParamsMap Param -> T ()
 category pid params = do
     let allParams = M.insert "id" (ParamEq (Int pid)) params
     checkExist allParams "id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
@@ -57,7 +57,7 @@ category pid params = do
     update Category [sql|UPDATE categories SET {0} WHERE id = {1}|] 
         [updates params ["parent_id", "category_name"], q pid]
 
-draft :: Int -> ParamsMap Param -> T Changed
+draft :: Int -> ParamsMap Param -> T ()
 draft pid params = do
     --проверка существования параметров
     (_, _, contentId) <- checkAuthExistDraft pid
@@ -83,18 +83,22 @@ checkAuthExistDraft pid = do
 
 
 
-post :: Int -> ParamsMap Param -> T (Changed)
+post :: Int -> ParamsMap Param -> T ()
 post pid params = do
 
     (_, authorId, _) <- checkAuthExistPost pid
     let newParams = M.insert "author_id" (ParamEq $ Int authorId) params
     when (newParams ! "author_id" == ParamEq (Int 1)) $ throwT $ DBError "Невозможно создать черновик от удаленного автора (автора по умолчанию) id = 1"
     checkExist newParams "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
+    check tagToContent newParams
     [Only cid] <- query_ $ template [sql|INSERT into contents (author_id, name, creation_date, category_id, text, photo) values {0} RETURNING id|]
         [rowEither newParams [Left "author_id", Left "name", Right [sql|current_date|], Left "category_id", Left "text", Left "photo"]] :: T[Only Int]
     S.addChanged Insert Content 1
     insert Draft [sql|INSERT into drafts (content_id, post_id) values ({0}, {1})|] 
         [q cid, q pid]
+    let tmpp = M.insert "content_id" (ParamEq (Int cid)) params
+    execute tagToContent tmpp
+    photos tmpp
     
 
 checkAuthExistPost :: Int -> T (Int, Int, Int) --возвращаем authorId для запроса
@@ -116,7 +120,7 @@ checkAuthExistComment pid = do
     let query = template [sql| SELECT user_id, 0, 0 FROM comments WHERE id = {0}|] [q pid]
     (\(a,b,c) -> a) <$> checkAuthExist pid "comment_id" query
 
-tag :: Int -> ParamsMap Param -> T Changed
+tag :: Int -> ParamsMap Param -> T ()
 tag pid params = do
     let allParams = M.insert "id" (ParamEq (Int pid)) params
     checkExist allParams "id" [sql|SELECT 1 FROM tags WHERE tags.id = {0}|]

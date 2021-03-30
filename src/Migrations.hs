@@ -71,7 +71,7 @@ base = do
     queryBS <- toT $ Transformer.readFile pathMigrations
     --Log.dataT Log.Warning queryBS
     let query = Query queryBS
-    execute__ query
+    execute__ query []
 
 --обработка ошибок при запросах к бд!
 hashPasswords :: T()
@@ -99,7 +99,7 @@ renameNewsToPosts = do
         ALTER TABLE news RENAME TO posts;
         ALTER TABLE drafts RENAME COLUMN news_id TO post_id;
         ALTER TABLE comments RENAME COLUMN news_id TO post_id;
-    |]
+    |] []
 
 --Было
 -- CREATE TABLE posts (

@@ -226,7 +226,7 @@ getCategories params = do
     categories <- Select.categories params
     toT $ evalCategories allCategories categories
 
-updateCategory :: Int -> ParamsMap Param -> T Changed 
+updateCategory :: Int -> ParamsMap Param -> T () 
 updateCategory pid params = do 
     Log.setSettings Color.Blue True "DB.updateCategory"
     Log.funcT Log.Debug "..."

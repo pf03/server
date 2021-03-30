@@ -54,7 +54,7 @@ import Error
 --     ParamEq v = params ! "name"
 --     res = template [sql|INSERT into tags (name) values ({0})|] [val v]
 --"user_id" - обязаельный параметр
-author :: ParamsMap Param -> T Changed
+author :: ParamsMap Param -> T ()
 author params = do 
     checkExist params "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
     --проверка на то, что данный автор уже существует
@@ -62,12 +62,12 @@ author params = do
     insert Author [sql|INSERT into authors (user_id, description)  values {0}|] [row params ["user_id", "description"]]   
 
 --нельзя вставить категорию с нeсуществующим родителем, но можно вставить категорию без родителяб "parent_id" - необязаельный параметр
-category :: ParamsMap Param -> T Changed
+category :: ParamsMap Param -> T ()
 category params = do
     checkExist params "parent_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
     insert Category [sql|INSERT into categories (parent_id, category_name) values {0}|] [row params ["parent_id", "category_name"]]
 
-tag :: ParamsMap Param -> T Changed
+tag :: ParamsMap Param -> T ()
 tag params = do
     checkNotExist "Тег" params "name" [sql|SELECT 1 FROM tags WHERE tags.name = {0}|]
     insert Tag [sql|INSERT into tags (name)  values ({0})|] [p $ params ! "name"]
@@ -76,44 +76,50 @@ tag params = do
 --тут еще добавить теги и фотографии
 --возможно params сделать частью state?? стоит ли? тогда будет меньше путаницы с передачей и изменением params
 --а зачем мы возвращаем Changed, если оно есть в State?
-draft :: ParamsMap Param -> T Changed
+draft :: ParamsMap Param -> T ()
 draft params = do
     authorIdParam <- authAuthorIdParam 
     let newParams = M.insert "author_id" authorIdParam params
-    let tagIds = valInt <$> (\(ParamAll list) -> list) (params ! "tag_id") -- :: [Val]
-    
     when (newParams ! "author_id" == ParamEq (Int 1)) $ throwT $ DBError "Невозможно создать черновик от удаленного автора (автора по умолчанию) id = 1"
     checkExist newParams "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
-    --checkExistAll newParams "tag_id" [sql|SELECT id FROM tags WHERE id IN {0}|]
-    checkExistAll "tag_id" tagIds $ [sql|SELECT id FROM tags|] `whereAll` [cond [sql|id|] $ ParamIn (Int <$> tagIds)]
+    check tagToContent newParams
     [Only cid] <- query_ $ template [sql|INSERT into contents (author_id, name, creation_date, category_id, text, photo) values {0} RETURNING id|] 
         [rowEither newParams [Left "author_id", Left "name", Right [sql|current_date|], Left "category_id", Left "text", Left "photo"]] :: T[Only Int]
     S.addChanged Insert Content 1
     let tmpp = M.insert "content_id" (ParamEq (Int cid)) params
-    unless (emptyParam $ tmpp ! "tag_id") $ do
-        execute_ [sql|INSERT into tags_to_contents (tag_id, content_id) values {0}|] [rows tmpp ["tag_id", "content_id"]] 
-        return ()
-    unless (emptyParam $ tmpp ! "photos") $ do
-        insert Photo [sql|INSERT into photos (photo, content_id) values {0}|] [rows tmpp ["photos", "content_id"]] 
-        return ()
+    execute tagToContent tmpp
+    photos tmpp
     insert Draft [sql|INSERT into drafts (content_id) values ({0})|] 
         [cell $ ParamEq (Int cid)]
-    
---сначала должна идти проверочная часть, потом часть с записью в бд!!
-tagToContent :: ParamsMap Param -> T Changed
-tagToContent params = do
-    let tagIds = valInt <$> (\(ParamAll list) -> list) (params ! "tag_id") -- :: [Val]
-    checkExistAll "tag_id" tagIds $ [sql|SELECT id FROM tags|] `whereAll` [cond [sql|id|] $ ParamIn (Int <$> tagIds)]
-    unless (emptyParam $ params ! "tag_id") $ do
-        execute_ [sql|INSERT into tags_to_contents (tag_id, content_id) values {0}|] [rows params ["tag_id", "content_id"]] 
-        return ()
-    return mempty
 
-photos :: ParamsMap Param -> T Changed
+tagToContent :: (Action, Action)
+tagToContent = (check, execute) where
+    check params = do
+        let tagIds = valInt <$> (\(ParamAll list) -> list) (params ! "tag_id") -- :: [Val]
+        checkExistAll "tag_id" tagIds $ [sql|SELECT id FROM tags|] `whereAll` [cond [sql|id|] $ ParamIn (Int <$> tagIds)]
+    execute params = do 
+        unless (emptyParam $ params ! "tag_id") $ do
+            execute__ [sql|INSERT into tags_to_contents (tag_id, content_id) values {0}|] [rows params ["tag_id", "content_id"]]
+
+
+--сначала должна идти проверочная часть, потом часть с записью в бд!!
+--парамсы войдут в стейт!!!, тогда тип будет простой (T(), T())
+type Action = ParamsMap Param -> T ()
+check = fst 
+execute = snd
+
+
+-- tagToContent :: ParamsMap Param -> T ()
+-- tagToContent params = do
+--     let tagIds = valInt <$> (\(ParamAll list) -> list) (params ! "tag_id") -- :: [Val]
+--     checkExistAll "tag_id" tagIds $ [sql|SELECT id FROM tags|] `whereAll` [cond [sql|id|] $ ParamIn (Int <$> tagIds)]
+--     unless (emptyParam $ params ! "tag_id") $ do
+--         execute__ [sql|INSERT into tags_to_contents (tag_id, content_id) values {0}|] [rows params ["tag_id", "content_id"]]
+
+photos :: ParamsMap Param -> T ()
 photos params = do
-    unless (emptyParam $ tmpp ! "photos") $ do
-        insert Photo [sql|INSERT into photos (photo, content_id) values {0}|] [rows tmpp ["photos", "content_id"]] 
-        return ()
+    unless (emptyParam $ params ! "photos") $ do
+        insert Photo [sql|INSERT into photos (photo, content_id) values {0}|] [rows params ["photos", "content_id"]]
     
 
 
@@ -121,7 +127,7 @@ photos params = do
 --опубликовать новость из черновика, черновик привязывется к новости, для дальнейшего редактирования
 --"draft_id"
 -- только для админа, решается на уровне роутера!!
-publish :: Int -> T Changed
+publish :: Int -> T ()
 publish pid = do
     let params = M.fromList [("draft_id", ParamEq (Int pid))] --костыль??
     checkExist params "draft_id" [sql|SELECT 1 FROM drafts WHERE drafts.id = {0}|]
@@ -146,7 +152,7 @@ publish pid = do
 
 --UPDATE films SET kind = 'Dramatic' WHERE kind = 'Drama';
 
-user :: ParamsMap Param -> T Changed
+user :: ParamsMap Param -> T ()
 user params = do
     checkNotExist "Пользователь" params "login" [sql|SELECT 1 FROM users WHERE users.login = {0}|]
     insert User [sql|INSERT into users (last_name, first_name, avatar, login, pass, creation_date, is_admin) values {0}|]
@@ -154,7 +160,7 @@ user params = do
 
 
 
-comment :: Int -> ParamsMap Param -> T Changed
+comment :: Int -> ParamsMap Param -> T ()
 comment postId params = do
     userIdParam <- Insert.authUserIdParam 
     let allParams = params <> M.fromList [("user_id", userIdParam),("post_id", ParamEq (Int postId))]
