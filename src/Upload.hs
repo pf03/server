@@ -57,9 +57,10 @@ import Data.Map as M ((!))
 --запрос post то же самое
 
 --загрузка фотографии на сервер
-photo :: Request -> ParamsMap Param -> T Changed
-photo req params = do
-    let ParamEq (Str name) = params ! "name"
+photo :: Request -> T Changed
+photo req = do
+    --params <- S.getParams 
+    ParamEq (Str name) <- S.getParam "name"
     let path = "images/" <> name
     saveBinary req path
     S.getChanged 

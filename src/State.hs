@@ -3,7 +3,9 @@
 -- {-# LANGUAGE FlexibleInstances #-}
 module State where
 import Types 
-import qualified Data.Map.Internal as M
+--import qualified Data.Map.Internal as M
+import Data.Map as M ((!))
+import qualified Data.Map as M 
 import qualified Log 
 
 import Control.Monad.State.Lazy
@@ -81,6 +83,18 @@ getChanged = gets changed
 
 resetChanged :: MonadState S m => m ()
 resetChanged = modify $ \st -> st {changed = mempty}
+
+setParams :: MonadState S m => ParamsMap Param -> m () 
+setParams params = modify $ \s-> s{params = params}
+
+getParams :: MonadState S m => m (ParamsMap Param)
+getParams = gets params
+
+getParam :: MonadState S m => BSName -> m Param
+getParam name = gets (\st -> params st ! name)
+
+resetState :: MonadState S m => m ()
+resetState = modify $ \st -> st {changed = mempty, params = mempty}
 
 getAuth :: MonadState S m => m Auth 
 getAuth = gets auth

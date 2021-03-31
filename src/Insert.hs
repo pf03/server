@@ -54,11 +54,19 @@ import Error
 --     ParamEq v = params ! "name"
 --     res = template [sql|INSERT into tags (name) values ({0})|] [val v]
 --"user_id" - обязаельный параметр
+
+user :: T ()
+user = do
+    params <- S.getParams 
+    checkNotExist "Пользователь" "login" [sql|SELECT 1 FROM users WHERE users.login = {0}|]
+    insert User [sql|INSERT into users (last_name, first_name, avatar, login, pass, creation_date, is_admin) values {0}|]
+        [rowEither params [Left "last_name", Left "first_name", Left "avatar", Left "login", Right $ template [sql|md5 (CONCAT_WS(' ', {0}, {1})), current_date, FALSE|] [cell(params ! "login"), cell(params ! "pass")]]]  --нужен рефакторинг
+
 author :: ParamsMap Param -> T ()
 author params = do 
     checkExist params "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
     --проверка на то, что данный автор уже существует
-    checkNotExist "Автор" params "user_id" [sql|SELECT 1 FROM authors WHERE authors.user_id = {0}|]
+    checkNotExist "Автор" "user_id" [sql|SELECT 1 FROM authors WHERE authors.user_id = {0}|]
     insert Author [sql|INSERT into authors (user_id, description)  values {0}|] [row params ["user_id", "description"]]   
 
 --нельзя вставить категорию с нeсуществующим родителем, но можно вставить категорию без родителяб "parent_id" - необязаельный параметр
@@ -69,7 +77,7 @@ category params = do
 
 tag :: ParamsMap Param -> T ()
 tag params = do
-    checkNotExist "Тег" params "name" [sql|SELECT 1 FROM tags WHERE tags.name = {0}|]
+    checkNotExist "Тег" "name" [sql|SELECT 1 FROM tags WHERE tags.name = {0}|]
     insert Tag [sql|INSERT into tags (name)  values ({0})|] [p $ params ! "name"]
 
 --"author_id", "name", "creation_date", "category_id", "text", "photo", "news_id" - необязательный (ParamNo если создаем с нуля, ParamEq если к существующей новости)
@@ -147,16 +155,8 @@ publish pid = do
     delete Draft [sql|DELETE FROM drafts WHERE drafts.id = {0}|] [p $ params ! "draft_id"]
     --checkExist params "content_id" [sql|SELECT 1 FROM contents WHERE contents.id = {0}|] мы его достали из базы, а не из параметров, поэтому проверять не надо
     --checkNotExist params "content_id" [sql|SELECT 1 FROM posts WHERE posts.contents_id = {0}|]  --проверка, что данная новость еще не опубликована - по идее контент привязывается или к посту или к черновику - так что такого не должно быть
-    
-    
 
---UPDATE films SET kind = 'Dramatic' WHERE kind = 'Drama';
 
-user :: ParamsMap Param -> T ()
-user params = do
-    checkNotExist "Пользователь" params "login" [sql|SELECT 1 FROM users WHERE users.login = {0}|]
-    insert User [sql|INSERT into users (last_name, first_name, avatar, login, pass, creation_date, is_admin) values {0}|]
-        [rowEither params [Left "last_name", Left "first_name", Left "avatar", Left "login", Right $ template [sql|md5 (CONCAT_WS(' ', {0}, {1})), current_date, FALSE|] [cell(params ! "login"), cell(params ! "pass")]]]  --нужен рефакторинг
 
 
 
@@ -197,18 +197,20 @@ checkExistAll name all templ = do
             throwT $ DBError $ template "Параметры {0} из списка {1} не существуют" [show name, show notExist]
 
 
-checkNotExist :: String -> ParamsMap Param -> BSName -> Query -> T() 
-checkNotExist description params name templ = helper name (params ! name) templ where
-    helper name ParamNo templ = return ()
-    helper name param@(ParamEq v) templ = do 
-        exist <- query_ $ template templ [val v] :: T [Only Int]
-        case exist of
-            [] -> return ()
-            _ -> throwT $ DBError  (template "{2} с таким {0} = {1} уже существует" [show name, toString v, description]) 
-    toString :: Val -> String 
-    toString (Int n) = show n
-    toString (Str s) = show s
-    toString (Date d) = show d
+checkNotExist :: String-> BSName -> Query -> T() 
+checkNotExist description name templ = do 
+    param <- S.getParam name
+    helper name param templ where
+        helper name ParamNo templ = return ()
+        helper name param@(ParamEq v) templ = do 
+            exist <- query_ $ template templ [val v] :: T [Only Int]
+            case exist of
+                [] -> return ()
+                _ -> throwT $ DBError  (template "{2} с таким {0} = {1} уже существует" [show name, toString v, description]) 
+        toString :: Val -> String 
+        toString (Int n) = show n
+        toString (Str s) = show s
+        toString (Date d) = show d
 
 
 

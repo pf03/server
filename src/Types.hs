@@ -57,7 +57,8 @@ data S = S {
     configLog :: Log.ConfigLog,
     logSettings :: Log.LogSettings,
     changed :: Changed,
-    auth :: Auth
+    auth :: Auth,
+    params :: ParamsMap Param
     
 } deriving (Show, Generic)
 

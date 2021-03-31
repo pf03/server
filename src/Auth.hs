@@ -55,9 +55,9 @@ instance FromJSON Token
 
 --получение токена
 --во избежание коллизий нужно сделать ограничения на формат логина, пароля, email
-login :: ParamsMap Param  -> T Token
-login params  = do
-
+login :: T Token
+login = do
+    params <- S.getParams
     users <- query_ $ template [sql|SELECT id, is_admin FROM users where login = {0} and pass = md5 (CONCAT_WS(' ', {0}, {1}))|] [p $ params ! "login", p $ params ! "pass"] :: T [(Int, Bool)]   
     --Log.debugT users
     case users of 

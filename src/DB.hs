@@ -77,8 +77,8 @@ getJSON_ req = do
             \(RequestError e) -> throwT $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в теле запроса методом x-www-form-urlencoded" [e] 
         else catchT (logT $ Params.parseParams qs api) $
             \(RequestError e) -> throwT $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в строке запроса" [e] 
-    
-    getJSON api params req
+    S.setParams params
+    getJSON api req
 
 
 --в state можно включить:
@@ -93,7 +93,7 @@ getJSON_ req = do
 --эта обертка для удобства тестирования--эту обертку перенести в Test
 getJSONTest :: BC.ByteString -> PathInfo -> HTTP.Query -> HTTP.Query -> RequestHeaders -> T LC.ByteString
 getJSONTest rawPathInfo pathInfo qs qsBody headers = do
-    S.resetChanged
+    S.resetState --это нужно только для тестов, в сервере и так трансформер возрождается заново при каждом запросе
     --Log.setSettings Color.Blue True "DB.getJSONTest" 
     --Log.funcT Log.Debug "..."
     let req  = Wai.defaultRequest {requestHeaders = headers}
@@ -107,22 +107,24 @@ getJSONTest rawPathInfo pathInfo qs qsBody headers = do
             \(RequestError e) -> throwT $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в теле запроса методом x-www-form-urlencoded" [e] 
         else catchT (logT $ Params.parseParams qs api) $
             \(RequestError e) -> throwT $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в строке запроса" [e] 
-    getJSON api params req
+    S.setParams params
+    getJSON api req
 
 
 --req нужен для upload
 --подумать над тем, чтобы включить request в state а также auth. Как организовать тесты, и останется ли вообще чистый код?
 --в handle pattern handle в каждом модуле разный, а в моем state сотояние везде одинаковое
-getJSON:: API -> ParamsMap Param -> Request -> T LC.ByteString
-getJSON api params req = do
+getJSON:: API -> Request -> T LC.ByteString
+getJSON api req = do
+    params <- S.getParams  --потом это убрать
     case api of
-        API Auth [] -> encode $ Auth.login params
+        API Auth [] -> encode Auth.login
 
-        API Upload [API.Photo] -> encode $ Upload.photo req params
+        API Upload [API.Photo] -> encode $ Upload.photo req
 
         --апи, которые не возвращают количество измененных строк
         --может publish сделать отдельным querytype?
-        API Insert [API.User] -> encode $ Insert.user params
+        API Insert [API.User] -> encode Insert.user
         API Insert [API.Author] -> encode $ Insert.author params
         API Insert [API.Category] -> encode $ Insert.category params
         API Insert [API.Tag] -> encode $ Insert.tag params

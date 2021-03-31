@@ -215,7 +215,8 @@ getS Config {_warp = configWarp, _db = _, _log = configLog} connection = S {
     configLog = configLog, 
     logSettings = Log.defaultSettings,
     changed = mempty,
-    auth = AuthNo
+    auth = AuthNo,
+    params = mempty
 }
 
 ---------------------------------------MonadLog Test-------------------------------------------------------
