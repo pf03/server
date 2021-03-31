@@ -59,22 +59,24 @@ author pid = do
 --для поста каскадное удаление
 post :: Int -> T () 
 post pid = do 
-    (_, _, contentId) <- checkAuthExistPost pid
+    checkAuthExistPost pid
+    ParamEq (Int cid) <- S.getParam "content_id" 
     delete Post [sql|DELETE FROM posts WHERE id = {0}|] [q pid]   
-    delete Content [sql|DELETE FROM contents WHERE id = {0}|] [q contentId]   
+    delete Content [sql|DELETE FROM contents WHERE id = {0}|] [q cid]   
     delete Draft [sql|DELETE FROM drafts WHERE post_id = {0}|] [q pid] 
-    execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [q contentId]   
-    delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [q contentId]   
+    execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [q cid]   
+    delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [q cid]   
     delete Comment [sql|DELETE FROM comments WHERE post_id = {0}|] [q pid]
 
 --для черновика каскадное удаление
 draft :: Int -> T ()
 draft pid = do
-    (_, _, contentId) <- checkAuthExistDraft pid
+    checkAuthExistDraft pid
+    ParamEq (Int cid) <- S.getParam "content_id" 
     delete Draft [sql|DELETE FROM drafts WHERE id = {0}|] [q pid]   
-    delete Content [sql|DELETE FROM contents WHERE id = {0}|] [q contentId]   
-    execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [q contentId]   
-    delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [q contentId]
+    delete Content [sql|DELETE FROM contents WHERE id = {0}|] [q cid]   
+    execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [q cid]   
+    delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [q cid]
 
 comment :: Int -> T ()
 comment pid = do 

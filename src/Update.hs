@@ -56,20 +56,21 @@ category pid = do
     update Category [sql|UPDATE categories SET {0} WHERE id = {1}|] 
         [updates params ["parent_id", "category_name"], q pid]
 
-draft :: Int -> ParamsMap Param -> T ()
-draft pid params = do
+draft :: Int-> T ()
+draft pid = do
+    
     --проверка существования параметров
-    (_, _, contentId) <- checkAuthExistDraft pid
+    checkAuthExistDraft pid
+    params <- S.getParams 
     --let allParams = M.insert "id" (ParamEq (Int pid)) params
     --checkExist allParams "id" [sql|SELECT 1 FROM drafts WHERE drafts.id = {0}|]
-    checkExist params "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
-    
+    checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
     --[Only contentId] <- query_ $ template [sql|SELECT content_id FROM drafts WHERE drafts.id = {0}|] [q pid] :: T [Only Int]
     update Content [sql|UPDATE contents SET {0} WHERE id = {1}|] 
-        [updates params ["name", "category_id", "text", "photo"], q contentId]
+        [updates params ["name", "category_id", "text", "photo", "content_id"]]
 
 --проверка существования вместе с авторизацией, для запросов update и delete
-checkAuthExistDraft :: Int -> T (Int, Int, Int)
+checkAuthExistDraft :: Int -> T (ParamsMap Param)
 checkAuthExistDraft pid = do
     let query = [sql|
         SELECT users.id, authors.id, contents.id FROM drafts
@@ -77,30 +78,30 @@ checkAuthExistDraft pid = do
         LEFT JOIN authors ON authors.id = contents.author_id
         LEFT JOIN users ON users.id = authors.user_id
     |] `whereAll` [cond [sql|drafts.id|] $ ParamEq (Int pid)]
-    checkAuthExist pid "draft_id" query
+    (uid, aid, cid) <- checkAuthExist pid "draft_id" query
+    S.addIdParam "id" pid
+    S.addIdParam "user_id" uid
+    S.addIdParam "author_id" aid
+    S.addIdParam "content_id" cid
 
+post :: Int -> T ()
+post pid = do
 
-
-
-post :: Int -> ParamsMap Param -> T ()
-post pid params = do
-
-    (_, authorId, _) <- checkAuthExistPost pid
-    let newParams = M.insert "author_id" (ParamEq $ Int authorId) params
-    when (newParams ! "author_id" == ParamEq (Int 1)) $ throwT $ DBError "Невозможно создать черновик от удаленного автора (автора по умолчанию) id = 1"
-    checkExist newParams "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
-    check tagToContent newParams
+    params <- checkAuthExistPost pid
+    when (params ! "author_id" == ParamEq (Int 1)) $ throwT $ DBError "Невозможно создать черновик от удаленного автора (автора по умолчанию) id = 1"
+    checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
+    check Insert.tagToContent
     [Only cid] <- query_ $ template [sql|INSERT into contents (author_id, name, creation_date, category_id, text, photo) values {0} RETURNING id|]
-        [rowEither newParams [Left "author_id", Left "name", Right [sql|current_date|], Left "category_id", Left "text", Left "photo"]] :: T[Only Int]
+        [rowEither params [Left "author_id", Left "name", Right [sql|current_date|], Left "category_id", Left "text", Left "photo"]] :: T[Only Int]
     S.addChanged Insert Content 1
     insert Draft [sql|INSERT into drafts (content_id, post_id) values ({0}, {1})|] 
         [q cid, q pid]
-    let tmpp = M.insert "content_id" (ParamEq (Int cid)) params
-    execute tagToContent tmpp
-    photos tmpp
+    S.addIdParam "content_id" cid --перезаписываем
+    execute Insert.tagToContent
+    Insert.photos
     
 
-checkAuthExistPost :: Int -> T (Int, Int, Int) --возвращаем authorId для запроса
+checkAuthExistPost :: Int -> T (ParamsMap Param) --(Int, Int, Int) --добавляем authorId для запроса --нужно ли тут чтото возвращать или сразу добавлять в парамсы??
 checkAuthExistPost pid = do
     --проверка на удаленного пользователя и удаленного автора!!
     --аутентификация удаленным пользователем не пройдет. Удаленный автор привязан к удаленному пользователю.
@@ -111,7 +112,12 @@ checkAuthExistPost pid = do
         LEFT JOIN authors ON authors.id = contents.author_id
         LEFT JOIN users ON users.id = authors.user_id
     |] `whereAll` [cond [sql|posts.id|] $ ParamEq (Int pid)]
-    checkAuthExist pid "post_id" query
+    (uid, aid, cid) <- checkAuthExist pid "post_id" query
+    S.addIdParam "id" pid
+    S.addIdParam "user_id" uid
+    S.addIdParam "author_id" aid
+    S.addIdParam "content_id" cid
+    --return (uid, aid, cid) -- ??
 
 --в общем случае checkAuthExist возвращает три параметра, поэтому здесь небольшой костыль
 checkAuthExistComment :: Int -> T Int --возвращаем userId
@@ -119,10 +125,10 @@ checkAuthExistComment pid = do
     let query = template [sql| SELECT user_id, 0, 0 FROM comments WHERE id = {0}|] [q pid]
     (\(a,b,c) -> a) <$> checkAuthExist pid "comment_id" query
 
-tag :: Int -> ParamsMap Param -> T ()
-tag pid params = do
-    let allParams = M.insert "id" (ParamEq (Int pid)) params
-    checkExist allParams "id" [sql|SELECT 1 FROM tags WHERE tags.id = {0}|]
+tag :: Int -> T ()
+tag pid = do
+    params <- S.addIdParam "id" pid
+    checkExist "id" [sql|SELECT 1 FROM tags WHERE tags.id = {0}|]
     update Tag [sql|UPDATE tags SET name = {0} WHERE id = {1}|] [p $ params ! "name", q pid]
 
 

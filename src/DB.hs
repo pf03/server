@@ -132,12 +132,12 @@ getJSON api req = do
         API Insert [API.Draft, Id n, API.Post] -> encode $ Insert.publish n
         API Insert [API.Post, Id n, API.Comment] -> encode $ Insert.comment n
 
-        API Update [API.User, Id n] -> encode $ Update.user n params
-        API Update [API.Author, Id n] -> encode $ Update.author n params
-        API Update [API.Category, Id n] -> encode $ DB.updateCategory n params
-        API Update [API.Tag, Id n] -> encode $ Update.tag n params
-        API Update [API.Draft, Id n] -> encode $ Update.draft n params
-        API Update [API.Post, Id n] -> encode $ Update.post n params
+        API Update [API.User, Id n] -> encode $ Update.user n
+        API Update [API.Author, Id n] -> encode $ Update.author n
+        API Update [API.Category, Id n] -> encode $ DB.updateCategory n
+        API Update [API.Tag, Id n] -> encode $ Update.tag n
+        API Update [API.Draft, Id n] -> encode $ Update.draft n
+        API Update [API.Post, Id n] -> encode $ Update.post n
 
         API Delete [API.User, Id n] -> encode $ Delete.user n
         API Delete [API.Author, Id n] -> encode $ Delete.author n
@@ -228,13 +228,14 @@ getCategories params = do
     categories <- Select.categories params
     toT $ evalCategories allCategories categories
 
-updateCategory :: Int -> ParamsMap Param -> T () 
-updateCategory pid params = do 
+updateCategory :: Int -> T () 
+updateCategory pid = do 
+    params <- S.getParams 
     Log.setSettings Color.Blue True "DB.updateCategory"
     Log.funcT Log.Debug "..."
     allCategories <- Select.allCategories
     toT $ checkCyclicCategory pid params allCategories
-    Update.category pid params
+    Update.category pid
 
 --эту логику перенести в select??
 getCategory :: Int -> T (Maybe Category)
