@@ -30,30 +30,29 @@ import qualified State as S
 import Error
 
 --редактирование пароля не верно
-user :: Int -> ParamsMap Param -> T ()
-user pid params = do
-    let allParams = M.insert "id" (ParamEq (Int pid)) params
-    checkExist allParams "id" [sql|SELECT 1 FROM users WHERE users.id = {0}|] 
-    [Only login] <- query_ $ template [sql|SELECT users.login FROM users WHERE users.id = {0}|] [q pid]  --это можно включить в checkExist
-    let allParams = M.insert "login" (ParamEq (Str login)) params
-    --{0} может быть пустым
+user :: Int -> T ()
+user pid = do
+    S.addIdParam "id" pid
+    checkExist "id" [sql|SELECT 1 FROM users WHERE users.id = {0}|] 
+    [Only login] <- query_ $ template [sql|SELECT users.login FROM users WHERE users.id = {0}|] [q pid]  --логин нужен для проверки пароля!!!
+    
+    params <- S.addStrParam "login" login
     update User [sql|UPDATE users SET {0} WHERE id = {1}|] 
-        [updates allParams ["first_name", "last_name", "avatar", "pass"], q pid]
-        --[updates params []]
+        [updates params ["first_name", "last_name", "avatar", "pass"], q pid]
 
-author :: Int -> ParamsMap Param -> T ()
-author pid params = do
-    let allParams = M.insert "id" (ParamEq (Int pid)) params
-    checkExist allParams "id" [sql|SELECT 1 FROM authors WHERE authors.id = {0}|]
-    checkExist allParams "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
+author :: Int -> T ()
+author pid = do
+    params <- S.addIdParam "id" pid
+    checkExist "id" [sql|SELECT 1 FROM authors WHERE authors.id = {0}|]
+    checkExist "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
     update Author [sql|UPDATE authors SET {0} WHERE id = {1}|] 
         [updates params ["user_id", "description"], q pid]
 
-category :: Int -> ParamsMap Param -> T ()
-category pid params = do
-    let allParams = M.insert "id" (ParamEq (Int pid)) params
-    checkExist allParams "id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
-    checkExist allParams "parent_id" [sql|SELECT 1 FROM categories WHERE categories.parent_id = {0}|]
+category :: Int -> T ()
+category pid = do
+    params <- S.addIdParam "id" pid
+    checkExist "id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
+    checkExist "parent_id" [sql|SELECT 1 FROM categories WHERE categories.parent_id = {0}|]
     update Category [sql|UPDATE categories SET {0} WHERE id = {1}|] 
         [updates params ["parent_id", "category_name"], q pid]
 

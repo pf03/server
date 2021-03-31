@@ -90,8 +90,22 @@ setParams params = modify $ \s-> s{params = params}
 getParams :: MonadState S m => m (ParamsMap Param)
 getParams = gets params
 
+modifyParams :: MonadState S m => (ParamsMap Param -> ParamsMap Param) -> m (ParamsMap Param)
+modifyParams f = do 
+    params <- getParams
+    setParams $ f params
+    getParams
+
+
 getParam :: MonadState S m => BSName -> m Param
 getParam name = gets (\st -> params st ! name)
+
+--добавить user_id, author_id и т. д.
+addIdParam :: MonadState S m => BSName -> Int -> m (ParamsMap Param)
+addIdParam name pid = modifyParams $ M.insert name (ParamEq (Int pid))
+
+addStrParam :: MonadState S m => BSName -> String -> m (ParamsMap Param)
+addStrParam name str = modifyParams $ M.insert name (ParamEq (Str str))
 
 resetState :: MonadState S m => m ()
 resetState = modify $ \st -> st {changed = mempty, params = mempty}

@@ -62,21 +62,24 @@ user = do
     insert User [sql|INSERT into users (last_name, first_name, avatar, login, pass, creation_date, is_admin) values {0}|]
         [rowEither params [Left "last_name", Left "first_name", Left "avatar", Left "login", Right $ template [sql|md5 (CONCAT_WS(' ', {0}, {1})), current_date, FALSE|] [cell(params ! "login"), cell(params ! "pass")]]]  --нужен рефакторинг
 
-author :: ParamsMap Param -> T ()
-author params = do 
-    checkExist params "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
+author :: T ()
+author = do
+    params <- S.getParams
+    checkExist "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
     --проверка на то, что данный автор уже существует
     checkNotExist "Автор" "user_id" [sql|SELECT 1 FROM authors WHERE authors.user_id = {0}|]
     insert Author [sql|INSERT into authors (user_id, description)  values {0}|] [row params ["user_id", "description"]]   
 
 --нельзя вставить категорию с нeсуществующим родителем, но можно вставить категорию без родителяб "parent_id" - необязаельный параметр
-category :: ParamsMap Param -> T ()
-category params = do
-    checkExist params "parent_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
+category :: T ()
+category = do
+    params <- S.getParams
+    checkExist "parent_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
     insert Category [sql|INSERT into categories (parent_id, category_name) values {0}|] [row params ["parent_id", "category_name"]]
 
-tag :: ParamsMap Param -> T ()
-tag params = do
+tag :: T ()
+tag = do
+    params <- S.getParams
     checkNotExist "Тег" "name" [sql|SELECT 1 FROM tags WHERE tags.name = {0}|]
     insert Tag [sql|INSERT into tags (name)  values ({0})|] [p $ params ! "name"]
 
@@ -84,34 +87,35 @@ tag params = do
 --тут еще добавить теги и фотографии
 --возможно params сделать частью state?? стоит ли? тогда будет меньше путаницы с передачей и изменением params
 --а зачем мы возвращаем Changed, если оно есть в State?
-draft :: ParamsMap Param -> T ()
-draft params = do
-    authorIdParam <- authAuthorIdParam 
-    let newParams = M.insert "author_id" authorIdParam params
-    when (newParams ! "author_id" == ParamEq (Int 1)) $ throwT $ DBError "Невозможно создать черновик от удаленного автора (автора по умолчанию) id = 1"
-    checkExist newParams "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
-    check tagToContent newParams
+draft :: T ()
+draft = do
+    params <- addAuthAuthorIdParam 
+    when (params ! "author_id" == ParamEq (Int 1)) $ throwT $ DBError "Невозможно создать черновик от удаленного автора (автора по умолчанию) id = 1"
+    checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
+    check Insert.tagToContent
     [Only cid] <- query_ $ template [sql|INSERT into contents (author_id, name, creation_date, category_id, text, photo) values {0} RETURNING id|] 
-        [rowEither newParams [Left "author_id", Left "name", Right [sql|current_date|], Left "category_id", Left "text", Left "photo"]] :: T[Only Int]
+        [rowEither params [Left "author_id", Left "name", Right [sql|current_date|], Left "category_id", Left "text", Left "photo"]] :: T[Only Int]
     S.addChanged Insert Content 1
-    let tmpp = M.insert "content_id" (ParamEq (Int cid)) params
-    execute tagToContent tmpp
-    photos tmpp
+    S.addIdParam "content_id" cid
+    execute Insert.tagToContent
+    Insert.photos
     insert Draft [sql|INSERT into drafts (content_id) values ({0})|] 
         [cell $ ParamEq (Int cid)]
 
-tagToContent :: (Action, Action)
+--сначала должна идти проверочная часть, потом часть с записью в бд!!
+tagToContent :: (T(), T())
 tagToContent = (check, execute) where
-    check params = do
+    check = do
+        params <- S.getParams
         let tagIds = valInt <$> (\(ParamAll list) -> list) (params ! "tag_id") -- :: [Val]
         checkExistAll "tag_id" tagIds $ [sql|SELECT id FROM tags|] `whereAll` [cond [sql|id|] $ ParamIn (Int <$> tagIds)]
-    execute params = do 
+    execute = do
+        params <- S.getParams
         unless (emptyParam $ params ! "tag_id") $ do
             execute__ [sql|INSERT into tags_to_contents (tag_id, content_id) values {0}|] [rows params ["tag_id", "content_id"]]
 
 
---сначала должна идти проверочная часть, потом часть с записью в бд!!
---парамсы войдут в стейт!!!, тогда тип будет простой (T(), T())
+
 type Action = ParamsMap Param -> T ()
 check = fst 
 execute = snd
@@ -124,8 +128,9 @@ execute = snd
 --     unless (emptyParam $ params ! "tag_id") $ do
 --         execute__ [sql|INSERT into tags_to_contents (tag_id, content_id) values {0}|] [rows params ["tag_id", "content_id"]]
 
-photos :: ParamsMap Param -> T ()
-photos params = do
+photos :: T ()
+photos = do
+    params <- S.getParams
     unless (emptyParam $ params ! "photos") $ do
         insert Photo [sql|INSERT into photos (photo, content_id) values {0}|] [rows params ["photos", "content_id"]]
     
@@ -137,8 +142,8 @@ photos params = do
 -- только для админа, решается на уровне роутера!!
 publish :: Int -> T ()
 publish pid = do
-    let params = M.fromList [("draft_id", ParamEq (Int pid))] --костыль??
-    checkExist params "draft_id" [sql|SELECT 1 FROM drafts WHERE drafts.id = {0}|]
+    params <- S.addIdParam "draft_id" pid
+    checkExist "draft_id" [sql|SELECT 1 FROM drafts WHERE drafts.id = {0}|]
     [(contentId, mpostId)] <- query_ $ template [sql|SELECT content_id, post_id FROM drafts WHERE drafts.id = {0}|] 
         [p $ params ! "draft_id" ] :: T [(Int, Maybe Int)]
     case mpostId of 
@@ -160,30 +165,32 @@ publish pid = do
 
 
 
-comment :: Int -> ParamsMap Param -> T ()
-comment postId params = do
-    userIdParam <- Insert.authUserIdParam 
-    let allParams = params <> M.fromList [("user_id", userIdParam),("post_id", ParamEq (Int postId))]
-    when (allParams ! "user_id" == ParamEq (Int 1)) $ throwT $ DBError "Невозможно создать комментарий от удаленного пользователя (пользователя по умолчанию) id = 1"
-    checkExist allParams "post_id" [sql|SELECT 1 FROM posts WHERE posts.id = {0}|]
-    checkExist allParams "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
+comment :: Int -> T ()
+comment postId = do
+    Insert.addAuthUserIdParam 
+    params <- S.addIdParam "post_id" postId
+    when (params ! "user_id" == ParamEq (Int 1)) $ throwT $ DBError "Невозможно создать комментарий от удаленного пользователя (пользователя по умолчанию) id = 1"
+    checkExist "post_id" [sql|SELECT 1 FROM posts WHERE posts.id = {0}|]
+    checkExist "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
     insert Comment [sql|INSERT into comments (post_id, user_id, creation_date, text) values {0}|]
-        [rowEither allParams [Left "post_id", Left "user_id", Right [sql|current_date|], Left "text"]]
+        [rowEither params [Left "post_id", Left "user_id", Right [sql|current_date|], Left "text"]]
 
 
 --query Select 1 ...
 --в шаблон подставляется внутренний pid, если параметр обязательный, то ParamNo никогда не выскочит
-checkExist :: ParamsMap Param -> BSName -> Query -> T() 
-checkExist params name templ = helper name (params ! name) templ where
-    helper name ParamNo templ = return ()
-    helper name ParamNull templ = return ()
-    helper name param@(ParamEq (Int pid)) templ = do 
-        exist <- query_ $ template templ [q pid] :: T [Only Int]
-        case exist of
-            [] -> throwT $ DBError  (template "Указан несуществующий параметр {0}: {1}" [show name, show pid]) 
-            _ -> return ()
-            --x:xs -> ??
-        --unless exist $ throwT $ DBError  (template "Уазан несуществующий parent_id: {0}" [show parentId]) 
+checkExist :: BSName -> Query -> T() 
+checkExist name templ = do
+    param <- S.getParam name
+    helper name param templ where
+        helper name ParamNo templ = return ()
+        helper name ParamNull templ = return ()
+        helper name param@(ParamEq (Int pid)) templ = do 
+            exist <- query_ $ template templ [q pid] :: T [Only Int]
+            case exist of
+                [] -> throwT $ DBError  (template "Указан несуществующий параметр {0}: {1}" [show name, show pid]) 
+                _ -> return ()
+                --x:xs -> ??
+            --unless exist $ throwT $ DBError  (template "Уазан несуществующий parent_id: {0}" [show parentId]) 
 
 --проверка на существование ВСЕХ сущностей из списка
 checkExistAll :: BSName -> [Int] -> Query -> T() 
@@ -259,10 +266,10 @@ cellByNumber ParamNo _ = [sql|null|]
 
 
 --админ может CОЗДАВАТЬ только свои публикации
-authAuthorIdParam :: T Param
-authAuthorIdParam = do
-    paramUserId <- Insert.authUserIdParam
-    
+addAuthAuthorIdParam :: T (ParamsMap Param)
+addAuthAuthorIdParam = do
+    Insert.addAuthUserIdParam
+    paramUserId <- S.getParam "user_id"
     mauthorId <- fromOnly <<$>> listToMaybe  <$> query_ (template [sql|
     SELECT authors.id FROM authors
         LEFT JOIN users
@@ -272,15 +279,15 @@ authAuthorIdParam = do
     case mauthorId of
         Nothing -> throwT $ AuthError "Данная функция доступна только авторам"
         Just 1 -> throwT $ AuthError "Невозможна аутентификация удаленного автора"
-        Just authorId -> return $ ParamEq (Int authorId)
+        Just authorId -> S.addIdParam "author_id" authorId
 
 --админ может СОЗДАВАТЬ только свои публикации (комментарии)
-authUserIdParam :: T Param
-authUserIdParam = do
+addAuthUserIdParam :: T (ParamsMap Param)
+addAuthUserIdParam = do
     auth <- S.getAuth
     case auth of
-        AuthAdmin userId -> return $ ParamEq (Int userId)
-        AuthUser userId -> return $ ParamEq (Int userId)
+        AuthAdmin userId -> S.addIdParam "user_id" userId
+        AuthUser userId -> S.addIdParam "user_id" userId
         _ -> throwT authErrorDefault
 
 

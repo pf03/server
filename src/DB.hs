@@ -125,12 +125,12 @@ getJSON api req = do
         --апи, которые не возвращают количество измененных строк
         --может publish сделать отдельным querytype?
         API Insert [API.User] -> encode Insert.user
-        API Insert [API.Author] -> encode $ Insert.author params
-        API Insert [API.Category] -> encode $ Insert.category params
-        API Insert [API.Tag] -> encode $ Insert.tag params
-        API Insert [API.Draft] -> encode $ Insert.draft params
+        API Insert [API.Author] -> encode $ Insert.author
+        API Insert [API.Category] -> encode $ Insert.category
+        API Insert [API.Tag] -> encode $ Insert.tag
+        API Insert [API.Draft] -> encode $ Insert.draft
         API Insert [API.Draft, Id n, API.Post] -> encode $ Insert.publish n
-        API Insert [API.Post, Id n, API.Comment] -> encode $ Insert.comment n params
+        API Insert [API.Post, Id n, API.Comment] -> encode $ Insert.comment n
 
         API Update [API.User, Id n] -> encode $ Update.user n params
         API Update [API.Author, Id n] -> encode $ Update.author n params
