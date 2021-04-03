@@ -3,7 +3,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 
 module DB where
-import Database.PostgreSQL.Simple.FromRow
+--import Database.PostgreSQL.Simple.FromRow
 import Database.PostgreSQL.Simple.SqlQQ
 import  qualified Data.ByteString.Char8 as BC
 import qualified Data.ByteString.Lazy.Char8 as LC
@@ -82,16 +82,6 @@ getJSON_ req = do
     S.setParams params
     getJSON api req
 
-
---в state можно включить:
---requst
---params
---paramsBody - чтото одно из них => можно делать вычисление по требованию прям в монаде state, а не хранить его - революция в коде
---api
---auth
---хранить из этого можно только request, а остальное вычислять по необходимости
---минус в том, что могут быть множественные вычисления, поэтому вычисления лучше оставить там, где они есть
-
 --эта обертка для удобства тестирования--эту обертку перенести в Test
 getJSONTest :: BC.ByteString -> PathInfo -> HTTP.Query -> HTTP.Query -> RequestHeaders -> T LC.ByteString
 getJSONTest rawPathInfo pathInfo qs qsBody headers = do
@@ -101,9 +91,7 @@ getJSONTest rawPathInfo pathInfo qs qsBody headers = do
     let req  = Wai.defaultRequest {requestHeaders = headers}
     Auth.auth req
     auth <- S.getAuth
-
     api@(API apiType queryTypes) <- logT $ router rawPathInfo pathInfo auth
-    
     params <- if apiType `elem` [API.Auth, API.Delete, API.Insert, API.Update] 
         then catchT (logT $ Params.parseParams qsBody api) $
             \(RequestError e) -> throwT $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в теле запроса методом x-www-form-urlencoded" [e] 
@@ -112,58 +100,52 @@ getJSONTest rawPathInfo pathInfo qs qsBody headers = do
     S.setParams params
     getJSON api req
 
-
---req нужен для upload
---подумать над тем, чтобы включить request в state а также auth. Как организовать тесты, и останется ли вообще чистый код?
---в handle pattern handle в каждом модуле разный, а в моем state сотояние везде одинаковое
 getJSON:: API -> Request -> T LC.ByteString
-getJSON api req = do
-    params <- S.getParams  --потом это убрать
-    case api of
-        API Auth [] -> encode Auth.login
+getJSON api req = case api of
+    API Auth [] -> encode Auth.login
 
-        API Upload [API.Photo] -> encode $ Upload.photo req
+    API Upload [API.Photo] -> encode $ Upload.photo req
 
-        --апи, которые не возвращают количество измененных строк
-        --может publish сделать отдельным querytype?
-        API Insert [API.User] -> encode Insert.user
-        API Insert [API.Author] -> encode Insert.author
-        API Insert [API.Category] -> encode Insert.category
-        API Insert [API.Tag] -> encode Insert.tag
-        API Insert [API.Draft] -> encode Insert.draft
-        API Insert [API.Draft, Id n, API.Post] -> encode $ Insert.publish n
-        API Insert [API.Post, Id n, API.Comment] -> encode $ Insert.comment n
+    --апи, которые не возвращают количество измененных строк
+    --может publish сделать отдельным querytype?
+    API Insert [API.User] -> encode Insert.user
+    API Insert [API.Author] -> encode Insert.author
+    API Insert [API.Category] -> encode Insert.category
+    API Insert [API.Tag] -> encode Insert.tag
+    API Insert [API.Draft] -> encode Insert.draft
+    API Insert [API.Draft, Id n, API.Post] -> encode $ Insert.publish n
+    API Insert [API.Post, Id n, API.Comment] -> encode $ Insert.comment n
 
-        API Update [API.User, Id n] -> encode $ Update.user n
-        API Update [API.Author, Id n] -> encode $ Update.author n
-        API Update [API.Category, Id n] -> encode $ DB.updateCategory n
-        API Update [API.Tag, Id n] -> encode $ Update.tag n
-        API Update [API.Draft, Id n] -> encode $ Update.draft n
-        API Update [API.Post, Id n] -> encode $ Update.post n
+    API Update [API.User, Id n] -> encode $ Update.user n
+    API Update [API.Author, Id n] -> encode $ Update.author n
+    API Update [API.Category, Id n] -> encode $ DB.updateCategory n
+    API Update [API.Tag, Id n] -> encode $ Update.tag n
+    API Update [API.Draft, Id n] -> encode $ Update.draft n
+    API Update [API.Post, Id n] -> encode $ Update.post n
 
-        API Delete [API.User, Id n] -> encode $ Delete.user n
-        API Delete [API.Author, Id n] -> encode $ Delete.author n
-        API Delete [API.Category, Id n] -> encode $ Delete.category n
-        API Delete [API.Tag, Id n] -> encode $ Delete.tag n
-        API Delete [API.Post, Id n] -> encode $ Delete.post n
-        API Delete [API.Draft, Id n] -> encode $ Delete.draft n
-        API Delete [API.Comment, Id n] -> encode $ Delete.comment n
+    API Delete [API.User, Id n] -> encode $ Delete.user n
+    API Delete [API.Author, Id n] -> encode $ Delete.author n
+    API Delete [API.Category, Id n] -> encode $ Delete.category n
+    API Delete [API.Tag, Id n] -> encode $ Delete.tag n
+    API Delete [API.Post, Id n] -> encode $ Delete.post n
+    API Delete [API.Draft, Id n] -> encode $ Delete.draft n
+    API Delete [API.Comment, Id n] -> encode $ Delete.comment n
 
-        --апи, которые возвращают результат
-        API Select [API.User] -> encode $ Select.users params
-        API Select [API.Author] -> encode $ evalAuthors <$> Select.authors params
-        API Select [API.Category] -> encode $ DB.getCategories params
-        API Select [API.Tag] -> encode $ Select.tags params
-        API Select [API.Post] -> encode $ DB.getPosts params
-        API Select [API.Draft] -> encode $ DB.getDrafts params
-        API Select [API.Post, Id n, API.Comment] -> encode $ evalComments <$> Select.comments n params
+    --апи, которые возвращают результат
+    API Select [API.User] -> encode $ Select.users
+    API Select [API.Author] -> encode $ evalAuthors <$> Select.authors
+    API Select [API.Category] -> encode $ DB.getCategories
+    API Select [API.Tag] -> encode $ Select.tags
+    API Select [API.Post] -> encode $ DB.getPosts
+    API Select [API.Draft] -> encode $ DB.getDrafts
+    API Select [API.Post, Id n, API.Comment] -> encode $ evalComments <$> Select.comments n
 
-        API SelectById [API.User, Id n] -> encode $ Select.user n
-        API SelectById [API.Author, Id n] -> encode $ (evalAuthor <$>) <$> Select.author n
-        API SelectById [API.Category, Id n] -> encode $ DB.getCategory n
-        API SelectById [API.Tag, Id n] -> encode $ Select.tag n
-        API SelectById [API.Post, Id n] -> encode $ DB.getPost n
-        API SelectById [API.Draft, Id n] -> encode $ DB.getDraft n
+    API SelectById [API.User, Id n] -> encode $ Select.user n
+    API SelectById [API.Author, Id n] -> encode $ (evalAuthor <$>) <$> Select.author n
+    API SelectById [API.Category, Id n] -> encode $ DB.getCategory n
+    API SelectById [API.Tag, Id n] -> encode $ Select.tag n
+    API SelectById [API.Post, Id n] -> encode $ DB.getPost n
+    API SelectById [API.Draft, Id n] -> encode $ DB.getDraft n
 
 encode :: (Typeable a, ToJSON a) => T a -> T LC.ByteString
 encode ta = do
@@ -175,27 +157,25 @@ encode ta = do
 showType :: Typeable a => a -> String
 showType = show . typeOf
 
-getPosts :: ParamsMap Param -> T [Post]
-getPosts params = do
+getPosts :: T [Post]
+getPosts = do
     --эта строка первая, чтобы не перезаписывать настройки лога
     categories <- DB.getAllCategories
     Log.setSettings Color.Blue True "DB.getPosts" 
     Log.funcT Log.Debug "..."
-    let newParams = evalParams params categories
-    selectPosts <- Select.posts newParams
-    jsonPosts <- toT $ JSON.evalPosts categories selectPosts
-    return jsonPosts
+    S.modifyParams $ evalParams categories
+    selectPosts <- Select.posts
+    toT $ JSON.evalPosts categories selectPosts
 
-getDrafts :: ParamsMap Param -> T [Draft]
-getDrafts params = do
+getDrafts :: T [Draft]
+getDrafts = do
     --эта строка первая, чтобы не перезаписывать настройки лога
     categories <- DB.getAllCategories
     Log.setSettings Color.Blue True "DB.getDrafts" 
     Log.funcT Log.Debug "..."
-    let newParams = evalParams params categories
-    selectDrafts <- Select.drafts newParams
-    jsonDrafts <- toT $ JSON.evalDrafts categories selectDrafts
-    return jsonDrafts
+    S.modifyParams $ evalParams categories
+    selectDrafts <- Select.drafts
+    toT $ JSON.evalDrafts categories selectDrafts
 
 getPost :: Int -> T (Maybe Post)
 getPost pid = do
@@ -224,12 +204,12 @@ getAllCategories = do
     allCategories <- Select.allCategories
     toT $ evalCategories allCategories allCategories
 
-getCategories :: ParamsMap Param ->  T [Category]
-getCategories params = do
+getCategories :: T [Category]
+getCategories = do
     Log.setSettings Color.Blue True "DB.getCategories"
     Log.funcT Log.Debug "..."
     allCategories <- Select.allCategories
-    categories <- Select.categories params
+    categories <- Select.categories
     toT $ evalCategories allCategories categories
 
 updateCategory :: Int -> T () 

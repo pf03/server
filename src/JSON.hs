@@ -293,14 +293,8 @@ setPostContent post content = post {postContent = content}
 --возможно чистый код заменить везде на код с обработкой ошибочных паттернов!!!
 
 --тут можно упростить, если использовать map вместо списка
-evalParams :: ParamsMap Param -> [Category] -> ParamsMap Param
-evalParams params categories = res where
-    res = M.adjust (\oldParam  -> getChildCategories oldParam categories) "category" params
-    -- categoryParam = params ! "category" ;
-    -- newCategoryParam = getChildCategories categoryParam categories;
-    -- --res = map (\(name, param) -> if name == "category" then (name, newCategoryParam) else (name,param) ) params
-    -- res = M.insert "category" newCategoryParam 
-
+evalParams :: [Category] -> ParamsMap Param-> ParamsMap Param
+evalParams categories = M.adjust (\oldParam  -> getChildCategories oldParam categories) "category"
 
 getChildCategories :: Param -> [Category] -> Param
 getChildCategories (ParamIn vals) cs  = if length filtered == length cs then ParamNo else ParamIn . map (Int . getId) $ filtered where

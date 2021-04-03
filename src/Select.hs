@@ -32,8 +32,8 @@ user :: Int -> T (Maybe User)
 user pid = listToMaybe <$> query_ query where
         query =  selectUsersQuery <+> template [sql|WHERE users.id = {0}|] [q pid]
 
-users :: ParamsMap Param -> T [User]
-users params = query_ $ usersQuery params
+users :: T [User]
+users = query_ . usersQuery =<< S.getParams
 
 --отделение чистого кода от грязного
 selectUsersQuery :: Query 
@@ -49,8 +49,8 @@ author :: Int -> T (Maybe Author)
 author pid = listToMaybe <$> query_ query where
         query =  selectAuthorsQuery <+> template [sql|WHERE authors.id = {0}|] [q pid]
 
-authors :: ParamsMap Param -> T [Author]
-authors params = query_ $ authorsQuery params
+authors :: T [Author]
+authors = query_ . authorsQuery =<< S.getParams
 
 selectAuthorsQuery :: SQL.Query
 selectAuthorsQuery = [sql|SELECT * FROM authors
@@ -68,8 +68,8 @@ category::  Int -> T (Maybe Category)
 category pid = listToMaybe <$> query_ query where
         query = selectCategoriesQuery <+> template [sql|WHERE categories.id = {0}|] [q pid]
 
-categories :: ParamsMap Param -> T [Category]
-categories params = query_ $ categoriesQuery params
+categories :: T [Category]
+categories = query_ . categoriesQuery =<< S.getParams
 
 --все категории без пагинации нужны для вычисления родительских категорий
 allCategories :: T [Category]
@@ -95,8 +95,9 @@ draft pid = do
     let query =  selectDraftsQuery `whereAll` conditions;
     query_ query
 
-drafts :: ParamsMap Param -> T [Draft]
-drafts params = do
+drafts :: T [Draft]
+drafts = do
+    params <- S.getParams
     paramUserId <- authUserIdParam
     let conditions =  [
             cond [sql|users.id|] paramUserId
@@ -131,8 +132,8 @@ post::  Int -> T [Post]
 post pid = query_ query where
         query = selectPostsQuery <+> template [sql|WHERE posts.id = {0}|] [q pid]
 
-posts :: ParamsMap Param -> T [Post]
-posts params = query_ $ postsQuery params
+posts :: T [Post]
+posts = query_ . postsQuery =<< S.getParams
 
 --зачем здесь таблица categories? проверить!!!
 selectPostsQuery ::  Query
@@ -223,8 +224,8 @@ tag::  Int -> T (Maybe Tag)
 tag pid = listToMaybe <$> query_ query where
         query = selectTagsQuery <+> template [sql|WHERE tags.id = {0}|] [q pid]
 
-tags :: ParamsMap Param -> T [Tag]
-tags params = query_ $ tagsQuery params
+tags :: T [Tag]
+tags = query_ . tagsQuery =<< S.getParams
 
 selectTagsQuery ::  Query
 selectTagsQuery = [sql|SELECT * FROM tags|] 
@@ -239,8 +240,8 @@ type Comment =  Row.Comment :. Row.Post :. Row.User
 -- comments postId = listToMaybe <$> query_ query where
 --         query = selectTagsQuery <+> template [sql|WHERE tags.id = {0}|] [q pid]
 
-comments :: Int -> ParamsMap Param -> T [Comment]
-comments postId params = query_ $ commentsQuery postId params
+comments :: Int -> T [Comment]
+comments postId = query_ . commentsQuery postId =<< S.getParams
 
 selectCommentsQuery ::  Query
 selectCommentsQuery = [sql|
