@@ -127,10 +127,10 @@ getJSON api req = do
         --апи, которые не возвращают количество измененных строк
         --может publish сделать отдельным querytype?
         API Insert [API.User] -> encode Insert.user
-        API Insert [API.Author] -> encode $ Insert.author
-        API Insert [API.Category] -> encode $ Insert.category
-        API Insert [API.Tag] -> encode $ Insert.tag
-        API Insert [API.Draft] -> encode $ Insert.draft
+        API Insert [API.Author] -> encode Insert.author
+        API Insert [API.Category] -> encode Insert.category
+        API Insert [API.Tag] -> encode Insert.tag
+        API Insert [API.Draft] -> encode Insert.draft
         API Insert [API.Draft, Id n, API.Post] -> encode $ Insert.publish n
         API Insert [API.Post, Id n, API.Comment] -> encode $ Insert.comment n
 
@@ -150,20 +150,20 @@ getJSON api req = do
         API Delete [API.Comment, Id n] -> encode $ Delete.comment n
 
         --апи, которые возвращают результат
-        API SelectById [API.User, Id n] -> encode $ Select.user n
-        API SelectById [API.Author, Id n] -> encode $ (evalAuthor <$>) <$> Select.author n
-        API SelectById [API.Category, Id n] -> encode $ DB.getCategory n
-        API SelectById [API.Post, Id n] -> encode $ DB.getPost n
-        API SelectById [API.Draft, Id n] -> encode $ DB.getDraft n
-        API SelectById [API.Tag, Id n] -> encode $ Select.tag n
-
         API Select [API.User] -> encode $ Select.users params
         API Select [API.Author] -> encode $ evalAuthors <$> Select.authors params
         API Select [API.Category] -> encode $ DB.getCategories params
+        API Select [API.Tag] -> encode $ Select.tags params
         API Select [API.Post] -> encode $ DB.getPosts params
         API Select [API.Draft] -> encode $ DB.getDrafts params
-        API Select [API.Tag] -> encode $ Select.tags params
         API Select [API.Post, Id n, API.Comment] -> encode $ evalComments <$> Select.comments n params
+
+        API SelectById [API.User, Id n] -> encode $ Select.user n
+        API SelectById [API.Author, Id n] -> encode $ (evalAuthor <$>) <$> Select.author n
+        API SelectById [API.Category, Id n] -> encode $ DB.getCategory n
+        API SelectById [API.Tag, Id n] -> encode $ Select.tag n
+        API SelectById [API.Post, Id n] -> encode $ DB.getPost n
+        API SelectById [API.Draft, Id n] -> encode $ DB.getDraft n
 
 encode :: (Typeable a, ToJSON a) => T a -> T LC.ByteString
 encode ta = do
