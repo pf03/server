@@ -80,6 +80,7 @@ selectCategoriesQuery = [sql|SELECT * FROM categories|]
 
 categoriesQuery :: ParamsMap Param -> Query
 categoriesQuery params = selectCategoriesQuery <+> pagination (params ! "page")
+
 -------------------------Draft-------------------------------------------------------------
 type Content = Row.Content :. Row.Category :. Row.Author :. Row.User :. Maybe Row.TagToContent :. Maybe Row.Tag :. Maybe Row.Photo
 

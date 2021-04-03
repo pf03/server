@@ -1,10 +1,15 @@
-module Update where
+module Update 
+    (user
+    , author
+    , category
+    , tag
+    , draft
+    , checkAuthExistDraft
+    , post
+    , checkAuthExistPost
+    , checkAuthExistComment
+    ) where
 
-import Database.PostgreSQL.Simple.FromRow --hiding (FromRow(..) ) 
-import Database.PostgreSQL.Simple.Time
-import GHC.Generics 
-import Data.Aeson
-import Data.Aeson.Types
 import Data.Text (pack, Text(..))
 import Types 
 import qualified Row
@@ -18,28 +23,29 @@ import Control.Monad.Identity
 import Select ( p, val )
 import Data.Map as M ((!), fromList)
 import qualified Data.Map as M (insert)
-import Class
-import Control.Monad.Trans.Except
+--import Class
+--import Control.Monad.Trans.Except
 import Transformer
 import qualified Log
 import Data.Maybe
 import API
-import Insert
-import Select
+import Insert ( photos, tagToContent, checkExist, rowEither )
+import Select ( cond, val, p )
 import qualified State as S
 import Error
 
---редактирование пароля не верно
+----------------------------------User-----------------------------------------------------------
 user :: Int -> T ()
 user pid = do
     S.addIdParam "id" pid
     checkExist "id" [sql|SELECT 1 FROM users WHERE users.id = {0}|] 
-    [Only login] <- query_ $ template [sql|SELECT users.login FROM users WHERE users.id = {0}|] [q pid]  --логин нужен для проверки пароля!!!
-    
+    --логин нужен для проверки пароля
+    [Only login] <- query_ $ template [sql|SELECT users.login FROM users WHERE users.id = {0}|] [q pid]  
     params <- S.addStrParam "login" login
     update User [sql|UPDATE users SET {0} WHERE id = {1}|] 
         [updates params ["first_name", "last_name", "avatar", "pass"], q pid]
 
+----------------------------------Author---------------------------------------------------------
 author :: Int -> T ()
 author pid = do
     params <- S.addIdParam "id" pid
@@ -48,6 +54,7 @@ author pid = do
     update Author [sql|UPDATE authors SET {0} WHERE id = {1}|] 
         [updates params ["user_id", "description"], q pid]
 
+----------------------------------Category-------------------------------------------------------
 category :: Int -> T ()
 category pid = do
     params <- S.addIdParam "id" pid
@@ -56,19 +63,12 @@ category pid = do
     update Category [sql|UPDATE categories SET {0} WHERE id = {1}|] 
         [updates params ["parent_id", "category_name"], q pid]
 
-draft :: Int-> T ()
-draft pid = do
-    checkAuthExistDraft pid
-    params <- S.getParams 
-    checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
-    Update.tagToContent Check
-
-    ParamEq (Int cid) <- S.getParam "content_id" 
-    update Content [sql|UPDATE contents SET {0} WHERE id = {1}|] 
-        [updates params ["name", "category_id", "text", "photo"], q cid]
-    
-    Update.tagToContent Execute
-    Update.photos
+----------------------------------Tag-------------------------------------------------------------
+tag :: Int -> T ()
+tag pid = do
+    params <- S.addIdParam "id" pid
+    checkExist "id" [sql|SELECT 1 FROM tags WHERE tags.id = {0}|]
+    update Tag [sql|UPDATE tags SET name = {0} WHERE id = {1}|] [p $ params ! "name", q pid]
 
 tagToContent :: Action -> T ()
 tagToContent Check = withParam "tag_id" $ Insert.tagToContent Check
@@ -77,19 +77,18 @@ tagToContent Execute = withParam "tag_id" $ do
     execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [q cid] 
     Insert.tagToContent Execute
 
-photos :: T ()
-photos = withParam "photos" $ do 
+----------------------------------Draft----------------------------------------------------------
+draft :: Int-> T ()
+draft pid = do
+    checkAuthExistDraft pid
+    params <- S.getParams 
+    checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
+    Update.tagToContent Check
     ParamEq (Int cid) <- S.getParam "content_id" 
-    delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [q cid]  
-    Insert.photos
-
-
-withParam :: BSName -> T() -> T()
-withParam name t = do 
-    param <- S.getParam name
-    case param of 
-        ParamNo -> return ()
-        _ -> t
+    update Content [sql|UPDATE contents SET {0} WHERE id = {1}|] 
+        [updates params ["name", "category_id", "text", "photo"], q cid]
+    Update.tagToContent Execute
+    Update.photos
 
 --проверка существования вместе с авторизацией, для запросов update и delete
 checkAuthExistDraft :: Int -> T (ParamsMap Param)
@@ -106,9 +105,9 @@ checkAuthExistDraft pid = do
     S.addIdParam "author_id" aid
     S.addIdParam "content_id" cid
 
+----------------------------------Post-----------------------------------------------------------
 post :: Int -> T ()
 post pid = do
-
     params <- checkAuthExistPost pid
     when (params ! "author_id" == ParamEq (Int 1)) $ throwT $ DBError "Невозможно создать черновик от удаленного автора (автора по умолчанию) id = 1"
     checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
@@ -122,10 +121,9 @@ post pid = do
     Insert.tagToContent Execute
     Insert.photos
     
-
 checkAuthExistPost :: Int -> T (ParamsMap Param) --(Int, Int, Int) --добавляем authorId для запроса --нужно ли тут чтото возвращать или сразу добавлять в парамсы??
 checkAuthExistPost pid = do
-    --проверка на удаленного пользователя и удаленного автора!!
+    --проверка на удаленного пользователя и удаленного автора
     --аутентификация удаленным пользователем не пройдет. Удаленный автор привязан к удаленному пользователю.
     --таким образом посты с удаленными авторами и пользователями сможет редактировать только админ
     let query = [sql|
@@ -141,53 +139,33 @@ checkAuthExistPost pid = do
     S.addIdParam "content_id" cid
     --return (uid, aid, cid) -- ??
 
+----------------------------------Comment--------------------------------------------------------
 --в общем случае checkAuthExist возвращает три параметра, поэтому здесь небольшой костыль
 checkAuthExistComment :: Int -> T Int --возвращаем userId
 checkAuthExistComment pid = do
     let query = template [sql| SELECT user_id, 0, 0 FROM comments WHERE id = {0}|] [q pid]
     (\(a,b,c) -> a) <$> checkAuthExist pid "comment_id" query
 
-tag :: Int -> T ()
-tag pid = do
-    params <- S.addIdParam "id" pid
-    checkExist "id" [sql|SELECT 1 FROM tags WHERE tags.id = {0}|]
-    update Tag [sql|UPDATE tags SET name = {0} WHERE id = {1}|] [p $ params ! "name", q pid]
 
+----------------------------------Photo-----------------------------------------------------------
+photos :: T ()
+photos = withParam "photos" $ do 
+    ParamEq (Int cid) <- S.getParam "content_id" 
+    delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [q cid]  
+    Insert.photos
 
+----------------------------------Common-----------------------------------------------------------
 --упорядочить эти функции
 updates :: ParamsMap Param -> [BSName] -> Query
 updates params names = Query.concat "," $ mapMaybe helper names where
     helper :: BSName -> Maybe Query
     helper name = upd (q name) (params ! name)
-
     upd :: Query -> Param -> Maybe Query 
-    --upd "pass" (ParamEq v) = Just $ template [sql|pass = md5({0})|] [val v] --костыль для pass --так не работает
     upd "pass" (ParamEq v) = Just $ template [sql|pass = md5 (CONCAT_WS(' ', {0}, {1}))|] [p $ params ! "login", val v] -- логина может и не быть, нужно его получить дополнительно
     upd field (ParamEq v) = Just $ template [sql|{0} = {1}|] [field, val v]
     upd field ParamNo = Nothing 
     upd field ParamNull = Just $ template [sql|{0} = null|] [field]
     upd field param = error $ template "Нет шаблона для {0}" [show param]
-
--- --админ может РЕДАКТИРОВАТЬ все публикации (модерация)
--- authAuthorIdParam :: T Param
--- authAuthorIdParam = do
---     auth <- S.getAuth
---     paramUserId <- case auth of
---             AuthAdmin userId -> return ParamNo
---             AuthUser userId -> return $ ParamEq (Int userId)
---             _ -> throwT authErrorDefault
-    
---     mauthorId <- fromOnly <<$>> listToMaybe  <$> query_ (template [sql|
---     SELECT authors.id FROM authors
---         LEFT JOIN users
---         ON authors.user_id = users.id
---         WHERE users.id = {0}
---     |] [p paramUserId]) :: T (Maybe Int)
---     case mauthorId of
---         Nothing -> throwT $ AuthError "Данная функция доступна только авторам"
---         Just 1 -> throwT $ AuthError "Невозможна аутентификация удаленного автора"
---         Just authorId -> return $ ParamEq (Int authorId)
-
 
 checkAuthExist :: Int -> BSName -> Query ->  T (Int, Int, Int)
 checkAuthExist pid name query = do
@@ -198,6 +176,13 @@ checkAuthExist pid name query = do
             auth <- S.getAuth
             case auth of
                 AuthNo -> throwT authErrorDefault
-                AuthAdmin _ -> return (uid, aid, cid) --админ может редактировать всё
-                AuthUser authuid | uid == authuid -> return (uid, aid, cid) --юзер может редактировать только своё
+                AuthAdmin _ -> return (uid, aid, cid) --админ может РЕДАКТИРОВАТЬ все публикации (модерация)
+                AuthUser authuid | uid == authuid -> return (uid, aid, cid) --юзер может РЕДАКТИРОВАТЬ только своё
                 _ -> throwT authErrorWrong
+
+withParam :: BSName -> T() -> T()
+withParam name t = do 
+    param <- S.getParam name
+    case param of 
+        ParamNo -> return ()
+        _ -> t
