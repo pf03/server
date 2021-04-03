@@ -124,8 +124,10 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
                 param "name" [Eq] ParamTypeStr False,
                 param "category_id" [Eq] ParamTypeInt False,
                 param "text" [Eq] ParamTypeStr False,
-                param "photo" [Eq] ParamTypeStr False
+                param "photo" [Eq] ParamTypeStr False,
                 --param "news_id" [Eq] ParamTypeInt False --можно привязать черновик к другой новости?
+                param "tag_id" [All] ParamTypeInt False,
+                param "photos" [All] ParamTypeStr False --отличаем от главного фото
                 ]
             [API.Post, Id _, API.Comment] -> [
                 param "user_id" [Eq] ParamTypeInt False,
@@ -136,7 +138,9 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
                 param "name" [Eq] ParamTypeStr True,  --для создания нового контента эти параметры обязательны. Фронтенд может взять их из оригинального поста
                 param "category_id" [Eq] ParamTypeInt True,
                 param "text" [Eq] ParamTypeStr True,
-                param "photo" [Eq] ParamTypeStr True
+                param "photo" [Eq] ParamTypeStr True,
+                param "tag_id" [All] ParamTypeInt True,
+                param "photos" [All] ParamTypeStr True --отличаем от главного фото
                 ]
         
 

@@ -58,16 +58,38 @@ category pid = do
 
 draft :: Int-> T ()
 draft pid = do
-    
-    --проверка существования параметров
     checkAuthExistDraft pid
     params <- S.getParams 
-    --let allParams = M.insert "id" (ParamEq (Int pid)) params
-    --checkExist allParams "id" [sql|SELECT 1 FROM drafts WHERE drafts.id = {0}|]
     checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
-    --[Only contentId] <- query_ $ template [sql|SELECT content_id FROM drafts WHERE drafts.id = {0}|] [q pid] :: T [Only Int]
+    Update.tagToContent Check
+
+    ParamEq (Int cid) <- S.getParam "content_id" 
     update Content [sql|UPDATE contents SET {0} WHERE id = {1}|] 
-        [updates params ["name", "category_id", "text", "photo", "content_id"]]
+        [updates params ["name", "category_id", "text", "photo"], q cid]
+    
+    Update.tagToContent Execute
+    Update.photos
+
+tagToContent :: Action -> T ()
+tagToContent Check = withParam "tag_id" $ Insert.tagToContent Check
+tagToContent Execute = withParam "tag_id" $ do
+    ParamEq (Int cid) <- S.getParam "content_id" 
+    execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [q cid] 
+    Insert.tagToContent Execute
+
+photos :: T ()
+photos = withParam "photos" $ do 
+    ParamEq (Int cid) <- S.getParam "content_id" 
+    delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [q cid]  
+    Insert.photos
+
+
+withParam :: BSName -> T() -> T()
+withParam name t = do 
+    param <- S.getParam name
+    case param of 
+        ParamNo -> return ()
+        _ -> t
 
 --проверка существования вместе с авторизацией, для запросов update и delete
 checkAuthExistDraft :: Int -> T (ParamsMap Param)
@@ -90,14 +112,14 @@ post pid = do
     params <- checkAuthExistPost pid
     when (params ! "author_id" == ParamEq (Int 1)) $ throwT $ DBError "Невозможно создать черновик от удаленного автора (автора по умолчанию) id = 1"
     checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
-    check Insert.tagToContent
+    Insert.tagToContent Check
     [Only cid] <- query_ $ template [sql|INSERT into contents (author_id, name, creation_date, category_id, text, photo) values {0} RETURNING id|]
         [rowEither params [Left "author_id", Left "name", Right [sql|current_date|], Left "category_id", Left "text", Left "photo"]] :: T[Only Int]
     S.addChanged Insert Content 1
     insert Draft [sql|INSERT into drafts (content_id, post_id) values ({0}, {1})|] 
         [q cid, q pid]
     S.addIdParam "content_id" cid --перезаписываем
-    execute Insert.tagToContent
+    Insert.tagToContent Execute
     Insert.photos
     
 

@@ -179,3 +179,5 @@ data Auth = AuthNo | AuthUser Int | AuthAdmin Int deriving (Show, Eq)
 newtype Changed = Changed  (M.Map String (M.Map String Int64))  deriving (Show, Generic)
 
 instance ToJSON Changed
+
+data Action = Check | Execute --flag

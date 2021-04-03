@@ -52,6 +52,8 @@ import qualified Upload
 import qualified Auth
 import Network.HTTP.Types
 
+import Data.Typeable
+
 --эту обертку перенести в Response
 getJSON_ :: Request -> T LC.ByteString
 getJSON_ req = do
@@ -163,13 +165,15 @@ getJSON api req = do
         API Select [API.Tag] -> encode $ Select.tags params
         API Select [API.Post, Id n, API.Comment] -> encode $ evalComments <$> Select.comments n params
 
-encode :: ToJSON a => T a -> T LC.ByteString
+encode :: (Typeable a, ToJSON a) => T a -> T LC.ByteString
 encode ta = do
     a <- ta
-    let tmp = encodePretty a
-    json <- if tmp == "()" then do encodePretty <$> S.getChanged else return tmp
+    json <- if showType a == "()" then encodePretty <$> S.getChanged else encodePretty <$> ta
     writeResponseJSON json
     return json
+
+showType :: Typeable a => a -> String
+showType = show . typeOf
 
 getPosts :: ParamsMap Param -> T [Post]
 getPosts params = do

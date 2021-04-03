@@ -92,33 +92,36 @@ draft = do
     params <- addAuthAuthorIdParam 
     when (params ! "author_id" == ParamEq (Int 1)) $ throwT $ DBError "Невозможно создать черновик от удаленного автора (автора по умолчанию) id = 1"
     checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
-    check Insert.tagToContent
+    Insert.tagToContent Check
     [Only cid] <- query_ $ template [sql|INSERT into contents (author_id, name, creation_date, category_id, text, photo) values {0} RETURNING id|] 
         [rowEither params [Left "author_id", Left "name", Right [sql|current_date|], Left "category_id", Left "text", Left "photo"]] :: T[Only Int]
     S.addChanged Insert Content 1
     S.addIdParam "content_id" cid
-    execute Insert.tagToContent
+    Insert.tagToContent Execute
     Insert.photos
     insert Draft [sql|INSERT into drafts (content_id) values ({0})|] 
         [cell $ ParamEq (Int cid)]
 
+content :: T()
+content = do 
+    undefined
+
 --сначала должна идти проверочная часть, потом часть с записью в бд!!
-tagToContent :: (T(), T())
-tagToContent = (check, execute) where
-    check = do
-        params <- S.getParams
-        let tagIds = valInt <$> (\(ParamAll list) -> list) (params ! "tag_id") -- :: [Val]
-        checkExistAll "tag_id" tagIds $ [sql|SELECT id FROM tags|] `whereAll` [cond [sql|id|] $ ParamIn (Int <$> tagIds)]
-    execute = do
-        params <- S.getParams
-        unless (emptyParam $ params ! "tag_id") $ do
-            execute__ [sql|INSERT into tags_to_contents (tag_id, content_id) values {0}|] [rows params ["tag_id", "content_id"]]
+tagToContent :: Action -> T()
+tagToContent Check = do
+    params <- S.getParams
+    let tagIds = valInt <$> (\(ParamAll list) -> list) (params ! "tag_id") -- :: [Val]
+    checkExistAll "tag_id" tagIds $ [sql|SELECT id FROM tags|] `whereAll` [cond [sql|id|] $ ParamIn (Int <$> tagIds)]
+tagToContent Execute = do
+    params <- S.getParams
+    unless (emptyParam $ params ! "tag_id") $ do
+        execute__ [sql|INSERT into tags_to_contents (tag_id, content_id) values {0}|] [rows params ["tag_id", "content_id"]]
 
 
 
-type Action = ParamsMap Param -> T ()
-check = fst 
-execute = snd
+-- type Action = ParamsMap Param -> T ()
+-- check = fst 
+-- execute = snd
 
 
 -- tagToContent :: ParamsMap Param -> T ()
@@ -147,7 +150,7 @@ publish pid = do
     [(contentId, mpostId)] <- query_ $ template [sql|SELECT content_id, post_id FROM drafts WHERE drafts.id = {0}|] 
         [p $ params ! "draft_id" ] :: T [(Int, Maybe Int)]
     case mpostId of 
-        Nothing -> do --тут еще добавить теги и фотографии?? 
+        Nothing -> do --тут еще добавить теги и фотографии?? --оно уже привязано к контенту
             insert Post [sql|INSERT into posts (content_id) values ({0})|] [q contentId] --новость публикуется в первый раз
         Just postId -> do
             [Only oldContentId] <- query_ $ template [sql|SELECT content_id FROM posts WHERE posts.id = {0}|] [q postId] :: T [Only Int]

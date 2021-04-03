@@ -462,8 +462,12 @@ publishCases = ("publish", tuples) where
             ("name", Just "edited_name"),
             ("category_id", Just "3"),
             ("text", Just "edited_text"),
-            ("photo", Just "edited_photo.jpg")
-        ], --ДО ЭТОГО МОМЕНТА РАБОТАЕТ
+            ("photo", Just "edited_photo.jpg"),
+            ("tag_id__all", Just "[4,5,6]"),
+            ("photos__all", Just "[\"newphoto1.jpg\",\"newphoto2.jpg\"]")
+        ],  --РАБОТАЕТ 03.04.2021
+
+        (,) ["drafts"] [],
         -- 11 {"created":{"posts":1},"deleted":{"drafts":1}} --работает
         (,) ["drafts", "2","publish"] [],
         -- 12 
@@ -476,7 +480,9 @@ publishCases = ("publish", tuples) where
             ("name", Just "edited_name2"),
             ("category_id", Just "4"),
             ("text", Just "edited_text2"),
-            ("photo", Just "edited_photo2.jpg")
+            ("photo", Just "edited_photo2.jpg"),
+            ("tag_id__all", Just "[7,8]"),
+            ("photos__all", Just "[\"newphoto3.jpg\",\"newphoto4.jpg\"]")
         ],
         -- 15
         (,) ["drafts"] [],
