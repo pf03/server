@@ -416,7 +416,7 @@ publishCases = ("publish", tuples) where
         --     ("photo", Just "photo.jpg")
         -- ],
 
-        -- 6 {"created":{"contents":1,"drafts":1}}
+        -- 6 {"created":{"contents":1,"drafts":1,"photos":2}}
         (,) ["drafts", "create"] [
             ("name", Just "name"),
             ("category_id", Just "1"),
@@ -425,7 +425,7 @@ publishCases = ("publish", tuples) where
             ("tag_id__all", Just "[]"),
             ("photos__all", Just "[\"photo1.jpg\",\"photo2.jpg\"]")
         ],
-
+        -- 7 Ошибка базы данных: Параметры "tag_id" из списка [666,3589] не существуют
         (,) ["drafts", "create"] [
             ("name", Just "name"),
             ("category_id", Just "1"),
@@ -434,7 +434,7 @@ publishCases = ("publish", tuples) where
             ("tag_id__all", Just "[1,2,666,3589,3]"),
             ("photos__all", Just "[\"photo1.jpg\",\"photo2.jpg\"]")
         ],
-
+        -- 8 {"created":{"contents":1,"drafts":1,"photos":2}}
         (,) ["drafts", "create"] [
             ("name", Just "name"),
             ("category_id", Just "1"),
@@ -457,7 +457,7 @@ publishCases = ("publish", tuples) where
         (,) ["drafts", "2","edit"] [
             ("category_id", Just "2")
         ],
-        -- 10 {"edited":{"contents":1}}
+        -- 10 {"created":{"photos":2},"edited":{"contents":1},"deleted":{"photos":2}}
         (,) ["drafts", "2","edit"] [
             ("name", Just "edited_name"),
             ("category_id", Just "3"),
@@ -466,12 +466,12 @@ publishCases = ("publish", tuples) where
             ("tag_id__all", Just "[4,5,6]"),
             ("photos__all", Just "[\"newphoto1.jpg\",\"newphoto2.jpg\"]")
         ],  --РАБОТАЕТ 03.04.2021
-
+        
         (,) ["drafts"] [],
         -- 11 {"created":{"posts":1},"deleted":{"drafts":1}} --работает
         (,) ["drafts", "2","publish"] [],
-        -- 12 
-        (,) ["drafts", "2","delete"] [], --работает
+        -- 12 {"deleted":{"contents":1,"drafts":1,"photos":2}}
+        (,) ["drafts", "3","delete"] [], --работает
         -- 13
         (,) ["posts"] [], --работает
         -- 14 {"created":{"contents":1,"drafts":1}}
@@ -486,7 +486,7 @@ publishCases = ("publish", tuples) where
         ],
         -- 15
         (,) ["drafts"] [],
-        -- 16
+        -- 16 {"edited":{"contents":1}}
         (,) ["drafts", "4","edit"] [
             --("author_id", Just "3"), --авторство никогда не меняется
             ("name", Just "edited_name2"),
@@ -496,13 +496,13 @@ publishCases = ("publish", tuples) where
         ],
         -- 17
         --(,) ["drafts", "4","delete"] [],
-        -- 17
+        -- 18
         (,) ["posts"] [],
-        -- 18 {"edited":{"posts":1},"deleted":{"drafts":1}} -- ТУТ ЕЩЕ НУЖНО УДАЛИТЬ СТАРЫЙ КОНТЕНТ, а к контенту привязанные фото и теги
+        -- 19 {"edited":{"posts":1},"deleted":{"contents":1,"drafts":1,"photos":2}}
         (,) ["drafts", "4","publish"] [],
-        -- 19
-        (,) ["posts", "3"] [],
         -- 20
+        (,) ["posts", "3"] [],
+        -- 21 {"deleted":{"contents":1,"drafts":1,"photos":2,"posts":1}}
         (,) ["posts", "3", "delete"] []
         ]
 
@@ -514,8 +514,8 @@ logins = [
         -- --[("login", Just "DELETED_USER"),("pass", Just "DELETED_USER")],  --удаленный
         -- [("login", Just "pivan"),("pass", Just "equalpass")],  -- иванов (не автор)
         -- [("login", Just "vmayakovskiy"),("pass", Just "vmayakovskiypass")],  --удаленный автор
-        [("login", Just "psergey"),("pass", Just "psergeypass")]  --пушкин (автор)
-        -- [("login", Just "admin"),("pass", Just "123456")]  --админ
+        [("login", Just "psergey"),("pass", Just "psergeypass")],  --пушкин (автор)
+        [("login", Just "admin"),("pass", Just "123456")]  --админ
     ]
 
 -- publishCaseswithAuth :: (String, [(PathInfo, Query)])

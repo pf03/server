@@ -198,6 +198,6 @@ checkAuthExist pid name query = do
             auth <- S.getAuth
             case auth of
                 AuthNo -> throwT authErrorDefault
-                AuthAdmin _ -> return (uid, aid, cid)
-                AuthUser authuid | uid == authuid -> return (uid, aid, cid)
+                AuthAdmin _ -> return (uid, aid, cid) --админ может редактировать всё
+                AuthUser authuid | uid == authuid -> return (uid, aid, cid) --юзер может редактировать только своё
                 _ -> throwT authErrorWrong
