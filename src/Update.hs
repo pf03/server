@@ -10,26 +10,25 @@ module Update
     , checkAuthExistComment
     ) where
 
-import Data.Text (pack, Text(..))
-import Types
-import qualified Row
-import Database.PostgreSQL.Simple.Types as SQL
-import Database.PostgreSQL.Simple.SqlQQ
-import Common
-import Query
-import Control.Monad.Identity
-import Select ( p, val, cond, val)
-import Data.Map as M ((!), fromList)
-import qualified Data.Map as M (insert)
---import Class
---import Control.Monad.Trans.Except
-import Transformer
+import           API
+import           Common                           (Template (template))
+import           Control.Monad.Identity           (when)
+import           Data.Map                         as M (fromList, (!))
+import qualified Data.Map                         as M (insert)
+import           Data.Maybe
+import           Data.Text                        (Text (..), pack)
+import           Database.PostgreSQL.Simple.SqlQQ (sql)
+import           Database.PostgreSQL.Simple.Types as SQL (Only (Only), Query)
+import           Error
+import           Insert                           (checkExist, photos,
+                                                   rowEither, tagToContent)
 import qualified Log
-import Data.Maybe
-import API
-import Insert ( photos, tagToContent, checkExist, rowEither )
-import qualified State as S
-import Error
+import           Query
+import qualified Row
+import           Select                           (cond, p, val)
+import qualified State                            as S
+import           Transformer
+import           Types
 
 ----------------------------------User-----------------------------------------
 user :: Int -> T ()
@@ -106,11 +105,13 @@ checkAuthExistDraft pid = do
 post :: Int -> T ()
 post pid = do
     params <- checkAuthExistPost pid
-    when (params ! "author_id" == ParamEq (Int 1)) $ throwT $ DBError "Невозможно создать черновик от удаленного автора (автора по умолчанию) id = 1"
+    when (params ! "author_id" == ParamEq (Int 1)) $ 
+        throwT $ DBError "Невозможно создать черновик от удаленного автора (автора по умолчанию) id = 1"
     checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
     Insert.tagToContent Check
-    [Only cid] <- query_ $ template [sql|INSERT into contents (author_id, name, creation_date, category_id, text, photo) values {0} RETURNING id|]
-        [rowEither params [Left "author_id", Left "name", Right [sql|current_date|], Left "category_id", Left "text", Left "photo"]] :: T[Only Int]
+    [Only cid] <- query_ $ template 
+        [sql|INSERT into contents (author_id, name, creation_date, category_id, text, photo) values {0} RETURNING id|]
+        [rowEither params [Left "author_id", Left "name", Right [sql|current_date|], Left "category_id", Left "text", Left "photo"]]
     S.addChanged Insert Content 1
     insert Draft [sql|INSERT into drafts (content_id, post_id) values ({0}, {1})|]
         [q cid, q pid]
@@ -118,9 +119,9 @@ post pid = do
     Insert.tagToContent Execute
     Insert.photos
 
--- * Аутентификация удаленным пользователем не пройдет. Удаленный автор привязан к удаленному 
--- пользователю. Таким образом посты с удаленными авторами и пользователями сможет редактировать 
--- только админ 
+-- * Аутентификация удаленным пользователем не пройдет. Удаленный автор привязан к удаленному
+-- пользователю. Таким образом посты с удаленными авторами и пользователями сможет редактировать
+-- только админ
 checkAuthExistPost :: Int -> T (ParamsMap Param)
 checkAuthExistPost pid = do
     let query = [sql|
@@ -157,7 +158,8 @@ updates params names = Query.concat "," $ mapMaybe helper names where
     helper :: BSName -> Maybe Query
     helper name = upd (q name) (params ! name)
     upd :: Query -> Param -> Maybe Query
-    upd "pass" (ParamEq v) = Just $ template [sql|pass = md5 (CONCAT_WS(' ', {0}, {1}))|] [p $ params ! "login", val v] -- логина может и не быть, нужно его получить дополнительно
+    upd "pass" (ParamEq v) = Just $ template 
+        [sql|pass = md5 (CONCAT_WS(' ', {0}, {1}))|] [p $ params ! "login", val v]
     upd field (ParamEq v) = Just $ template [sql|{0} = {1}|] [field, val v]
     upd field ParamNo = Nothing
     upd field ParamNull = Just $ template [sql|{0} = null|] [field]
@@ -171,14 +173,14 @@ checkAuthExist pid name query = do
         [(uid, aid, cid)] -> do
             auth <- S.getAuth
             case auth of
-                AuthNo -> throwT authErrorDefault
-                AuthAdmin _ -> return (uid, aid, cid) --админ может РЕДАКТИРОВАТЬ все публикации (модерация)
+                AuthNo                            -> throwT authErrorDefault
+                AuthAdmin _                       -> return (uid, aid, cid) --админ может РЕДАКТИРОВАТЬ все публикации (модерация)
                 AuthUser authuid | uid == authuid -> return (uid, aid, cid) --юзер может РЕДАКТИРОВАТЬ только своё
-                _ -> throwT authErrorWrong
+                _                                 -> throwT authErrorWrong
 
 withParam :: BSName -> T() -> T()
 withParam name t = do
     param <- S.getParam name
     case param of
         ParamNo -> return ()
-        _ -> t
+        _       -> t
