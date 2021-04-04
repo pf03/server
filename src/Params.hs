@@ -3,18 +3,15 @@ import Control.Monad.Identity
 import Network.HTTP.Types.URI
 import Data.ByteString.Char8 as BC (ByteString, unpack)
 import qualified Data.ByteString as B
-import Control.Monad.Except
 import Types
 import Database.PostgreSQL.Simple.Time
 import qualified Data.Text.Encoding as T
 import qualified Data.Text as T
 import Control.Monad.Except
-import Parse
 import Common
 import Control.Monad.Trans.Except
 import Data.Maybe
 import Text.Read
-import Error
 import Data.List
 import API
 import qualified Data.Map as M
@@ -33,7 +30,6 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
     param a b c d = (a, ParamDesc b c d False)
     paramNull a b c d = (a, ParamDesc b c d True)
     list = case queryType of
-
         API.Auth -> [
                 param "login" [Eq] ParamTypeStr True,
                 param "pass" [Eq] ParamTypeStr True
@@ -190,9 +186,9 @@ findTemplate qs name paramDesc@(ParamDesc templs paramType must _) = do
     let pp = possibleParams name paramDesc
     let filtered = forMaybe qs $ \q -> checkParam q name paramDesc
     case filtered of
-        [] -> case  must of
-            False ->  return Nothing
-            True -> throwE . RequestError $ template "Не указан обязательный параметр {0}" [show name]
+        [] -> if  must
+            then throwE . RequestError $ template "Не указан обязательный параметр {0}" [show name]
+            else return Nothing
         [(tmpl, param, Nothing)] -> throwE . RequestError $ template "Не указано значение параметра {0}" [show param]
         [(tmpl, param, Just value)] -> return . Just $ (tmpl, param, value)
         (r:rs) -> throwE . RequestError $ template "В списке параметров запроса должно быть не более одного значения из списка {0}, а их {1}: {2}"
@@ -290,21 +286,21 @@ readParam cons consStr mtuple = do
 --по сути вся эта городуха нужна только для корректных сообщений об ошибках
 ereadMap :: Read a => String -> BS -> BS -> Except E a
 ereadMap t bs param = case t of
-            "Int" -> eread bs $ template "{0}целым числом" [must]
-            "[Int]" -> eread bs $ template "{0}массивом, состоящим из целых чисел в формате [x,y,z]" [must]
-            "(Int,Int)" -> eread bs $ template "{0}парой целых чисел в формате (x,y)" [must]
-            --вариант со строковым параметром без кавычек ?text__like=glasgow
-            "String" -> eread ("\"" <> bs <> "\"") $ template "{0}строкой" [must]
-            --вариант со строковым параметром в кавычках ?text__like="glasgow"
-            --"String" -> eread bs $ template "{0}строкой" [must]
-            --каждая строка внутри массива или кортежа должна быть в кавычках!!! ?tag__in=["python","haskell"]
-            "[String]" -> eread bs $ template "{0}массивом, состоящим из строк в формате [x,y,z]" [must]
-            "(String,String)" -> eread bs $ template "{0} парой строк в формате (x,y)" [must]
-            "Date" -> eread bs $ template "{0}датой в формате YYYY-MM-DD" [must]
-            "[Date]" -> eread bs $ template "{0}списком дат в формате [YYYY-MM-DD,YYYY-MM-DD,YYYY-MM-DD]" [must]
-            "(Date,Date)" -> eread bs $ template "{0}списком дат в формате (YYYY-MM-DD,YYYY-MM-DD)" [must]
-            _ -> throwE . RequestError $ template "Неизвестный тип параметра {1}: {0}" [t, show param]
-            where must = template "Параметр запроса {0} должен быть " [show param]
+    "Int" -> eread bs $ template "{0}целым числом" [must]
+    "[Int]" -> eread bs $ template "{0}массивом, состоящим из целых чисел в формате [x,y,z]" [must]
+    "(Int,Int)" -> eread bs $ template "{0}парой целых чисел в формате (x,y)" [must]
+    --вариант со строковым параметром без кавычек ?text__like=glasgow
+    "String" -> eread ("\"" <> bs <> "\"") $ template "{0}строкой" [must]
+    --вариант со строковым параметром в кавычках ?text__like="glasgow"
+    --"String" -> eread bs $ template "{0}строкой" [must]
+    --каждая строка внутри массива или кортежа должна быть в кавычках!!! ?tag__in=["python","haskell"]
+    "[String]" -> eread bs $ template "{0}массивом, состоящим из строк в формате [x,y,z]" [must]
+    "(String,String)" -> eread bs $ template "{0} парой строк в формате (x,y)" [must]
+    "Date" -> eread bs $ template "{0}датой в формате YYYY-MM-DD" [must]
+    "[Date]" -> eread bs $ template "{0}списком дат в формате [YYYY-MM-DD,YYYY-MM-DD,YYYY-MM-DD]" [must]
+    "(Date,Date)" -> eread bs $ template "{0}списком дат в формате (YYYY-MM-DD,YYYY-MM-DD)" [must]
+    _ -> throwE . RequestError $ template "Неизвестный тип параметра {1}: {0}" [t, show param]
+    where must = template "Параметр запроса {0} должен быть " [show param]
 
 eread :: Read a => BC.ByteString -> String -> Except E a
 eread bs error = catchE (except . readEither . unpackString $ bs) $ \e -> do

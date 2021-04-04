@@ -26,9 +26,7 @@ import Transformer
 import qualified Row
 import qualified Select
 import JSON
-import Database.PostgreSQL.Simple
-import Error 
-import Parse
+
 import qualified Data.Text.Encoding as T
 import qualified Data.Text as T
 import NeatInterpolation

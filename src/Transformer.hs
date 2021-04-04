@@ -27,7 +27,6 @@ import Error
 import Class
 import Database.PostgreSQL.Simple.SqlQQ
 import Database.PostgreSQL.Simple
-import qualified Parse --50
 import Control.Exception
 import System.IO.Error (isDoesNotExistError)
 import Network.Wai.Handler.Warp (run)
@@ -88,7 +87,7 @@ runT m = runE_ $ do
 -- configString red from Environment
 evalT :: (ToTransformer m) => m a -> a -> String -> IO a
 evalT m def configString = runE def $ do
-    config <-  toE $ Parse.eDecode  $ read configString
+    config <-  toE $ eDecode  $ read configString
     connection <- _runConnection config
     _getValue config connection m
 
@@ -96,7 +95,7 @@ evalT m def configString = runE def $ do
 --configString red from Environment
 evalTwithHandler :: (ToTransformer m) => m a -> (E -> a) -> String -> IO a
 evalTwithHandler m handler configString = runEwithHandler handler $ do
-    config <-  toE $ Parse.eDecode  $ read configString
+    config <-  toE $ eDecode  $ read configString
     connection <- _runConnection config
     _getValue config connection m
 
@@ -200,7 +199,7 @@ runE_ m = void (runExceptT m)
 readConfig :: ExceptT E IO (Config, String)
 readConfig = do
     bs <- ExceptT $ toEE (L.readFile pathConfig) `catch` handler
-    fileConfig <- toE $ Parse.eDecode bs
+    fileConfig <- toE $ eDecode bs
     --print fileConfig
     return (fileConfig, show bs) where
         handler :: IOException -> IO (EE L.ByteString )
@@ -301,6 +300,8 @@ streamEmpty source = do
         then return ()
         else throwE $ RequestError "Тело запроса должно быть пустым"
 
+eDecode :: FromJSON a => LC.ByteString -> Except E a
+eDecode = except . typeError ParseError . eitherDecode
 
 -- ltest :: IO ()
 -- ltest = runT $ do

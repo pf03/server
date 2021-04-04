@@ -11,7 +11,7 @@ module Update
     ) where
 
 import           API
-import           Common                           (Template (template), (<$$>))
+import           Common                           (Template (template), (<$$>), mapMaybeM)
 import           Control.Monad.Identity           (when)
 import           Data.Map                         as M (fromList, (!))
 import qualified Data.Map                         as M (insert)
@@ -38,8 +38,8 @@ user pid = do
     --логин нужен для проверки пароля
     [Only login] <- query_ $ template [sql|SELECT users.login FROM users WHERE users.id = {0}|] [q pid]
     params <- S.addStrParam "login" login
-    update User [sql|UPDATE users SET {0} WHERE id = {1}|]
-        [updates params ["first_name", "last_name", "avatar", "pass"], q pid]
+    update User [sql|UPDATE users SET {0} WHERE id = {1}|] <$$>
+        [updates params ["first_name", "last_name", "avatar", "pass"], return $ q pid]
 
 ----------------------------------Author---------------------------------------
 author :: Int -> T ()
@@ -47,8 +47,8 @@ author pid = do
     params <- S.addIdParam "id" pid
     checkExist "id" [sql|SELECT 1 FROM authors WHERE authors.id = {0}|]
     checkExist "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
-    update Author [sql|UPDATE authors SET {0} WHERE id = {1}|]
-        [updates params ["user_id", "description"], q pid]
+    update Author [sql|UPDATE authors SET {0} WHERE id = {1}|] <$$>
+        [updates params ["user_id", "description"], return $ q pid]
 
 ----------------------------------Category-------------------------------------
 category :: Int -> T ()
@@ -56,8 +56,8 @@ category pid = do
     params <- S.addIdParam "id" pid
     checkExist "id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
     checkExist "parent_id" [sql|SELECT 1 FROM categories WHERE categories.parent_id = {0}|]
-    update Category [sql|UPDATE categories SET {0} WHERE id = {1}|]
-        [updates params ["parent_id", "category_name"], q pid]
+    update Category [sql|UPDATE categories SET {0} WHERE id = {1}|] <$$>
+        [updates params ["parent_id", "category_name"], return $ q pid]
 
 ----------------------------------Tag------------------------------------------
 tag :: Int -> T ()
@@ -81,8 +81,8 @@ draft pid = do
     checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
     Update.tagToContent Check
     ParamEq (Int cid) <- S.getParam "content_id"
-    update Content [sql|UPDATE contents SET {0} WHERE id = {1}|]
-        [updates params ["name", "category_id", "text", "photo"], q cid]
+    update Content [sql|UPDATE contents SET {0} WHERE id = {1}|] <$$>
+        [updates params ["name", "category_id", "text", "photo"], return $ q cid]
     Update.tagToContent Execute
     Update.photos
 
@@ -153,17 +153,17 @@ photos = withParam "photos" $ do
 
 ----------------------------------Common---------------------------------------
 --упорядочить эти функции
-updates :: ParamsMap Param -> [BSName] -> Query
-updates params names = Query.concat "," $ mapMaybe helper names where
-    helper :: BSName -> Maybe Query
+updates :: MError m => ParamsMap Param -> [BSName] -> m Query
+updates params names = Query.concat "," <$> mapMaybeM helper names where
+    helper :: MError m => BSName -> m (Maybe Query)
     helper name = upd (q name) (params ! name)
-    upd :: Query -> Param -> Maybe Query
-    upd "pass" (ParamEq v) = Just $ template 
+    upd :: MError m => Query -> Param -> m (Maybe Query)
+    upd "pass" (ParamEq v) = return . Just $ template 
         [sql|pass = md5 (CONCAT_WS(' ', {0}, {1}))|] [p $ params ! "login", val v]
-    upd field (ParamEq v) = Just $ template [sql|{0} = {1}|] [field, val v]
-    upd field ParamNo = Nothing
-    upd field ParamNull = Just $ template [sql|{0} = null|] [field]
-    upd field param = error $ template "Нет шаблона для {0}" [show param]
+    upd field (ParamEq v) = return . Just $ template [sql|{0} = {1}|] [field, val v]
+    upd field ParamNo = return Nothing
+    upd field ParamNull = return . Just $ template [sql|{0} = null|] [field]
+    upd field param = throwM $ DevError $ template "Неверный шаблон {0} в функции updates" [show param]
 
 checkAuthExist :: Int -> BSName -> Query ->  T (Int, Int, Int)
 checkAuthExist pid name query = do
@@ -177,6 +177,7 @@ checkAuthExist pid name query = do
                 AuthAdmin _                       -> return (uid, aid, cid) --админ может РЕДАКТИРОВАТЬ все публикации (модерация)
                 AuthUser authuid | uid == authuid -> return (uid, aid, cid) --юзер может РЕДАКТИРОВАТЬ только своё
                 _                                 -> throwT authErrorWrong
+        res -> throwT $ DevError $ template "Неверный результат запроса {0} в функции checkAuthExist" [show res]
 
 withParam :: BSName -> T() -> T()
 withParam name t = do

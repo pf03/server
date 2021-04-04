@@ -188,6 +188,11 @@ _3of3 (a,b,c) = c
 forMaybe :: [a] -> (a -> Maybe b)  -> [b]
 forMaybe = flip mapMaybe
 
+mapMaybeM :: Monad m => (a -> m (Maybe b)) -> [a] -> m [b]
+mapMaybeM f list = do
+    mb <- forM list f
+    return $ catMaybes mb
+
 jlookup :: Eq a => a -> [(a, b)] -> b
 jlookup key list = fromJust $ lookup key list
 

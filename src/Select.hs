@@ -89,10 +89,10 @@ type Draft = Row.Draft :. Select.Content
 draft::  Int -> T [Draft]
 draft pid = do
     paramUserId <- authUserIdParam
-    let conditions =  [
-            cond [sql|drafts.id|] $ ParamEq (Int pid),
-            cond [sql|users.id|] paramUserId
-            ]
+    conditions <-  sequenceA [
+        cond [sql|drafts.id|] $ ParamEq (Int pid),
+        cond [sql|users.id|] paramUserId
+        ]
     let query =  selectDraftsQuery `whereAll` conditions;
     query_ query
 
@@ -100,9 +100,9 @@ drafts :: T [Draft]
 drafts = do
     params <- S.getParams
     paramUserId <- authUserIdParam
-    let conditions =  [
-            cond [sql|users.id|] paramUserId
-            ]
+    conditions <- sequenceA [
+        cond [sql|users.id|] paramUserId
+        ]
     let query =  selectDraftsQuery `whereAll` conditions <+> pagination (params ! "page");
     query_ query
 
@@ -172,20 +172,11 @@ postsQuery params = res where
         postIdsSubquery :: Query -> Param -> SQL.Query
         
         postIdsSubquery field (ParamAll vals) = [sql|posts.id|] `inSubquery` 
-                ([sql|SELECT posts.id FROM posts|] `whereAll` map (\tagId -> existTagSubquery field $ ParamEq tagId) vals)
+                ([sql|SELECT posts.id FROM posts|] `whereAll` map (existTagSubquery field . ParamEq ) vals)
         postIdsSubquery _ ParamNo = [sql|TRUE|]
         --postIdsSubquery (ParamEq val) = postIdsSubquery (ParamIn [val])
         postIdsSubquery field param = [sql|posts.id|] `inSubquery`
                 ([sql|SELECT posts.id FROM posts|] `whereAll` [existTagSubquery field param] )
-
-
-        -- postTagsSubquery :: [Val] -> SQL.Query
-        -- postTagsSubquery tagIds = exists $
-        --         [sql| SELECT 1 FROM contents
-        --                 LEFT JOIN tags_to_contents ON contents.id = tags_to_contents.content_id
-        --                 WHERE contents.id = posts.content_id
-        --                 AND tags_to_contents.tag_id
-        --         |] `inList` map val tagIds
 
         containsCond :: Param -> SQL.Query
         containsCond param = Query.brackets . Query.any $ list where
@@ -279,29 +270,28 @@ val (Int a) = q a
 val (Str a) = template [sql|'{0}'|] [q a]
 val (Date a) = template [sql|'{0}'|] [q a]
 
---helper можно убрать
-cond :: Query -> Param -> Query 
-cond field param = helper param where
-        --param = jlookup paramName params
-        helper (ParamEq v) = template [sql|{0} = {1}|] [field, val v]
-        helper (ParamIn list) = field `inList` map val list
-        helper (ParamAll list) = error "Нет шаблона запроса для param__all"
-        helper (ParamLt v) = template [sql|{0} < {1}|] [field, val v]
-        helper (ParamGt v) = template [sql|{0} > {1}|] [field, val v]
-        helper (ParamBt (v1,v2)) = template [sql|{0} BETWEEN {1} AND {2}|] [field, val v1, val v2]
-        helper (ParamLike (Str s)) = template [sql|{0} ILIKE '%{1}%'|] [field, q s]
-        helper ParamNo = [sql|TRUE|]  --это только для Select, для других запросов может быть по другому!!!!
-        helper ParamNull = template [sql|{0} = null|] [field] --не проверено
-        --helper param = error $ template "Нет шаблона для {0}" [show param]
+cond :: MError m => Query -> Param -> m Query
+cond field param = case param of
+    ParamEq v -> return $ template [sql|{0} = {1}|] [field, val v]
+    ParamIn list -> return $ field `inList` map val list
+    --ParamAll list -> error "Нет шаблона запроса для param__all"
+    ParamLt v -> return $ template [sql|{0} < {1}|] [field, val v]
+    ParamGt v -> return $ template [sql|{0} > {1}|] [field, val v]
+    ParamBt (v1,v2) -> return $ template [sql|{0} BETWEEN {1} AND {2}|] [field, val v1, val v2]
+    --ParamLike (Str s) -> return $ template [sql|{0} ILIKE '%{1}%'|] [field, q s]
+    ParamLike v -> return $ template [sql|{0} = {1}|] [field, val v] --ilike только для строки, для остальных равенство
+    ParamNo -> return $ [sql|TRUE|]  --это только для Select, для других запросов может быть по другому!!!!
+    ParamNull -> return $ template [sql|{0} = null|] [field] --не проверено
+    _ -> throwM $ DevError $ template "Неверный шаблон параметра {0} в функции cond" [show param]
 
 --админ может ЧИТАТЬ все публикации
 authUserIdParam :: T Param
 authUserIdParam = do
-        auth <- S.getAuth
-        case auth of
-                AuthAdmin _ -> return ParamNo
-                AuthUser userId -> return $ ParamEq (Int userId)
-                _ -> throwT authErrorDefault
+    auth <- S.getAuth
+    case auth of
+        AuthAdmin _ -> return ParamNo
+        AuthUser userId -> return $ ParamEq (Int userId)
+        _ -> throwT authErrorDefault
 
 
 

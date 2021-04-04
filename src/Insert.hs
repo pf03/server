@@ -52,8 +52,6 @@ user = do
             , Right [sql|current_date|]
             , Right [sql|False|]
             ]]
-
-
 ----------------------------------Author---------------------------------------
 author :: T ()
 author = do
@@ -109,7 +107,7 @@ draft = do
     S.addIdParam "content_id" cid
     Insert.tagToContent Execute
     Insert.photos
-    insertM Draft [sql|INSERT into drafts (content_id) values ({0})|]
+    insert Draft [sql|INSERT into drafts (content_id) values ({0})|] <$$>
         [cell $ ParamEq (Int cid)]
 
 ----------------------------------Post-----------------------------------------
@@ -143,7 +141,7 @@ comment postId = do
         "Невозможно создать комментарий от удаленного пользователя (пользователя по умолчанию) id = 1"
     checkExist "post_id" [sql|SELECT 1 FROM posts WHERE posts.id = {0}|]
     checkExist "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
-    insertM Comment [sql|INSERT into comments (post_id, user_id, creation_date, text) values {0}|]
+    insert Comment [sql|INSERT into comments (post_id, user_id, creation_date, text) values {0}|] <$$>
         [rowEither params [Left "post_id", Left "user_id", Right [sql|current_date|], Left "text"]]
 
 ----------------------------------Photo----------------------------------------

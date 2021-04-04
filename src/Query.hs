@@ -53,16 +53,16 @@ _execute queryType apiType q qs   = do
     S.addChanged queryType apiType rows
     --S.getChanged
 
-_executeM :: QueryType -> APIType -> Query -> [T Query] ->  T ()
-_executeM queryType apiType q mqs = _execute queryType apiType q <$$> mqs
+-- _executeM :: QueryType -> APIType -> Query -> [T Query] ->  T ()
+-- _executeM queryType apiType q mqs = _execute queryType apiType q <$$> mqs
 
 
 --новая версия включает в себя template и автоматическую запись в State количество модифицированных строк
 insert  :: APIType -> Query -> [Query] ->  T ()
 insert = _execute Insert
 
-insertM  :: APIType -> Query -> [T Query] ->  T ()
-insertM = _executeM Insert
+-- insertM  :: APIType -> Query -> [T Query] ->  T ()
+-- insertM = _executeM Insert
 
 
 update  :: APIType -> Query -> [Query] ->  T ()
@@ -83,13 +83,12 @@ execute__ q qs = do
     Log.textT Log.Debug $ template "Выполнен запрос, изменено {0} строк" [show n] --и это, т .е результат выполнения
     --return()
 
-
--- q :: Convert a => a -> SQL.Query 
--- q = Query . convert
-
---мне кажется, что это уже все есть, я просто не умею пользоваться
 whereAll :: Query -> [Query] -> Query
 whereAll q conditions = Query.concat2 Query.where_ q $ Query.all conditions
+
+whereAllM :: MError m => Query -> [m Query] -> m Query
+whereAllM q mconditions = do 
+    (return . Query.concat2 Query.where_ q . Query.all) <$$> mconditions
 
 any :: [Query] -> Query
 any = Query.concat [sql|OR|]
@@ -99,7 +98,7 @@ all = Query.concat Query.and
 
 concat :: Query -> [Query] -> Query
 concat splitter [] = mempty
-concat splitter (x:[]) = x
+concat splitter [x] = x
 concat splitter (x:xs) = concat2 splitter x (Query.concat splitter xs)
 
 concat2 :: Query -> Query -> Query -> Query

@@ -1,7 +1,4 @@
 module Upload where
-
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE FlexibleInstances #-}
 import Database.PostgreSQL.Simple.FromRow
 import Database.PostgreSQL.Simple.SqlQQ
@@ -30,7 +27,6 @@ import qualified Select
 import JSON
 import Database.PostgreSQL.Simple
 import Error 
-import Parse
 import qualified Data.Text.Encoding as T
 import qualified Data.Text as T
 import NeatInterpolation

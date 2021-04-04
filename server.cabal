@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 64d8c5bc32ed74ad7bc5a4cc960d6817c2ec226333ebd66dfed84b4299de897d
+-- hash: 6ec405a97bb233dfee8ea662d9b01babbb4c708ae3fa133ea5ad2a916fd6d592
 
 name:           server
 version:        0.1.0.0
@@ -41,7 +41,6 @@ library
       Log.Types
       Migrations
       Params
-      Parse
       Query
       Response
       Router
