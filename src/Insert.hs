@@ -84,8 +84,8 @@ tagToContent :: Action -> T()
 tagToContent Check = do
     params <- S.getParams
     let tagIds = valInt <$> (\(ParamAll list) -> list) (params ! "tag_id") -- :: [Val]
-    checkExistAll "tag_id" tagIds $ [sql|SELECT id FROM tags|] `whereAll` 
-        [cond [sql|id|] $ ParamIn (Int <$> tagIds)]
+    c <- cond [sql|id|] $ ParamIn (Int <$> tagIds)
+    checkExistAll "tag_id" tagIds $ [sql|SELECT id FROM tags|] `whereAll` [c]
 tagToContent Execute = do
     params <- S.getParams
     unless (emptyParam $ params ! "tag_id") $ do

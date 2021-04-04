@@ -89,12 +89,12 @@ draft pid = do
 --проверка существования вместе с авторизацией, для запросов update и delete
 checkAuthExistDraft :: Int -> T (ParamsMap Param)
 checkAuthExistDraft pid = do
-    let query = [sql|
+    query <- [sql|
         SELECT users.id, authors.id, contents.id FROM drafts
         LEFT JOIN contents ON contents.id = drafts.content_id
         LEFT JOIN authors ON authors.id = contents.author_id
         LEFT JOIN users ON users.id = authors.user_id
-    |] `whereAll` [cond [sql|drafts.id|] $ ParamEq (Int pid)]
+    |] `whereAllM` [cond [sql|drafts.id|] $ ParamEq (Int pid)]
     (uid, aid, cid) <- checkAuthExist pid "draft_id" query
     S.addIdParam "id" pid
     S.addIdParam "user_id" uid
@@ -124,12 +124,12 @@ post pid = do
 -- только админ
 checkAuthExistPost :: Int -> T (ParamsMap Param)
 checkAuthExistPost pid = do
-    let query = [sql|
+    query <- [sql|
         SELECT users.id, authors.id, contents.id FROM posts
         LEFT JOIN contents ON contents.id = posts.content_id
         LEFT JOIN authors ON authors.id = contents.author_id
         LEFT JOIN users ON users.id = authors.user_id
-    |] `whereAll` [cond [sql|posts.id|] $ ParamEq (Int pid)]
+    |] `whereAllM` [cond [sql|posts.id|] $ ParamEq (Int pid)]
     (uid, aid, cid) <- checkAuthExist pid "post_id" query
     S.addIdParam "id" pid
     S.addIdParam "user_id" uid

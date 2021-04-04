@@ -126,6 +126,9 @@ where_ = [sql|WHERE|]
 (<+>) q1 q2|q2 == mempty  = q1
 (<+>) q1 q2 = q1 <> space <> q2
 
+(<<+>>) :: MError m => m SQL.Query -> m SQL.Query -> m SQL.Query
+(<<+>>) mq1 mq2 = (<+>) <$> mq1 <*> mq2
+
 --select * from users where first_name in ('Anna', 'Boris', 'Carla')
 
 inList :: Convert a => Query -> [a] -> Query
@@ -133,7 +136,10 @@ inList field [] = "FALSE"
 inList field values = template [sql|{0} IN ({1})|] [field, Query.concat "," $ map q values] 
 
 inSubquery :: Query -> Query -> Query
-inSubquery field subquery  = template [sql|{0} IN ({1})|] [field, subquery] 
+inSubquery field subquery  = template [sql|{0} IN ({1})|] [field, subquery]
+
+inSubqueryM :: MError m => Query -> m Query -> m Query
+inSubqueryM field subquery  = return . template [sql|{0} IN ({1})|] <$$> [return field, subquery] 
 
 exists :: Query -> Query
 exists q = template [sql|EXISTS ({0})|] [q]
