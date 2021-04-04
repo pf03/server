@@ -1,6 +1,7 @@
 --{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE FlexibleInstances #-}
 --importPriority = 20
+{-# LANGUAGE MultiParamTypeClasses #-}
 module Transformer  where
 --mtl
 import Control.Monad.State.Lazy
@@ -19,12 +20,10 @@ import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Lazy.Char8 as LC
 import Network.Wai (responseLBS, Application)
 --наш проект
-import qualified Config --40
 -- import Error
 import Types  --100
 -- import Parse
 import Error
-import qualified Log
 import Class
 import Database.PostgreSQL.Simple.SqlQQ
 import Database.PostgreSQL.Simple
@@ -44,10 +43,25 @@ import qualified Data.Aeson.Encode.Pretty as Aeson
 --Для них есь три сущности - class ToTransformer, функции toT, runT ну и несколько вспомогательныйх функций типа printT
 
 throwT :: E -> T a
-throwT e  = toT (throwE e::Except E a)  
+throwT e  = toT (throwE e::Except E a)
 
 catchT :: T a -> (E -> T a) -> T a
 catchT ta f  = StateT $ \s -> catchE (runStateT ta s) $ \e -> runStateT (f e) s
+
+--это уже есть
+class MError m where
+    throwM :: E -> m a
+    catchM :: m a -> (E -> m a) -> m a
+
+-- instance MonadError E T where
+--     throwError = throwT
+--     catchError = catchT
+
+instance MError T where
+    throwM = throwT
+    catchM = catchT
+
+
 
 ------------------------------------------IO---------------------------------------------------------------------------
 
@@ -73,7 +87,7 @@ runT m = runE_ $ do
 -- evaluate value of transformer with default value in error case
 -- configString red from Environment
 evalT :: (ToTransformer m) => m a -> a -> String -> IO a
-evalT m def configString = runE def $ do    
+evalT m def configString = runE def $ do
     config <-  toE $ Parse.eDecode  $ read configString
     connection <- _runConnection config
     _getValue config connection m
@@ -81,7 +95,7 @@ evalT m def configString = runE def $ do
 -- evaluate value of transformer with default value in error case
 --configString red from Environment
 evalTwithHandler :: (ToTransformer m) => m a -> (E -> a) -> String -> IO a
-evalTwithHandler m handler configString = runEwithHandler handler $ do    
+evalTwithHandler m handler configString = runEwithHandler handler $ do
     config <-  toE $ Parse.eDecode  $ read configString
     connection <- _runConnection config
     _getValue config connection m
@@ -130,10 +144,10 @@ _getValue config connection m = do
         Log.text lc ls Log.Error "Ошибка приложения: "
         Log.error lc ls e
         throwE e
-    return $ fst a 
+    return $ fst a
 
 _showValue :: (Show a) => Config -> a -> ExceptT E IO ()
-_showValue config value = do 
+_showValue config value = do
     let s = getS config
     let ls = Log.LogSettings Color.Cyan True "runT"
     let lc = _log config
@@ -154,18 +168,18 @@ runE :: a -> ExceptT E IO a -> IO a
 runE a m = do
     putStrLn "runE_"
     --return a
-    eb <- runExceptT m  
-    case eb of 
+    eb <- runExceptT m
+    case eb of
         Left e -> return a
         Right b -> return b
-        
+
 --run ExceptT transformer with error handling
 runEwithHandler :: (E -> a) -> ExceptT E IO a -> IO a
 runEwithHandler handler m = do
     putStrLn "runE_"
     --return a
-    eb <- runExceptT m  
-    case eb of 
+    eb <- runExceptT m
+    case eb of
         Left e -> return $ handler e
         Right b -> return b
 
@@ -173,14 +187,14 @@ fromE ::  ExceptT E IO a -> IO a
 fromE m = do
     putStrLn "fromE"
     --return a
-    eb <- runExceptT m  
-    case eb of 
+    eb <- runExceptT m
+    case eb of
         Left e -> error $ "error in fromE with exception: " ++ show e
         Right b -> return b
 
 --value doesn't matter
 runE_ :: ExceptT E IO () -> IO()
-runE_ m = runExceptT m >> return ()
+runE_ m = void (runExceptT m)
 
 --read config as both object and string
 readConfig :: ExceptT E IO (Config, String)
@@ -198,11 +212,9 @@ pathConfig :: FilePath
 pathConfig = "config.json"
 
 connectDB :: ConnectInfo -> ExceptT E IO Connection
-connectDB connectInfo = do
-    conn <- ExceptT $ toEE (connect connectInfo) `catch` handler 
-    return conn where 
-        handler :: SqlError -> IO (EE Connection )
-        handler e = return . Left  . DBError $ "Ошибка соединения с базой данных!"
+connectDB connectInfo = ExceptT $ toEE (connect connectInfo) `catch` handler where
+    handler :: SqlError -> IO (EE Connection )
+    handler e = return . Left  . DBError $ "Ошибка соединения с базой данных!"
 
 
 
@@ -212,7 +224,7 @@ getS :: Config -> Connection -> S
 getS Config {_warp = configWarp, _db = _, _log = configLog} connection = S {
     configWarp = configWarp,
     connectionDB = connection,
-    configLog = configLog, 
+    configLog = configLog,
     logSettings = Log.defaultSettings,
     changed = mempty,
     auth = AuthNo,
@@ -223,10 +235,10 @@ getS Config {_warp = configWarp, _db = _, _log = configLog} connection = S {
 testLog :: IO()
 testLog = runT $ do
     Log.dataT Log.Debug $ "Debug data value " ++ show [1..10]  :: T()
-    Log.dataT Log.Info $ "Info data value " ++ show [1..10] 
-    Log.dataT Log.Error $ "Error data value " ++ show [1..10] 
-    Log.dataT Log.Data $ "Data data value " ++ show [1..10] 
-    Log.dataT Log.Warning  $ "Warning data value " ++ show [1..10] 
+    Log.dataT Log.Info $ "Info data value " ++ show [1..10]
+    Log.dataT Log.Error $ "Error data value " ++ show [1..10]
+    Log.dataT Log.Data $ "Data data value " ++ show [1..10]
+    Log.dataT Log.Warning  $ "Warning data value " ++ show [1..10]
     Log.colorTextT Color.Blue Log.Debug $"Blue color scheme " ++ klichko
     Log.colorTextT Color.Cyan Log.Debug $ "Cyan color scheme " ++ klichko
     Log.colorTextT Color.Green Log.Debug $ "Green color scheme " ++ klichko
@@ -236,14 +248,11 @@ testLog = runT $ do
 --переместить в какой-то другой модуль
 -----------------работа с файлами-----------------------------------------------------------------------------------
 readFile :: String -> ExceptT E IO B.ByteString
-readFile path = do
-    bs <- ExceptT $ toEE (BC.readFile path) `catch` handler
-    --print fileConfig
-    return bs where
-        handler :: IOException -> IO (EE B.ByteString )
-        handler e
-            | isDoesNotExistError e = return $ Left $ IOError $ template  "Файл \"{0}\" не найден!" [path]
-            | otherwise = return $ Left  $ IOError  $ template "Ошибка чтения файла \"{0}\"" [path]
+readFile path = ExceptT $ toEE (BC.readFile path) `catch` handler where
+    handler :: IOException -> IO (EE B.ByteString )
+    handler e
+        | isDoesNotExistError e = return $ Left $ IOError $ template  "Файл \"{0}\" не найден!" [path]
+        | otherwise = return $ Left  $ IOError  $ template "Ошибка чтения файла \"{0}\"" [path]
 
 writeResponse :: (ToJSON a) => a -> T()
 writeResponse json = do
@@ -264,7 +273,7 @@ stream :: (Eq a, Monoid a) => IO a -> (a -> IO()) -> IO()
 stream source receiver = helper 0 source receiver where
   helper n source receiver = do
       a <- source
-      if a == mempty 
+      if a == mempty
         then putStrLn $ template "Успешно прочитано {0} чаcтей тела запроса" [show n]
         else do
             receiver a
@@ -276,11 +285,11 @@ streamOne source = helper 0 source where
     helper n source = do
         liftIO $ putStrLn "streamOne"
         a <- liftIO source
-        if a == mempty 
-            then do 
+        if a == mempty
+            then do
                 liftIO $ putStrLn $ template "Успешно прочитано {0} чаcтей тела запроса" [show n]
                 return a
-            else if n>=1 
+            else if n>=1
                 then throwE $ RequestError "Слишком длинное тело запроса. Тело запроса должно состоять не более, чем из одного чанка"
                 else (a <>) <$> helper (n + 1) source
 
@@ -288,7 +297,7 @@ streamOne source = helper 0 source where
 streamEmpty :: (Eq a, Monoid a) => IO a -> ExceptT E IO ()
 streamEmpty source = do
     a <- liftIO source
-    if a == mempty 
+    if a == mempty
         then return ()
         else throwE $ RequestError "Тело запроса должно быть пустым"
 

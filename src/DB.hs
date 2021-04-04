@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE FlexibleInstances #-}
 
 module DB where
@@ -132,12 +130,12 @@ getJSON api req = case api of
     API Delete [API.Comment, Id n] -> encode $ Delete.comment n
 
     --апи, которые возвращают результат
-    API Select [API.User] -> encode $ Select.users
+    API Select [API.User] -> encode Select.users
     API Select [API.Author] -> encode $ evalAuthors <$> Select.authors
-    API Select [API.Category] -> encode $ DB.getCategories
-    API Select [API.Tag] -> encode $ Select.tags
-    API Select [API.Post] -> encode $ DB.getPosts
-    API Select [API.Draft] -> encode $ DB.getDrafts
+    API Select [API.Category] -> encode DB.getCategories
+    API Select [API.Tag] -> encode Select.tags
+    API Select [API.Post] -> encode DB.getPosts
+    API Select [API.Draft] -> encode DB.getDrafts
     API Select [API.Post, Id n, API.Comment] -> encode $ evalComments <$> Select.comments n
 
     API SelectById [API.User, Id n] -> encode $ Select.user n

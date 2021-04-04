@@ -23,7 +23,6 @@ import qualified Data.ByteString.Char8 as BC
 import qualified Data.ByteString.Lazy.Char8 as LC
 
 import Common
-import qualified Encode
 import Transformer
 import Error 
 import Data.Maybe
@@ -34,6 +33,8 @@ import Control.Monad.Trans.Except
 --import Network.HTTP.Types.URI
 import Data.Aeson.Encode.Pretty
 
+
+--Модуль DB перенести в Response, так как по смыслу больше подходит
 get :: Request -> T Response
 get req = do
     Log.setSettings Color.Blue  True "Response.get"

@@ -14,6 +14,8 @@ import qualified Data.Text as T
 import qualified Log
 import API 
 
+--Ошибки в этом модуле не должны отдаваться пользователю, а записываться в лог. Пользователю должен отдаваться стандартный текст!!!
+
 --Для единоообразия во все запросы можно встроить template
 query_ :: (Show r, FromRow r) => Query -> T [r]
 query_ q = do

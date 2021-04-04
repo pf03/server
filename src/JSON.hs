@@ -1,6 +1,4 @@
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE FlexibleInstances #-}
 
 module JSON where
@@ -144,8 +142,7 @@ getParents = helper [] where
         let mrc = findById categoryId rcs
         case mrc of 
             Nothing -> throwE . DBError $ template "Отсутствует категория {0}" [show categoryId]
-            Just (Row.Category categoryId mparentId name) -> do
-            case mparentId of
+            Just (Row.Category categoryId mparentId name) -> case mparentId of
                 Nothing -> return acc
                 Just parentId -> do
                     when (parentId `elem` acc) $
@@ -222,7 +219,7 @@ maybeToList (Just a) = [a]
 ----------TURN--------------
 --turn from 'row' types to 'json' types
 turnContent ::  Row.Content -> Author -> Category -> [Tag] -> [Photo] -> Content
-turnContent (Row.Content a _ c d _ f g) author category tags photos  = Content a author c d category f g tags photos
+turnContent (Row.Content a _ c d _ f g) author category = Content a author c d category f g --tags photos
 
 turnAuthor :: Row.Author -> User -> Author
 turnAuthor (Row.Author a _ c) user = Author a user c 
@@ -231,7 +228,7 @@ turnComment :: Row.Comment -> User -> Comment
 turnComment (Row.Comment a _ _ d e) user = Comment a user d e
 
 turnPost :: Row.Post -> Content -> Post
-turnPost (Row.Post a _) content = Post a content
+turnPost (Row.Post a _) = Post a --content
 
 turnDraft :: Row.Draft -> Content -> Draft
 turnDraft (Row.Draft a _ c) content = Draft a content c
@@ -294,14 +291,14 @@ setPostContent post content = post {postContent = content}
 
 --тут можно упростить, если использовать map вместо списка
 evalParams :: [Category] -> ParamsMap Param-> ParamsMap Param
-evalParams categories = M.adjust (\oldParam  -> getChildCategories oldParam categories) "category"
+evalParams categories = M.adjust (`getChildCategories` categories) "category"
 
 getChildCategories :: Param -> [Category] -> Param
 getChildCategories (ParamIn vals) cs  = if length filtered == length cs then ParamNo else ParamIn . map (Int . getId) $ filtered where
     cids = map (\(Int cid) -> cid) vals
     filtered = filter (helper cids) cs
     helper :: [Int] -> Category ->  Bool
-    helper cids c  = if (getId c) `elem` cids then True else 
+    helper cids c  = (getId c `elem` cids) ||
         case parent c of
             Nothing -> False 
             Just p -> helper cids p

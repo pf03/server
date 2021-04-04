@@ -30,8 +30,7 @@ import           Error
 import qualified Log
 import           Query
 import qualified Row
-import           Select                           (authUserIdParam, cond, p,
-                                                   val)
+import           Select                           (authUserIdParam, cond, p, val)
 import qualified State                            as S
 import           Transformer
 import           Types
@@ -196,7 +195,7 @@ checkNotExist description name templ = do
 
 
 row :: ParamsMap Param -> [BSName] -> Query
-row params names = list $ map (\name -> cell (params ! name)) names where
+row params names = list $ map (\name -> cell (params ! name)) names
 
 -- * Количество строк определяется по первому параметру, который должен быть ParamAll
 rows :: ParamsMap Param -> [BSName] -> Query
@@ -227,6 +226,15 @@ rowEither params nqs = list $ map helper nqs where
 cell :: Param -> Query
 cell (ParamEq v) = val v
 cell ParamNo     = [sql|null|]
+
+-- cell :: MError m => Param -> m Query
+-- cell (ParamEq v) = return $ val v
+-- cell ParamNo     = return [sql|null|]
+-- cell p           = throwM $ DevError $ template "Неверный шаблон параметра {0} в функции cell" [show p]
+
+-- class Monad m => MonadError m where
+--     throw :: m a
+--     catch :: 
 
 cellByNumber :: Param -> Int -> Query
 cellByNumber (ParamEq v) _     = val v

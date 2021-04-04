@@ -36,9 +36,7 @@ ifNothing ma m = case ma of
       _ -> return ()
 
 fromJustM :: Monad m => Maybe a -> (a -> m ()) -> m () 
-fromJustM ma mf = case ma of 
-      Just a -> mf a
-      _ -> return ()
+fromJustM = forM_
 
 printT :: (MonadIO m, Show a) => a -> m ()
 printT = liftIO . print

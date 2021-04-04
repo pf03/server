@@ -118,31 +118,7 @@ genToken userId role = do
     let str = template "{0}_{1}_{2}_{3}" [convert userId, convert role, convert day, secret]
     return $ Token $ template "{0}_{1}_{2}_{3}" [show userId, role, day, toHex . hash $ str]
 
-
-h :: IO()
-h = do
-    let str = "hello"
-    let ha = hash $ BC.pack $ str
-    --putStrLn $ unpackString ha
-    putStrLn $ show $ B.unpack ha
-    putStrLn $ show $ BC.unpack ha
-    print $ map B.w2c [1,2,3,4,5,6,7,8,9,10,11,12,13,255]
-    let w8 = 23 :: Word8
-    let ws8 = [0, 1,2,3,4,5,6,7,8,9,10,11,12,13,15,16,255]
-    putStrLn $ foldr helper "" ws8
-
-    undefined 
-    --showHex 
-    where 
-
-        helper :: Word8 -> String -> String
-        helper w8 acc = if w8 < 16 then "0" <> showHex w8 acc else showHex w8 acc
-
 toHex :: BC.ByteString -> String
 toHex bs = foldr helper "" (B.unpack bs) where
         helper :: Word8 -> String -> String
         helper w8 acc = if w8 < 16 then "0" <> showHex w8 acc else showHex w8 acc
-
--- --это для корректной обработки кириллицы
--- unpackString :: BC.ByteString -> String
--- unpackString = T.unpack . T.decodeUtf8  

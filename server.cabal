@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 0be52a569ab1959daaf53db07b4c8d908e96e07aaeb12d57395427ee84336bf0
+-- hash: 64d8c5bc32ed74ad7bc5a4cc960d6817c2ec226333ebd66dfed84b4299de897d
 
 name:           server
 version:        0.1.0.0
@@ -31,10 +31,8 @@ library
       Auth
       Class
       Common
-      Config
       DB
       Delete
-      Encode
       Error
       Insert
       JSON

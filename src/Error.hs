@@ -15,6 +15,7 @@ instance Show E where
     show (DBError s) = "Ошибка базы данных: "++s
     show (IOError s) = "Ошибка ввода-вывода: "++s
     show (AuthError s) = "Ошибка авторизации: "++s
+    show (DevError s) = "Ошибка разработчика: "++s
     show (SomeError s) = "Неведомая ошибка: "++s
 
 getStatus :: E -> Status
@@ -24,6 +25,7 @@ getStatus (ConfigError s) = internalServerError500
 getStatus (DBError s) = badRequest400
 getStatus (IOError s) = internalServerError500
 getStatus (AuthError s) = unauthorized401
+getStatus (DevError s) = internalServerError500
 getStatus (SomeError s) = internalServerError500
     
 

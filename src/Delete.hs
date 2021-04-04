@@ -5,11 +5,6 @@
 {-# LANGUAGE RecordWildCards #-}
 module Delete where
 
-import Database.PostgreSQL.Simple.FromRow --hiding (FromRow(..) ) 
-import Database.PostgreSQL.Simple.Time
-import GHC.Generics 
-import Data.Aeson
-import Data.Aeson.Types
 import Data.Text (pack, Text(..))
 import Types 
 import qualified Row
@@ -33,11 +28,11 @@ import qualified State as S
 import Select
 import Update
 
--- Удаление 4 типов
+-- | Удаление 4 типов
 -- 1. Удаленная сущность заменяется на значение по умолчанию. Используется для users и authors
 -- 2. Каскадное удаление вместе с привязанными сущностями. Используется для posts и drafts
 -- 3. Удаление строго по условию, если к данной сущности ничего не привязано. Сначала нужно отредактировать или удалить 
---связанные сущности, а потом продолжить удаление. Используется для categories.
+-- связанные сущности, а потом продолжить удаление. Используется для categories.
 -- 4. Простое удаление, если от сущности ничего не зависит. Используется для comments
 
 --юзер удаляется, автор привязывается к дефолтному юзеру, авторизация админ на уровне роутера

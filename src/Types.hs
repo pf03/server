@@ -37,7 +37,7 @@ instance FromJSON App
 instance ToJSON App
 
 --------------------------------------Error--------------------------------------------------------
-data E = ParseError String | RequestError String | ConfigError String | DBError String | IOError String | AuthError String | SomeError String
+data E = ParseError String | RequestError String | ConfigError String | DBError String | IOError String | AuthError String | DevError String | SomeError String
 -- это надо убрать, раз мы пользуемся мондами Parser - Except - ExceptT
 type ES = Either String
 type EE = Either E
