@@ -11,7 +11,7 @@ module Update
     ) where
 
 import           API
-import           Common                           (Template (template))
+import           Common                           (Template (template), (<$$>))
 import           Control.Monad.Identity           (when)
 import           Data.Map                         as M (fromList, (!))
 import qualified Data.Map                         as M (insert)
@@ -109,8 +109,8 @@ post pid = do
         throwT $ DBError "Невозможно создать черновик от удаленного автора (автора по умолчанию) id = 1"
     checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
     Insert.tagToContent Check
-    [Only cid] <- query_ $ template 
-        [sql|INSERT into contents (author_id, name, creation_date, category_id, text, photo) values {0} RETURNING id|]
+    [Only cid] <- query_ . template 
+        [sql|INSERT into contents (author_id, name, creation_date, category_id, text, photo) values {0} RETURNING id|] <$$>
         [rowEither params [Left "author_id", Left "name", Right [sql|current_date|], Left "category_id", Left "text", Left "photo"]]
     S.addChanged Insert Content 1
     insert Draft [sql|INSERT into drafts (content_id, post_id) values ({0}, {1})|]

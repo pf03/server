@@ -292,7 +292,7 @@ cond field param = helper param where
         helper (ParamLike (Str s)) = template [sql|{0} ILIKE '%{1}%'|] [field, q s]
         helper ParamNo = [sql|TRUE|]  --это только для Select, для других запросов может быть по другому!!!!
         helper ParamNull = template [sql|{0} = null|] [field] --не проверено
-        helper param = error $ template "Нет шаблона для {0}" [show param]
+        --helper param = error $ template "Нет шаблона для {0}" [show param]
 
 --админ может ЧИТАТЬ все публикации
 authUserIdParam :: T Param

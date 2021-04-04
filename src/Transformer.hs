@@ -49,7 +49,7 @@ catchT :: T a -> (E -> T a) -> T a
 catchT ta f  = StateT $ \s -> catchE (runStateT ta s) $ \e -> runStateT (f e) s
 
 --это уже есть
-class MError m where
+class Monad m => MError m where
     throwM :: E -> m a
     catchM :: m a -> (E -> m a) -> m a
 

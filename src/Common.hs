@@ -203,6 +203,10 @@ for = flip map
     return $ f <$> na 
 infixl 4 <<$>>
 
+(<$$>) :: Monad m => ([a] -> m b) -> [m a] -> m b
+(<$$>) f list = sequenceA list >>= f
+infixl 4 <$$> 
+
 
 --это zipWithM
 -- mapM2 :: (a -> b -> m c) ->  [a] ->  [b] -> m [c]

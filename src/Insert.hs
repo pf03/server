@@ -40,15 +40,19 @@ user :: T ()
 user = do
     params <- S.getParams
     checkNotExist "Пользователь" "login" [sql|SELECT 1 FROM users WHERE users.login = {0}|]
+    passQuery <- (return . template [sql|md5 (CONCAT_WS(' ', {0}, {1}))|]) <$$> [cell(params ! "login"), cell(params ! "pass")]
     insert User
-        [sql|INSERT into users (last_name, first_name, avatar, login, pass, creation_date, is_admin) values {0}|]
+        [sql|INSERT into users (last_name, first_name, avatar, login, pass, creation_date, is_admin) values {0}|] <$$>
         [rowEither params
             [ Left "last_name"
             , Left "first_name"
             , Left "avatar"
-            , Left "login",
-            Right $ template [sql|md5 (CONCAT_WS(' ', {0}, {1})), current_date, FALSE|]
-                [cell(params ! "login"), cell(params ! "pass")]]] --нужен рефакторинг
+            , Left "login"
+            , Right passQuery
+            , Right [sql|current_date|]
+            , Right [sql|False|]
+            ]]
+
 
 ----------------------------------Author---------------------------------------
 author :: T ()
@@ -57,7 +61,7 @@ author = do
     checkExist "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
     --проверка на то, что данный автор уже существует
     checkNotExist "Автор" "user_id" [sql|SELECT 1 FROM authors WHERE authors.user_id = {0}|]
-    insert Author [sql|INSERT into authors (user_id, description)  values {0}|]
+    insert Author [sql|INSERT into authors (user_id, description)  values {0}|] <$$>
         [row params ["user_id", "description"]]
 
 ----------------------------------Category-------------------------------------
@@ -67,7 +71,7 @@ category :: T ()
 category = do
     params <- S.getParams
     checkExist "parent_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
-    insert Category [sql|INSERT into categories (parent_id, category_name) values {0}|]
+    insert Category [sql|INSERT into categories (parent_id, category_name) values {0}|] <$$>
         [row params ["parent_id", "category_name"]]
 
 ----------------------------------Tag------------------------------------------
@@ -98,14 +102,14 @@ draft = do
         "Невозможно создать черновик от удаленного автора (автора по умолчанию) id = 1"
     checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
     Insert.tagToContent Check
-    [Only cid] <- query_ $ template 
-        [sql|INSERT into contents (author_id, name, creation_date, category_id, text, photo) values {0} RETURNING id|]
+    [Only cid] <- (query_ . template 
+        [sql|INSERT into contents (author_id, name, creation_date, category_id, text, photo) values {0} RETURNING id|]) <$$>
         [rowEither params [Left "author_id", Left "name", Right [sql|current_date|], Left "category_id", Left "text", Left "photo"]]
     S.addChanged Insert Content 1
     S.addIdParam "content_id" cid
     Insert.tagToContent Execute
     Insert.photos
-    insert Draft [sql|INSERT into drafts (content_id) values ({0})|]
+    insertM Draft [sql|INSERT into drafts (content_id) values ({0})|]
         [cell $ ParamEq (Int cid)]
 
 ----------------------------------Post-----------------------------------------
@@ -139,7 +143,7 @@ comment postId = do
         "Невозможно создать комментарий от удаленного пользователя (пользователя по умолчанию) id = 1"
     checkExist "post_id" [sql|SELECT 1 FROM posts WHERE posts.id = {0}|]
     checkExist "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
-    insert Comment [sql|INSERT into comments (post_id, user_id, creation_date, text) values {0}|]
+    insertM Comment [sql|INSERT into comments (post_id, user_id, creation_date, text) values {0}|]
         [rowEither params [Left "post_id", Left "user_id", Right [sql|current_date|], Left "text"]]
 
 ----------------------------------Photo----------------------------------------
@@ -194,8 +198,8 @@ checkNotExist description name templ = do
 
 
 
-row :: ParamsMap Param -> [BSName] -> Query
-row params names = list $ map (\name -> cell (params ! name)) names
+row :: MError m => ParamsMap Param -> [BSName] -> m Query
+row params names = list <$> mapM (\name -> cell (params ! name)) names
 
 -- * Количество строк определяется по первому параметру, который должен быть ParamAll
 rows :: ParamsMap Param -> [BSName] -> Query
@@ -215,22 +219,22 @@ emptyParam _             = False
 
 
 -- | Обобщенный ряд
-rowEither :: ParamsMap Param -> [Either BSName Query] -> Query
-rowEither params nqs = list $ map helper nqs where
-    helper :: Either BSName Query -> Query
+rowEither :: MError m => ParamsMap Param -> [Either BSName Query] -> m Query
+rowEither params nqs = list <$> mapM helper nqs where
+    helper :: MError m => Either BSName Query -> m Query
     helper nq = case nq of
         Left name -> cell (params ! name)
-        Right q   -> q
+        Right q   -> return q
 
 
-cell :: Param -> Query
-cell (ParamEq v) = val v
-cell ParamNo     = [sql|null|]
+-- cell :: Param -> Query
+-- cell (ParamEq v) = val v
+-- cell ParamNo     = [sql|null|]
 
--- cell :: MError m => Param -> m Query
--- cell (ParamEq v) = return $ val v
--- cell ParamNo     = return [sql|null|]
--- cell p           = throwM $ DevError $ template "Неверный шаблон параметра {0} в функции cell" [show p]
+cell :: MError m => Param -> m Query
+cell (ParamEq v) = return $ val v
+cell ParamNo     = return [sql|null|]
+cell p           = throwM $ DevError $ template "Неверный шаблон параметра {0} в функции cell" [show p]
 
 -- class Monad m => MonadError m where
 --     throw :: m a

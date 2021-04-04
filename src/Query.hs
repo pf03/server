@@ -13,6 +13,7 @@ import qualified Data.Text.Encoding as T
 import qualified Data.Text as T
 import qualified Log
 import API 
+import Transformer
 
 --Ошибки в этом модуле не должны отдаваться пользователю, а записываться в лог. Пользователю должен отдаваться стандартный текст!!!
 
@@ -52,10 +53,17 @@ _execute queryType apiType q qs   = do
     S.addChanged queryType apiType rows
     --S.getChanged
 
+_executeM :: QueryType -> APIType -> Query -> [T Query] ->  T ()
+_executeM queryType apiType q mqs = _execute queryType apiType q <$$> mqs
+
 
 --новая версия включает в себя template и автоматическую запись в State количество модифицированных строк
 insert  :: APIType -> Query -> [Query] ->  T ()
 insert = _execute Insert
+
+insertM  :: APIType -> Query -> [T Query] ->  T ()
+insertM = _executeM Insert
+
 
 update  :: APIType -> Query -> [Query] ->  T ()
 update = _execute Update
