@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 --importPriority = 100
 module Types where
@@ -56,14 +57,18 @@ data S = S {
     connectionDB :: Connection,
     configLog :: Log.ConfigLog,
     logSettings :: Log.LogSettings,
-    changed :: Changed,
-    auth :: Auth,
-    params :: ParamsMap Param
+    -- changed :: Changed,
+    -- auth :: Auth,
+    -- params :: ParamsMap Param,
+    cache :: Cache
     
 } deriving (Show, Generic)
 
-
-data Cache = Cache {getCache :: String}
+data Cache = Cache {
+    changed :: Changed,
+    auth :: Auth,
+    params :: ParamsMap Param
+} deriving (Show, Generic)
 
 data Config = Config {
     _warp :: ConfigWarp,
@@ -184,3 +189,34 @@ newtype Changed = Changed  (M.Map String (M.Map String Int64))  deriving (Show, 
 instance ToJSON Changed
 
 data Action = Check | Execute --flag
+
+
+--tagless final 
+
+
+--это уже есть
+
+class Monad m => MError m where
+    throwM :: E -> m a
+    catchM :: m a -> (E -> m a) -> m a
+
+-- class MonadError E m => MError2 m
+
+class Monad m => MCache m where
+    getCache :: m Cache
+    setCache :: Cache -> m ()
+
+getsCache :: MCache m => (Cache -> a) -> m a
+getsCache f = f <$> getCache
+
+modifyCache :: MCache m => (Cache -> Cache) -> m ()
+modifyCache f = do
+    cache <- getCache
+    setCache $ f cache 
+
+--это для postgreSQL, но можно абстрагироваться еще сильнее по типу connection
+class Monad m => MDB m where
+    getConnection :: m Connection  --setConnection не нужно, соединение устанавливается еще до формирования монады
+
+--трансформер со всеми интерфейсами
+class (Log.MonadLog m, MCache m, MError m, MDB m) => MT m

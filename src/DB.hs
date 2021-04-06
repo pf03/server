@@ -81,7 +81,7 @@ getJSON_ req = do
 --эта обертка для удобства тестирования--эту обертку перенести в Test
 getJSONTest :: BC.ByteString -> PathInfo -> HTTP.Query -> HTTP.Query -> RequestHeaders -> T LC.ByteString
 getJSONTest rawPathInfo pathInfo qs qsBody headers = do
-    S.resetState --это нужно только для тестов, в сервере и так трансформер возрождается заново при каждом запросе
+    S.resetCache --это нужно только для тестов, в сервере и так трансформер возрождается заново при каждом запросе
     --Log.setSettings Color.Blue True "DB.getJSONTest" 
     --Log.funcT Log.Debug "..."
     let req  = Wai.defaultRequest {requestHeaders = headers}

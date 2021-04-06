@@ -39,6 +39,9 @@ instance ToTransformer (ExceptT E IO) where
 instance ToTransformer Identity where
     toT = return . runIdentity
 
+-- instance MonadIO m => ToTransformer m where
+--     toT m = undefined
+
 --эту идею обработки ошибок перенести в бота и в другие инстансы
 --иначе зачем нам вообще Except
 --ошибки sql почему то не ловит

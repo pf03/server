@@ -47,10 +47,7 @@ throwT e  = toT (throwE e::Except E a)
 catchT :: T a -> (E -> T a) -> T a
 catchT ta f  = StateT $ \s -> catchE (runStateT ta s) $ \e -> runStateT (f e) s
 
---это уже есть
-class Monad m => MError m where
-    throwM :: E -> m a
-    catchM :: m a -> (E -> m a) -> m a
+
 
 -- instance MonadError E T where
 --     throwError = throwT
@@ -60,19 +57,14 @@ instance MError T where
     throwM = throwT
     catchM = catchT
 
-data Cache = Cache {getCache :: String}
-
-class Monad m => MCache m where
-    getFromCache :: String -> m Cache
-    storeCache :: Cache -> m ()
-
-class Monad m => MDB m where
-    getConnection :: m conn
-
---трансформер со всеми интерфейсами
-class (Log.MonadLog m, MCache m, MError m, MDB m) => MT m
 
 
+instance MCache T where
+    getCache = gets cache
+    setCache cache = modify (\st -> st {cache = cache})
+
+instance MDB T where
+    getConnection = gets connectionDB
 
 ------------------------------------------IO---------------------------------------------------------------------------
 
@@ -237,9 +229,10 @@ getS Config {_warp = configWarp, _db = _, _log = configLog} connection = S {
     connectionDB = connection,
     configLog = configLog,
     logSettings = Log.defaultSettings,
-    changed = mempty,
-    auth = AuthNo,
-    params = mempty
+    -- changed = mempty,
+    -- auth = AuthNo,
+    -- params = mempty,
+    cache = Cache{changed = mempty, auth = AuthNo, params = mempty}
 }
 
 ---------------------------------------MonadLog Test-------------------------------------------------------

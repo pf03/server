@@ -14,17 +14,6 @@ import API
 import Data.Int
 import Data.Char
 
-data Cache = Cache {getCache :: String}
-
-class Monad m => MCache m where
-    getFromCache :: String -> m Cache
-    storeCache :: Cache -> m ()
-
-class Monad m => MDB m
-
---трансформер со всеми интерфейсами
-class MonadLog m, MCache m, MError m, MDB m => MT m
-
 --getters && setters lens like
 getLogSettings :: MonadState S m => m Log.LogSettings
 getLogSettings = gets logSettings
@@ -44,15 +33,17 @@ getWarpPort = gets configWarp --trivial
 getConnection:: MonadState S m => m Connection
 getConnection = gets connectionDB --trivial
 
---более элегантное решение через моноид
-addChanged :: MonadState S m => QueryType -> APIType -> Int64 -> m ()
+
+--CACHE--
+
+addChanged :: MCache m => QueryType -> APIType -> Int64 -> m ()
 addChanged _ _ n |n <= 0 = return ();
 addChanged _ (Id _) _ = return ();
 addChanged Select _ _ = return ();
 addChanged SelectById _ _ = return ();
 addChanged qt at n = do
     let newChange = Changed $ M.fromList [(queryType qt, M.fromList [(apiTypes at, n)])]
-    modify $ \st -> st {changed = changed st <> newChange} where
+    modifyCache $ \cache -> cache {changed = changed cache <> newChange} where
 
     apiTypes :: APIType -> String 
     apiTypes = plural . lower . show where
@@ -69,43 +60,43 @@ addChanged qt at n = do
     queryType Upload = "uploaded"
 
 
-getChanged :: MonadState S m => m Changed 
-getChanged = gets changed
+getChanged :: MCache m => m Changed 
+getChanged = getsCache changed
 
-resetChanged :: MonadState S m => m ()
-resetChanged = modify $ \st -> st {changed = mempty}
+resetChanged :: MCache m => m ()
+resetChanged = modifyCache $ \st -> st {changed = mempty}
 
-setParams :: MonadState S m => ParamsMap Param -> m () 
-setParams params = modify $ \s-> s{params = params}
+setParams :: MCache m => ParamsMap Param -> m () 
+setParams params = modifyCache $ \s-> s{params = params}
 
-getParams :: MonadState S m => m (ParamsMap Param)
-getParams = gets params
+getParams :: MCache m => m (ParamsMap Param)
+getParams = getsCache params 
 
-modifyParams :: MonadState S m => (ParamsMap Param -> ParamsMap Param) -> m (ParamsMap Param)
+modifyParams :: MCache m => (ParamsMap Param -> ParamsMap Param) -> m (ParamsMap Param)
 modifyParams f = do 
     params <- getParams
     setParams $ f params
     getParams
 
 
-getParam :: MonadState S m => BSName -> m Param
-getParam name = gets (\st -> params st ! name)
+getParam :: MCache m => BSName -> m Param
+getParam name = getsCache (\st -> params st ! name)
 
 --добавить user_id, author_id и т. д.
-addIdParam :: MonadState S m => BSName -> Int -> m (ParamsMap Param)
+addIdParam :: MCache m => BSName -> Int -> m (ParamsMap Param)
 addIdParam name pid = modifyParams $ M.insert name (ParamEq (Int pid))
 
-addStrParam :: MonadState S m => BSName -> String -> m (ParamsMap Param)
+addStrParam :: MCache m => BSName -> String -> m (ParamsMap Param)
 addStrParam name str = modifyParams $ M.insert name (ParamEq (Str str))
 
-resetState :: MonadState S m => m ()
-resetState = modify $ \st -> st {changed = mempty, params = mempty}
+resetCache :: MCache m => m ()
+resetCache = modifyCache $ \st -> st {changed = mempty, params = mempty}
 
-getAuth :: MonadState S m => m Auth 
-getAuth = gets auth
+getAuth :: MCache m => m Auth 
+getAuth = getsCache auth
 
-setAuth :: MonadState S m => Auth -> m () 
-setAuth auth = modify $ \s-> s{auth = auth}
+setAuth :: MCache m => Auth -> m () 
+setAuth auth = modifyCache $ \s-> s{auth = auth}
 
 instance Semigroup Changed where
     (<>) = mappend
