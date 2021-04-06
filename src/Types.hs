@@ -62,6 +62,9 @@ data S = S {
     
 } deriving (Show, Generic)
 
+
+data Cache = Cache {getCache :: String}
+
 data Config = Config {
     _warp :: ConfigWarp,
     _db :: ConnectInfo,

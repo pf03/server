@@ -14,6 +14,17 @@ import API
 import Data.Int
 import Data.Char
 
+data Cache = Cache {getCache :: String}
+
+class Monad m => MCache m where
+    getFromCache :: String -> m Cache
+    storeCache :: Cache -> m ()
+
+class Monad m => MDB m
+
+--трансформер со всеми интерфейсами
+class MonadLog m, MCache m, MError m, MDB m => MT m
+
 --getters && setters lens like
 getLogSettings :: MonadState S m => m Log.LogSettings
 getLogSettings = gets logSettings

@@ -60,6 +60,18 @@ instance MError T where
     throwM = throwT
     catchM = catchT
 
+data Cache = Cache {getCache :: String}
+
+class Monad m => MCache m where
+    getFromCache :: String -> m Cache
+    storeCache :: Cache -> m ()
+
+class Monad m => MDB m where
+    getConnection :: m conn
+
+--трансформер со всеми интерфейсами
+class (Log.MonadLog m, MCache m, MError m, MDB m) => MT m
+
 
 
 ------------------------------------------IO---------------------------------------------------------------------------
