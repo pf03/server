@@ -41,8 +41,8 @@ users = query_ =<< usersQuery =<< S.getParams
 selectUsersQuery :: Query 
 selectUsersQuery = [sql|SELECT * FROM users|]
 
-usersQuery ::  MError m => ParamsMap Param -> m Query
-usersQuery params = return selectUsersQuery <<+>> pagination (params ! "page")
+usersQuery ::  (MError m, MCache m) => ParamsMap Param -> m Query
+usersQuery params = return selectUsersQuery <<+>> pagination
 
 -------------------------------Author---------------------------------------------------------
 type Author = Row.Author :. Row.User
@@ -52,15 +52,15 @@ author pid = listToMaybe <$> query_ query where
         query =  selectAuthorsQuery <+> template [sql|WHERE authors.id = {0}|] [q pid]
 
 authors :: T [Author]
-authors = query_ =<< authorsQuery =<< S.getParams
+authors = query_ =<< authorsQuery
 
 selectAuthorsQuery :: SQL.Query
 selectAuthorsQuery = [sql|SELECT * FROM authors
                 LEFT JOIN users
                 ON authors.user_id = users.id|] 
 
-authorsQuery :: MError m => ParamsMap Param -> m Query
-authorsQuery params = return selectAuthorsQuery <<+>> pagination (params ! "page")
+authorsQuery :: (MError m, MCache m) => m Query
+authorsQuery = return selectAuthorsQuery <<+>> pagination
 
 ----------------------------Category-----------------------------------------------------------
 --запрос без пагинации для внутреннего использования и с пагинацией для внешнего
@@ -71,7 +71,7 @@ category pid = listToMaybe <$> query_ query where
         query = selectCategoriesQuery <+> template [sql|WHERE categories.id = {0}|] [q pid]
 
 categories :: T [Category]
-categories = query_ =<< categoriesQuery =<< S.getParams
+categories = query_ =<< categoriesQuery
 
 --все категории без пагинации нужны для вычисления родительских категорий
 allCategories :: T [Category]
@@ -80,8 +80,8 @@ allCategories = query_ selectCategoriesQuery
 selectCategoriesQuery ::  Query
 selectCategoriesQuery = [sql|SELECT * FROM categories|] 
 
-categoriesQuery :: MError m => ParamsMap Param -> m Query
-categoriesQuery params = return selectCategoriesQuery <<+>> pagination (params ! "page")
+categoriesQuery :: (MError m, MCache m) => m Query
+categoriesQuery = return selectCategoriesQuery <<+>> pagination
 
 -------------------------Draft-------------------------------------------------------------
 type Content = Row.Content :. Row.Category :. Row.Author :. Row.User :. Maybe Row.TagToContent :. Maybe Row.Tag :. Maybe Row.Photo
@@ -105,7 +105,7 @@ drafts = do
     let conditions = [
             cond [sql|users.id|] paramUserId
             ]
-    query <- selectDraftsQuery `whereAllM` conditions <<+>> pagination (params ! "page");
+    query <- selectDraftsQuery `whereAllM` conditions <<+>> pagination;
     query_ query
 
 selectDraftsQuery ::  Query
@@ -136,7 +136,7 @@ post pid = query_ query where
         query = selectPostsQuery <+> template [sql|WHERE posts.id = {0}|] [q pid]
 
 posts :: T [Post]
-posts = query_ =<< postsQuery =<< S.getParams
+posts = query_ =<< postsQuery
 
 --зачем здесь таблица categories? проверить!!!
 selectPostsQuery ::  Query
@@ -150,73 +150,67 @@ selectPostsQuery = [sql|
         LEFT JOIN tags ON tags.id = tags_to_contents.tag_id
         LEFT JOIN photos ON photos.content_id = contents.id|]
 
-postsQuery :: MError m => ParamsMap Param -> m SQL.Query
-postsQuery params = res
-    where
-
-    p :: BSName -> Param
-    p name = params ! name
-
-    --перенести в ду нотацию
-    res :: MError m => m SQL.Query
-    res = selectPostsQuery `whereAllM` conditions  <<+>> orderBy (p "order_by") <<+>> pagination (p "page")
-
-    --исключить из результирующего запроса лишние TRUE в функции whereAll ?
-    conditions :: MError m => [m SQL.Query]
-    conditions =  [
-        postIdsSubquery [sql|tags_to_contents.tag_id|] (p "tag_id"),
-        containsCond (p "contains"),
-        cond [sql|contents.category_id|] $ p "category_id",
-        cond [sql|contents.creation_date|] $ p "created_at",
-        cond [sql|contents.name|] $ p "name",
-        cond [sql|CONCAT_WS(' ', users.last_name, users.first_name)|] $ p "author_name",
-        cond [sql|contents.text|] $ p "text"
-        ]
-
-    postIdsSubquery :: MError m => Query -> Param -> m SQL.Query
-    
-    postIdsSubquery field (ParamAll vals) = [sql|posts.id|] `inSubqueryM` 
-            ([sql|SELECT posts.id FROM posts|] `whereAllM` map (existTagSubquery field . ParamEq ) vals)
-    postIdsSubquery _ ParamNo = return [sql|TRUE|]
-    --postIdsSubquery (ParamEq val) = postIdsSubquery (ParamIn [val])
-    postIdsSubquery field param = [sql|posts.id|] `inSubqueryM`
-            ([sql|SELECT posts.id FROM posts|] `whereAllM` [existTagSubquery field param] )
-
-    containsCond :: MError m => Param -> m SQL.Query
-    containsCond param = Query.brackets . Query.any <$> list where
-        list = sequenceA [
-            cond [sql|contents.name|] param,
-            cond [sql|CONCAT_WS(' ', users.last_name, users.first_name)|] param,
-            cond [sql|contents.name|] param,
-            cond [sql|categories.category_name|] param,
-            postIdsSubquery [sql|tags.name|] param
+postsQuery :: (MError m, MCache m) => m SQL.Query
+postsQuery = do
+    params <- S.getParams
+    let p name = params ! name
+    let conditions =  [
+            postIdsSubquery [sql|tags_to_contents.tag_id|] (p "tag_id"),
+            containsCond (p "contains"),
+            cond [sql|contents.category_id|] $ p "category_id",
+            cond [sql|contents.creation_date|] $ p "created_at",
+            cond [sql|contents.name|] $ p "name",
+            cond [sql|CONCAT_WS(' ', users.last_name, users.first_name)|] $ p "author_name",
+            cond [sql|contents.text|] $ p "text"
             ]
+    selectPostsQuery `whereAllM` conditions  <<+>> orderBy (p "order_by") <<+>> pagination
 
-    --containsCond param = error $ template "Нет шаблона для {0}" [show param]
+        where
+            
+        postIdsSubquery :: MError m => Query -> Param -> m SQL.Query
+        
+        postIdsSubquery field (ParamAll vals) = [sql|posts.id|] `inSubqueryM` 
+                ([sql|SELECT posts.id FROM posts|] `whereAllM` map (existTagSubquery field . ParamEq ) vals)
+        postIdsSubquery _ ParamNo = return [sql|TRUE|]
+        --postIdsSubquery (ParamEq val) = postIdsSubquery (ParamIn [val])
+        postIdsSubquery field param = [sql|posts.id|] `inSubqueryM`
+                ([sql|SELECT posts.id FROM posts|] `whereAllM` [existTagSubquery field param] )
 
-    --поиск по имени и id тега
-    --вытягиваем id постов, в которых хотя бы один из тегов удовлетворяет условию. После чего возвращаем все теги постов с данными id
-    existTagSubquery :: MError m => Query -> Param -> m Query
-    existTagSubquery field param  = do 
-        c <- cond field param
-        return $ exists $ 
-            [sql| SELECT 1 FROM contents
-                    LEFT JOIN tags_to_contents ON contents.id = tags_to_contents.content_id
-                    LEFT JOIN tags ON tags.id = tags_to_contents.tag_id
-                    WHERE contents.id = posts.content_id
-                    AND |] <+> c
-    
-    orderBy :: MError m => Param -> m SQL.Query
-    orderBy (ParamEq (Str paramName)) = return . template [sql|ORDER BY {0}|] <$$> [field] where
-        field = case paramName of 
-            "created_at" -> return [sql|contents.creation_date|]
-            "author_name" -> return [sql|CONCAT_WS(' ', users.last_name, users.first_name)|]
-            "category_id"-> return [sql|contents.category_id|]
-            "photos" -> return $ Query.brackets [sql|SELECT COUNT(*) FROM photos WHERE
-                    photos.content_id = contents.id|]
-            _ -> throwM $ DevError $ template "Неверный параметр {0} в функции orderBy" [paramName]
-    orderBy ParamNo = return [sql||]
-    orderBy p = throwM $ DevError $ template "Неверный шаблон параметра {0} в функции orderBy" [show p]
+        containsCond :: MError m => Param -> m SQL.Query
+        containsCond param = Query.brackets . Query.any <$> list where
+            list = sequenceA [
+                cond [sql|contents.name|] param,
+                cond [sql|CONCAT_WS(' ', users.last_name, users.first_name)|] param,
+                cond [sql|contents.name|] param,
+                cond [sql|categories.category_name|] param,
+                postIdsSubquery [sql|tags.name|] param
+                ]
+
+        --containsCond param = error $ template "Нет шаблона для {0}" [show param]
+
+        --поиск по имени и id тега
+        --вытягиваем id постов, в которых хотя бы один из тегов удовлетворяет условию. После чего возвращаем все теги постов с данными id
+        existTagSubquery :: MError m => Query -> Param -> m Query
+        existTagSubquery field param  = do 
+            c <- cond field param
+            return $ exists $ 
+                [sql| SELECT 1 FROM contents
+                        LEFT JOIN tags_to_contents ON contents.id = tags_to_contents.content_id
+                        LEFT JOIN tags ON tags.id = tags_to_contents.tag_id
+                        WHERE contents.id = posts.content_id
+                        AND |] <+> c
+        
+        orderBy :: MError m => Param -> m SQL.Query
+        orderBy (ParamEq (Str paramName)) = return . template [sql|ORDER BY {0}|] <$$> [field] where
+            field = case paramName of 
+                "created_at" -> return [sql|contents.creation_date|]
+                "author_name" -> return [sql|CONCAT_WS(' ', users.last_name, users.first_name)|]
+                "category_id"-> return [sql|contents.category_id|]
+                "photos" -> return $ Query.brackets [sql|SELECT COUNT(*) FROM photos WHERE
+                        photos.content_id = contents.id|]
+                _ -> throwM $ DevError $ template "Неверный параметр {0} в функции orderBy" [paramName]
+        orderBy ParamNo = return [sql||]
+        orderBy p = throwM $ DevError $ template "Неверный шаблон параметра {0} в функции orderBy" [show p]
 
 -------------------------Tag-------------------------------------------------------------
 type Tag = Row.Tag 
@@ -231,8 +225,8 @@ selectTagsQuery ::  Query
 selectTagsQuery = [sql|SELECT * FROM tags|] 
 
 --здесь можно добавить MonadCache
-tagsQuery :: MError m => ParamsMap Param -> m Query
-tagsQuery params = return selectTagsQuery <<+>> pagination (params ! "page")
+tagsQuery :: (MError m, MCache m) => ParamsMap Param -> m Query
+tagsQuery params = return selectTagsQuery <<+>> pagination
 
 -------------------------Comment----------------------------------------------------------
 
@@ -251,8 +245,8 @@ selectCommentsQuery = [sql|
         LEFT JOIN users ON users.id = comments.user_id
     |] 
 
-commentsQuery :: MError m => Int -> ParamsMap Param -> m Query
-commentsQuery postId params = selectCommentsQuery `whereAllM` (return <$> conditions) <<+>> pagination (params ! "page") where
+commentsQuery :: (MError m, MCache m) => Int -> ParamsMap Param -> m Query
+commentsQuery postId params = selectCommentsQuery `whereAllM` (return <$> conditions) <<+>> pagination where
     conditions :: [SQL.Query]
     conditions =  [
         template [sql|posts.id = {0}|] [q postId]
@@ -261,13 +255,13 @@ commentsQuery postId params = selectCommentsQuery `whereAllM` (return <$> condit
 
 
 -------------------------Pagination--------------------------------------------------------
-pagination :: MError m => Param -> m SQL.Query
-pagination (ParamEq (Int page)) = return $ template [sql|LIMIT {0} OFFSET {1}|] [q quantity, q $ (page-1)*quantity] where
-    quantity = 20
-pagination p = throwM $ DevError $ template "Неверный шаблон параметра {0} в функции pagination" [show p]
-
-
-
+pagination :: (MError m, MCache m) => m SQL.Query
+pagination  = do
+    paramPage <- S.getParam "page"
+    case paramPage of 
+        ParamEq (Int page) -> return $ template [sql|LIMIT {0} OFFSET {1}|] [q quantity, q $ (page-1)*quantity] where
+            quantity = 20
+        _ -> throwM $ DevError $ template "Неверный шаблон параметра {0} в функции pagination" [show paramPage]
 --------------------------Templates-------------------------------------------------------
 -- c этой функцией нужно осторожно, так как она работает только для ParamEq
 --возможно здесь сделать обработку ошибок для некорректных паттернов??
