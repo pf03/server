@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 --importPriority = 20
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE UndecidableInstances #-}
 module Transformer  where
 --mtl
 import Control.Monad.State.Lazy
@@ -36,11 +37,11 @@ import Control.Applicative ((<|>))
 import Common
 import Data.Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
-import Query
+import DB
 
 
 --трансформер со всеми интерфейсами
-class (Log.MonadLog m, MCache m, MError m, MDB m) => MT m
+--class (Log.MonadLog m, MCache m, MError m, MDB m) => MT m --это есть в DB
 
 --Пользователи ничего не должны знать о внутренней структуре нашего трансформера.
 --Для них есь три сущности - class ToTransformer, функции toT, runT ну и несколько вспомогательныйх функций типа printT
@@ -71,6 +72,10 @@ instance MCache T where
 
 instance MDB T where
     getConnection = gets connectionDB
+-- instance MIO T
+instance MT T
+
+
 
 ------------------------------------------IO---------------------------------------------------------------------------
 

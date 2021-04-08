@@ -28,7 +28,7 @@ import           Database.PostgreSQL.Simple.SqlQQ
 import           Database.PostgreSQL.Simple.Types as SQL
 import           Error
 import qualified Log
-import           Query
+import           DB
 import qualified Row
 import           Select                           (authUserIdParam, cond, p, val)
 import qualified State                            as S
@@ -36,12 +36,12 @@ import           Transformer
 import           Types
 
 ----------------------------------User-----------------------------------------
-user :: T ()
+user :: MT m => m ()
 user = do
     params <- S.getParams
     checkNotExist "Пользователь" "login" [sql|SELECT 1 FROM users WHERE users.login = {0}|]
     passQuery <- (return . template [sql|md5 (CONCAT_WS(' ', {0}, {1}))|]) <$$> [cell(params ! "login"), cell(params ! "pass")]
-    insert User
+    DB.insert User
         [sql|INSERT into users (last_name, first_name, avatar, login, pass, creation_date, is_admin) values {0}|] <$$>
         [rowEither params
             [ Left "last_name"
@@ -53,7 +53,7 @@ user = do
             , Right [sql|False|]
             ]]
 ----------------------------------Author---------------------------------------
-author :: T ()
+author :: MT m => m ()
 author = do
     params <- S.getParams
     checkExist "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
@@ -65,7 +65,7 @@ author = do
 ----------------------------------Category-------------------------------------
 -- * нельзя вставить категорию с нeсуществующим родителем, но можно вставить
 -- категорию без родителя, "parent_id" - необязаельный параметр
-category :: T ()
+category :: MT m => m ()
 category = do
     params <- S.getParams
     checkExist "parent_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
@@ -73,14 +73,14 @@ category = do
         [row params ["parent_id", "category_name"]]
 
 ----------------------------------Tag------------------------------------------
-tag :: T ()
+tag :: MT m => m ()
 tag = do
     params <- S.getParams
     checkNotExist "Тег" "name" [sql|SELECT 1 FROM tags WHERE tags.name = {0}|]
     insert Tag [sql|INSERT into tags (name)  values ({0})|] [p $ params ! "name"]
 
 --сначала должна идти проверочная часть, потом часть с записью в бд
-tagToContent :: Action -> T()
+tagToContent :: MT m => Action -> m ()
 tagToContent Check = do
     params <- S.getParams
     let tagIds = valInt <$> (\(ParamAll list) -> list) (params ! "tag_id") -- :: [Val]
@@ -93,10 +93,10 @@ tagToContent Execute = do
             [rows params ["tag_id", "content_id"]]
 
 ----------------------------------Draft----------------------------------------
-draft :: T ()
+draft :: MT m => m ()
 draft = do
     params <- addAuthAuthorIdParam
-    when (params ! "author_id" == ParamEq (Int 1)) $ throwT $ DBError 
+    when (params ! "author_id" == ParamEq (Int 1)) $ throwM $ DBError 
         "Невозможно создать черновик от удаленного автора (автора по умолчанию) id = 1"
     checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
     Insert.tagToContent Check
@@ -111,33 +111,33 @@ draft = do
         [cell $ ParamEq (Int cid)]
 
 ----------------------------------Post-----------------------------------------
-publish :: Int -> T ()
+publish :: MT m => Int -> m ()
 publish pid = do
     params <- S.addIdParam "draft_id" pid
     checkExist "draft_id" [sql|SELECT 1 FROM drafts WHERE drafts.id = {0}|]
     [(contentId, mpostId)] <- query_ $ template 
         [sql|SELECT content_id, post_id FROM drafts WHERE drafts.id = {0}|]
-        [p $ params ! "draft_id" ] :: T [(Int, Maybe Int)]
-    case mpostId of
+        [p $ params ! "draft_id" ]
+    case mpostId :: Maybe Int of
         Nothing -> do
             insert Post [sql|INSERT into posts (content_id) values ({0})|] 
-                [q contentId] --новость публикуется в первый раз
+                [q (contentId :: Int)] --новость публикуется в первый раз
         Just postId -> do
-            [Only oldContentId] <- query_ $ template [sql|SELECT content_id FROM posts WHERE posts.id = {0}|] 
-                [q postId] :: T [Only Int]
+            [Only oldContentId] <- DB.query_ $ template [sql|SELECT content_id FROM posts WHERE posts.id = {0}|] 
+                [q postId]
             update Post [sql|UPDATE posts SET content_id = {0} WHERE posts.id = {1}|] [q contentId, q postId]
             --контент привязан или к черновику или к посту, поэтому нигде больше не используется
-            delete Content [sql|DELETE FROM contents WHERE contents.id = {0} |] [q oldContentId]
+            delete Content [sql|DELETE FROM contents WHERE contents.id = {0} |] [q (oldContentId :: Int)]
             execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [q oldContentId]
             delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [q oldContentId]
     delete Draft [sql|DELETE FROM drafts WHERE drafts.id = {0}|] [p $ params ! "draft_id"]
 
 ----------------------------------Comment--------------------------------------
-comment :: Int -> T ()
+comment :: MT m => Int -> m ()
 comment postId = do
     Insert.addAuthUserIdParam
     params <- S.addIdParam "post_id" postId
-    when (params ! "user_id" == ParamEq (Int 1)) $ throwT $ DBError 
+    when (params ! "user_id" == ParamEq (Int 1)) $ throwM $ DBError 
         "Невозможно создать комментарий от удаленного пользователя (пользователя по умолчанию) id = 1"
     checkExist "post_id" [sql|SELECT 1 FROM posts WHERE posts.id = {0}|]
     checkExist "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
@@ -145,7 +145,7 @@ comment postId = do
         [rowEither params [Left "post_id", Left "user_id", Right [sql|current_date|], Left "text"]]
 
 ----------------------------------Photo----------------------------------------
-photos :: T ()
+photos :: MT m => m ()
 photos = do
     params <- S.getParams
     unless (emptyParam $ params ! "photos") $ do
@@ -155,39 +155,39 @@ photos = do
 ----------------------------------Common---------------------------------------
 -- * в шаблон подставляется внутренний pid, если параметр обязательный, то ParamNo
 -- никогда не выскочит
-checkExist :: BSName -> Query -> T()
+checkExist :: MT m => BSName -> Query -> m ()
 checkExist name templ = do
     param <- S.getParam name
     helper name param templ where
         helper name ParamNo templ = return ()
         helper name ParamNull templ = return ()
         helper name param@(ParamEq (Int pid)) templ = do
-            exist <- query_ $ template templ [q pid] :: T [Only Int]
-            case exist of
-                [] -> throwT $ DBError $ template 
+            exist <- DB.query_ $ template templ [q pid]
+            case exist :: [Only Int] of
+                [] -> throwM $ DBError $ template 
                     "Указан несуществующий параметр {0}: {1}" [show name, show pid]
                 _ -> return ()
 
 -- | Проверка на существование ВСЕХ сущностей из списка
-checkExistAll :: BSName -> [Int] -> Query -> T()
+checkExistAll :: MT m => BSName -> [Int] -> Query -> m ()
 checkExistAll name all templ = do
-    exist <- fromOnly <<$>> query_ templ
+    exist <- fromOnly <<$>> DB.query_ templ
     when (length exist /= length all) $ do
         let notExist = filter (`notElem` exist) all
-        throwT $ DBError $ template "Параметры {0} из списка {1} не существуют" 
+        throwM $ DBError $ template "Параметры {0} из списка {1} не существуют" 
             [show name, show notExist]
 
 
-checkNotExist :: String-> BSName -> Query -> T()
+checkNotExist :: MT m => String -> BSName -> Query -> m()
 checkNotExist description name templ = do
     param <- S.getParam name
     helper name param templ where
         helper name ParamNo templ = return ()
         helper name param@(ParamEq v) templ = do
-            exist <- query_ $ template templ [val v] :: T [Only Int]
-            case exist of
+            exist <- query_ $ template templ [val v] 
+            case exist :: [Only Int] of
                 [] -> return ()
-                _ -> throwT $ DBError  (template "{2} с таким {0} = {1} уже существует" 
+                _ -> throwM $ DBError  (template "{2} с таким {0} = {1} уже существует" 
                     [show name, toString v, description])
         toString :: Val -> String
         toString (Int n)  = show n
@@ -207,7 +207,7 @@ rows params names = res where
     listOfRows = map helper [0..len-1]
     helper :: Int -> Query
     helper n = list $ map (\name -> cellByNumber (params ! name) n) names
-    res = Query.concat [sql|,|] listOfRows
+    res = DB.concat [sql|,|] listOfRows
 
 emptyParam:: Param -> Bool
 emptyParam ParamNo       = True
@@ -245,7 +245,7 @@ cellByNumber ParamNo _         = [sql|null|]
 
 
 -- * Aдмин может CОЗДАВАТЬ только свои публикации
-addAuthAuthorIdParam :: T (ParamsMap Param)
+addAuthAuthorIdParam :: MT m => m (ParamsMap Param)
 addAuthAuthorIdParam = do
     Insert.addAuthUserIdParam
     paramUserId <- S.getParam "user_id"
@@ -254,19 +254,19 @@ addAuthAuthorIdParam = do
         LEFT JOIN users
         ON authors.user_id = users.id
         WHERE users.id = {0}
-    |] [p paramUserId]) :: T (Maybe Int)
-    case mauthorId of
-        Nothing       -> throwT $ AuthError "Данная функция доступна только авторам"
-        Just 1        -> throwT $ AuthError "Невозможна аутентификация удаленного автора"
+    |] [p paramUserId]) 
+    case mauthorId :: (Maybe Int) of
+        Nothing       -> throwM $ AuthError "Данная функция доступна только авторам"
+        Just 1        -> throwM $ AuthError "Невозможна аутентификация удаленного автора"
         Just authorId -> S.addIdParam "author_id" authorId
 
 -- | Админ может СОЗДАВАТЬ только свои публикации (комментарии)
-addAuthUserIdParam :: T (ParamsMap Param)
+addAuthUserIdParam :: (MError m, MCache m) => m (ParamsMap Param)
 addAuthUserIdParam = do
     auth <- S.getAuth
     case auth of
         AuthAdmin userId -> S.addIdParam "user_id" userId
         AuthUser userId  -> S.addIdParam "user_id" userId
-        _                -> throwT authErrorDefault
+        _                -> throwM authErrorDefault
 
 

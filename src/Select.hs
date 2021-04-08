@@ -12,7 +12,7 @@ import GHC.Generics
 import Data.Aeson
 import Data.Aeson.Types
 import Data.Text (pack, Text(..))
-import Types 
+import Types hiding (T) --T перенести в трансформер
 import qualified Row
 import Database.PostgreSQL.Simple.Types as SQL
 import Database.PostgreSQL.Simple.SqlQQ
@@ -23,19 +23,21 @@ import Control.Monad.Identity
 import Data.Map as M ((!))
 import Data.Maybe
 import qualified State as S
-import Transformer
+--import Transformer
 import Error
+--import qualified DB
+import DB --((<<+>>))
 
 --Можно добавить еще пару классов MCache (чистая монада), MDB (грязная)
 ----------------------------------User-----------------------------------------------------------
 type User =  Row.User 
 
-user :: Int -> T (Maybe User)
-user pid = listToMaybe <$> query_ query where
+user :: MDB m => Int -> m (Maybe User)
+user pid = listToMaybe <$> DB.query_ query where
         query =  selectUsersQuery <+> template [sql|WHERE users.id = {0}|] [q pid]
 
-users :: T [User]
-users = query_ =<< usersQuery =<< S.getParams
+users :: MT m => m [User]
+users = DB.query_ =<< usersQuery =<< S.getParams
 
 --отделение чистого кода от грязного
 selectUsersQuery :: Query 
@@ -47,12 +49,12 @@ usersQuery params = return selectUsersQuery <<+>> pagination
 -------------------------------Author---------------------------------------------------------
 type Author = Row.Author :. Row.User
 
-author :: Int -> T (Maybe Author)
-author pid = listToMaybe <$> query_ query where
+author :: MDB m => Int -> m (Maybe Author)
+author pid = listToMaybe <$> DB.query_ query where
         query =  selectAuthorsQuery <+> template [sql|WHERE authors.id = {0}|] [q pid]
 
-authors :: T [Author]
-authors = query_ =<< authorsQuery
+authors :: MT m => m [Author]
+authors = DB.query_ =<< authorsQuery
 
 selectAuthorsQuery :: SQL.Query
 selectAuthorsQuery = [sql|SELECT * FROM authors
@@ -66,16 +68,16 @@ authorsQuery = return selectAuthorsQuery <<+>> pagination
 --запрос без пагинации для внутреннего использования и с пагинацией для внешнего
 type Category = Row.Category 
 
-category::  Int -> T (Maybe Category)
-category pid = listToMaybe <$> query_ query where
+category::  MDB m => Int -> m (Maybe Category)
+category pid = listToMaybe <$> DB.query_ query where
         query = selectCategoriesQuery <+> template [sql|WHERE categories.id = {0}|] [q pid]
 
-categories :: T [Category]
-categories = query_ =<< categoriesQuery
+categories :: MT m => m [Category]
+categories = DB.query_ =<< categoriesQuery
 
 --все категории без пагинации нужны для вычисления родительских категорий
-allCategories :: T [Category]
-allCategories = query_ selectCategoriesQuery
+allCategories :: MDB m => m [Category]
+allCategories = DB.query_ selectCategoriesQuery
 
 selectCategoriesQuery ::  Query
 selectCategoriesQuery = [sql|SELECT * FROM categories|] 
@@ -88,7 +90,7 @@ type Content = Row.Content :. Row.Category :. Row.Author :. Row.User :. Maybe Ro
 
 type Draft = Row.Draft :. Select.Content
 
-draft::  Int -> T [Draft]
+draft::  MT m => Int -> m [Draft]
 draft pid = do
     paramUserId <- authUserIdParam
     conditions <-  sequenceA [
@@ -96,9 +98,9 @@ draft pid = do
         cond [sql|users.id|] paramUserId
         ]
     let query =  selectDraftsQuery `whereAll` conditions;
-    query_ query
+    DB.query_ query
 
-drafts :: T [Draft]
+drafts :: MT m => m [Draft]
 drafts = do
     params <- S.getParams
     paramUserId <- authUserIdParam
@@ -106,7 +108,7 @@ drafts = do
             cond [sql|users.id|] paramUserId
             ]
     query <- selectDraftsQuery `whereAllM` conditions <<+>> pagination;
-    query_ query
+    DB.query_ query
 
 selectDraftsQuery ::  Query
 selectDraftsQuery = [sql|
@@ -127,16 +129,16 @@ selectDraftsQuery = [sql|
 type Post = Row.Post :. Select.Content
 --type Post = Row.Post :. Row.Content :. Row.Category :. Row.Author :. Row.User :. Maybe Row.TagToContent :. Maybe Row.Tag
 
--- post::  Int -> T (Maybe Post)
--- post pid = listToMaybe <$> query_ query where
+-- post::  Int -> m (Maybe Post)
+-- post pid = listToMaybe <$> DB.query_ query where
 --         query = selectPostsQuery <+> template [sql|WHERE categories.id = {0}|] [q pid]
 
-post::  Int -> T [Post]
-post pid = query_ query where
+post::  MDB m => Int -> m [Post]
+post pid = DB.query_ query where
         query = selectPostsQuery <+> template [sql|WHERE posts.id = {0}|] [q pid]
 
-posts :: T [Post]
-posts = query_ =<< postsQuery
+posts :: MT m => m [Post]
+posts = DB.query_ =<< postsQuery
 
 --зачем здесь таблица categories? проверить!!!
 selectPostsQuery ::  Query
@@ -168,7 +170,7 @@ postsQuery = do
 
         where
 
-        postIdsSubquery :: MError m => Query -> Param -> m SQL.Query
+        postIdsSubquery :: MError m => Query -> Param -> m Query
         
         postIdsSubquery field (ParamAll vals) = [sql|posts.id|] `inSubqueryM` 
                 ([sql|SELECT posts.id FROM posts|] `whereAllM` map (existTagSubquery field . ParamEq ) vals)
@@ -177,8 +179,8 @@ postsQuery = do
         postIdsSubquery field param = [sql|posts.id|] `inSubqueryM`
                 ([sql|SELECT posts.id FROM posts|] `whereAllM` [existTagSubquery field param] )
 
-        containsCond :: MError m => Param -> m SQL.Query
-        containsCond param = Query.brackets . Query.any <$> list where
+        containsCond :: MError m => Param -> m Query
+        containsCond param = DB.brackets . DB.any <$> list where
             list = sequenceA [
                 cond [sql|contents.name|] param,
                 cond [sql|CONCAT_WS(' ', users.last_name, users.first_name)|] param,
@@ -205,7 +207,7 @@ postsQuery = do
                 "created_at" -> return [sql|contents.creation_date|]
                 "author_name" -> return [sql|CONCAT_WS(' ', users.last_name, users.first_name)|]
                 "category_id"-> return [sql|contents.category_id|]
-                "photos" -> return $ Query.brackets [sql|SELECT COUNT(*) FROM photos WHERE
+                "photos" -> return $ DB.brackets [sql|SELECT COUNT(*) FROM photos WHERE
                         photos.content_id = contents.id|]
                 _ -> throwM $ DevError $ template "Неверный параметр {0} в функции orderBy" [paramName]
         orderBy ParamNo = return [sql||]
@@ -213,12 +215,12 @@ postsQuery = do
 
 -------------------------Tag-------------------------------------------------------------
 type Tag = Row.Tag 
-tag::  Int -> T (Maybe Tag)
-tag pid = listToMaybe <$> query_ query where
+tag::  MDB m => Int -> m (Maybe Tag)
+tag pid = listToMaybe <$> DB.query_ query where
         query = selectTagsQuery <+> template [sql|WHERE tags.id = {0}|] [q pid]
 
-tags :: T [Tag]
-tags = query_ =<< tagsQuery
+tags :: MT m => m [Tag]
+tags = DB.query_ =<< tagsQuery
 
 selectTagsQuery ::  Query
 selectTagsQuery = [sql|SELECT * FROM tags|] 
@@ -231,8 +233,8 @@ tagsQuery  = return selectTagsQuery <<+>> pagination
 
 type Comment =  Row.Comment :. Row.Post :. Row.User
 
-comments :: Int -> T [Comment]
-comments postId = query_ =<< commentsQuery postId
+comments :: MT m => Int -> m [Comment]
+comments postId = DB.query_ =<< commentsQuery postId
 
 selectCommentsQuery ::  Query
 selectCommentsQuery = [sql|
@@ -285,13 +287,13 @@ cond field param = case param of
     _ -> throwM $ DevError $ template "Неверный шаблон параметра {0} в функции cond" [show param]
 
 --админ может ЧИТАТЬ все публикации
-authUserIdParam :: T Param
+authUserIdParam :: (MError m, MCache m) => m Param
 authUserIdParam = do
     auth <- S.getAuth
     case auth of
         AuthAdmin _ -> return ParamNo
         AuthUser userId -> return $ ParamEq (Int userId)
-        _ -> throwT authErrorDefault
+        _ -> throwM authErrorDefault
 
 
 

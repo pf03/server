@@ -56,13 +56,17 @@ findPosition str = error "todo"
 
 -------------------------------------------MError------------------------------------------
 
-class Monad m => MError m where
+--проверить как MonadFail работает при неудачном сопоставлении с образцом
+--и в случае необходимости переопределить функцию fail
+class MonadFail m => MError m where
     throwM :: E -> m a
     catchM :: m a -> (E -> m a) -> m a
     liftE :: Either E a -> m a
     liftE ea = case ea of 
         Left e -> throwM e
         Right a -> return a
+
+
 
 liftEIO :: (MError m, MonadIO m) => IO a -> m a
 liftEIO m = do
