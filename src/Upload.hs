@@ -8,7 +8,6 @@ import qualified Log
 import Database.PostgreSQL.Simple.Time
 import Class
 import Types
-import qualified Query 
 --import DB (q, (<+>), whereAll, inList)
 -- import Data.Text
 import Control.Monad.Except
@@ -71,8 +70,8 @@ saveBinary req path = do
     let fileSize =  requestBodyLength req 
     let maxFileSize = 5*1024*1024
     case fileSize of 
-        ChunkedBody -> throwM $ RequestError $ template "Неизвестный размер файла. Выберите файл меньше 5МБ ({0}Б)" [show maxFileSize]
-        KnownLength  n| n >= maxFileSize -> throwM $ RequestError $ template "Размер файла составляет {0} Б . Выберите файл меньше 5 МБ ({1} Б)" [show n, show maxFileSize]
+        ChunkedBody -> Error.throw $ RequestError $ template "Неизвестный размер файла. Выберите файл меньше 5МБ ({0}Б)" [show maxFileSize]
+        KnownLength  n| n >= maxFileSize -> Error.throw $ RequestError $ template "Размер файла составляет {0} Б . Выберите файл меньше 5 МБ ({1} Б)" [show n, show maxFileSize]
         _ -> return()
     liftEIO $ B.writeFile path mempty
     stream 0 (getRequestBodyChunk req) 
@@ -100,3 +99,37 @@ saveBinary req path = do
                 -- print "яяя"
                 -- undefined
                 stream (n+1) str
+
+-----------------------------------------------------------------------------------------------------------------------
+--для работы с телом запроса, поделенным на чанки. liftEIO более безопасно чем liftIO
+stream :: (MonadIO m, Eq a, Monoid a) => IO a -> (a -> IO()) -> m ()
+stream source receiver = liftIO $ helper 0 source receiver where
+  helper n source receiver = do
+      a <- source
+      if a == mempty
+        then putStrLn $ template "Успешно прочитано {0} чаcтей тела запроса" [show n]
+        else do
+            receiver a
+            helper (n+1) source receiver
+
+--для работы с телом запроса, поделенным на чанки - должно быть не более одного чанка
+streamOne :: (MIOError m, Eq a, Monoid a) => IO a -> m a
+streamOne source = helper 0 source where
+    helper n source = do
+        liftIO $ putStrLn "streamOne"
+        a <- liftEIO source
+        if a == mempty
+            then do
+                liftIO $ putStrLn $ template "Успешно прочитано {0} чаcтей тела запроса" [show n]
+                return a
+            else if n>=1
+                then Error.throw $ RequestError "Слишком длинное тело запроса. Тело запроса должно состоять не более, чем из одного чанка"
+                else (a <>) <$> helper (n + 1) source
+
+--для работы с телом запроса, поделенным на чанки - должно быть пустым
+streamEmpty :: (MIOError m, Eq a, Monoid a) => IO a -> m ()
+streamEmpty source = do
+    a <- liftEIO source
+    if a == mempty
+        then return ()
+        else Error.throw $ RequestError "Тело запроса должно быть пустым"

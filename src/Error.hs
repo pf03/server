@@ -61,10 +61,23 @@ findPosition str = error "todo"
 class MonadFail m => MError m where
     throw :: E -> m a
     catch :: m a -> (E -> m a) -> m a
-    liftE :: Either E a -> m a
-    liftE ea = case ea of 
-        Left e -> Error.throw e
+
+liftE ::  MError m => Either E a -> m a
+liftE ea = case ea of 
+    Left e -> Error.throw e
+    Right a -> return a
+
+catchEither :: MError m => Either b a -> (b -> E) -> m a
+catchEither eba handler = case eba of 
+        Left b -> Error.throw $ handler b
         Right a -> return a
+
+-- catchEither :: Either b a -> (b -> Either c a) -> Either c a
+-- catchEither eba handler = case eba of
+--         Left b -> handler b
+--         Right a -> Right a
+
+ 
 
 class (MError m, MonadIO m) => MIOError m
 

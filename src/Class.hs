@@ -77,6 +77,7 @@ logT m = do
     Log.debugT a
     return a 
 
+
 --костыль для Query, пока не придумал ничего получше
 --один хрен нормально не работает, например когда queryString хардкодится с кириллицей
 -- logqT :: (ToTransformer m) => m Query -> T Query

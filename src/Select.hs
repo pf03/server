@@ -17,7 +17,6 @@ import qualified Row
 import Database.PostgreSQL.Simple.Types as SQL
 import Database.PostgreSQL.Simple.SqlQQ
 import Common
-import Query
 import qualified Data.ByteString as BC
 import Control.Monad.Identity
 import Data.Map as M ((!))

@@ -15,6 +15,8 @@ import Text.Read
 import Data.List
 import API
 import qualified Data.Map as M
+import qualified Error
+import Error (MError)
 
 --Any означает отсутствие параметра
 --Eq отсутствие суффикса
@@ -148,50 +150,50 @@ concatParams = concat . M.mapWithKey possibleParams
 
 --------------------------------------------PARSE PARAMS WITH ERRORS HANDLING------------------------------------------------------------------
 
-parseParams :: Query -> API.API -> Except E (ParamsMap Param)
+parseParams :: MError m => Query -> API.API -> m (ParamsMap Param)
 parseParams qs api = do
     let paramDescs = possibleParamDescs api
     let names = M.keys paramDescs
     checkParams qs api paramDescs
     forMapWithKeyM paramDescs $ parseParam qs
 
-checkParams :: Query -> API.API -> ParamsMap ParamDesc -> Except E ()
+checkParams :: MError m => Query -> API.API -> ParamsMap ParamDesc -> m ()
 checkParams qs api paramDesc  = do 
     --Update должен иметь хотя бы один параметр, иначе не имеет смысла
     case api of
         API Update xs -> do
-            when (null qs) $ throwE . RequestError $ template "Необходимо указать хотя бы один параметр для редактирвания из следующего списка : {0}" [show $ M.keys paramDesc]
+            when (null qs) $ Error.throw . RequestError $ template "Необходимо указать хотя бы один параметр для редактирвания из следующего списка : {0}" [show $ M.keys paramDesc]
         _ -> return ()
 
 
     if M.null paramDesc && not (null qs) then do
-        throwE . RequestError $ "Данная api-функция не имеет параметров"
+        Error.throw . RequestError $ "Данная api-функция не имеет параметров"
         else do
             --проверка на лишние параметры
             let params = map fst qs
             let cp = concatParams paramDesc
             forM_ params $ \param -> do 
                 if param `elem` cp then return () else
-                    throwE . RequestError $ template "Недопустимый параметр запроса: {0}" [show param]
+                    Error.throw . RequestError $ template "Недопустимый параметр запроса: {0}" [show param]
     
-parseParam :: Query -> BSName -> ParamDesc -> Except E Param
+parseParam :: MError m => Query -> BSName -> ParamDesc -> m Param
 parseParam qs bsname paramDesc@(ParamDesc _ paramType _ nl)  = do
     mtuple <- findTemplate qs bsname paramDesc
     readParamAny paramType mtuple nl
 
 --проверка всей строки запроса
 --проверка на дублирующие, взаимоисключающие, обязательные параметры и параметры без значения (все проверки, кроме проверки на лишние параметры)
-findTemplate :: [(BS, Maybe BS)] -> BSName -> ParamDesc -> Except E (Maybe (Templ, BSKey, BSValue))
+findTemplate :: MError m => [(BS, Maybe BS)] -> BSName -> ParamDesc -> m (Maybe (Templ, BSKey, BSValue))
 findTemplate qs name paramDesc@(ParamDesc templs paramType must _) = do
     let pp = possibleParams name paramDesc
     let filtered = forMaybe qs $ \q -> checkParam q name paramDesc
     case filtered of
         [] -> if  must
-            then throwE . RequestError $ template "Не указан обязательный параметр {0}" [show name]
+            then Error.throw . RequestError $ template "Не указан обязательный параметр {0}" [show name]
             else return Nothing
-        [(tmpl, param, Nothing)] -> throwE . RequestError $ template "Не указано значение параметра {0}" [show param]
+        [(tmpl, param, Nothing)] -> Error.throw . RequestError $ template "Не указано значение параметра {0}" [show param]
         [(tmpl, param, Just value)] -> return . Just $ (tmpl, param, value)
-        (r:rs) -> throwE . RequestError $ template "В списке параметров запроса должно быть не более одного значения из списка {0}, а их {1}: {2}"
+        (r:rs) -> Error.throw . RequestError $ template "В списке параметров запроса должно быть не более одного значения из списка {0}, а их {1}: {2}"
             [show pp, show. length $ filtered, show filtered]
 
 --проверка одного элемента строки запроса
@@ -204,9 +206,9 @@ checkParam (param, mvalue) name (ParamDesc templs _ _ _) = res where
 
 --------------------------------------PARAMS HANDLERS--------------------------------------------------------------------
 
-readParamAny :: ParamType -> Maybe (Templ, BSKey, BSValue) -> Bool -> Except E Param
+readParamAny :: MError m => ParamType -> Maybe (Templ, BSKey, BSValue) -> Bool -> m Param
 readParamAny paramType (Just (_, _, "null")) True = return ParamNull
-readParamAny paramType (Just (_, key, "null")) False = throwE . RequestError $ template "Для параметра {0} не разрешено значение null" [show key] 
+readParamAny paramType (Just (_, key, "null")) False = Error.throw . RequestError $ template "Для параметра {0} не разрешено значение null" [show key] 
 readParamAny paramType mtuple _  = do 
     case paramType of
         ParamTypePage -> readParamPage mtuple
@@ -218,38 +220,38 @@ readParamAny paramType mtuple _  = do
 
 
 --продумать, какие ограничения есть для каждой из трех функций
-readParamPage :: Maybe (Templ, BSKey, BSValue) -> Except E Param
+readParamPage :: MError m => Maybe (Templ, BSKey, BSValue) -> m Param
 readParamPage mtuple = case mtuple of
     Nothing -> return $ ParamEq (Int 1) 
     _ -> readParam Int "Int" mtuple
 
-readParamInt :: Maybe (Templ, BSKey, BSValue) -> Except E Param
+readParamInt :: MError m => Maybe (Templ, BSKey, BSValue) -> m Param
 readParamInt mtuple = case mtuple of
-    Just (Like, param, bs) -> throwE . RequestError $ template "Шаблон param__like допустим только для строковых параметров: {0}" [show param] 
+    Just (Like, param, bs) -> Error.throw . RequestError $ template "Шаблон param__like допустим только для строковых параметров: {0}" [show param] 
     _ -> readParam Int "Int" mtuple
 
-readParamStr :: Maybe (Templ, BSKey, BSValue) -> Except E Param
+readParamStr :: MError m => Maybe (Templ, BSKey, BSValue) -> m Param
 readParamStr = readParam Str "String"
 
-readParamDate :: Maybe (Templ, BSKey, BSValue) -> Except E Param
+readParamDate :: MError m => Maybe (Templ, BSKey, BSValue) -> m Param
 readParamDate mtuple = case mtuple of
-    Just (Like, param, bs) -> throwE . RequestError $ template "Шаблон param__like допустим только для строковых параметров: {0}" [show param] 
+    Just (Like, param, bs) -> Error.throw . RequestError $ template "Шаблон param__like допустим только для строковых параметров: {0}" [show param] 
     _ -> readParam Date "Date" mtuple
 
 --почему здесь Like? проверить в тестах!! 
-readParamSort :: [BSName] -> Maybe (Templ, BSKey, BSValue) -> Except E Param
+readParamSort :: MError m => [BSName] -> Maybe (Templ, BSKey, BSValue) -> m Param
 readParamSort list mtuple= do
     case mtuple of 
         Just (Like, param, bs)  -> if bs `elem` list 
             then readParam Str "String" mtuple
-            else throwE . RequestError $ template "Параметр {0} должен быть элементом списка {1}" [show param, show list]
+            else Error.throw . RequestError $ template "Параметр {0} должен быть элементом списка {1}" [show param, show list]
         _ -> readParam Str "String" mtuple
 
-readParamFileName :: [BSName] -> Maybe (Templ, BSKey, BSValue) -> Except E Param
+readParamFileName :: MError m => [BSName] -> Maybe (Templ, BSKey, BSValue) -> m Param
 readParamFileName list mtuple = case mtuple of 
     Just (Eq, param, bs)  -> if any (helper bs) list
         then readParam Str "String" mtuple
-        else throwE . RequestError $ template "Параметр {0} должен быть названием файла с одним из следующих разрешений: {1} в формате foo.png" [show param, show list]
+        else Error.throw . RequestError $ template "Параметр {0} должен быть названием файла с одним из следующих разрешений: {1} в формате foo.png" [show param, show list]
 
     where
     --проверка на сответствие формату файла, например "foo.png"
@@ -263,7 +265,7 @@ readParamFileName list mtuple = case mtuple of
     
 
 
-readParam :: Read a => (a -> Val) -> String -> Maybe (Templ, BSKey, BSValue)  -> Except E Param
+readParam :: (MError m, Read a) => (a -> Val) -> String -> Maybe (Templ, BSKey, BSValue)  -> m Param
 readParam cons consStr mtuple = do
     let paramType = consStr
     let listType = template "[{0}]" [paramType]
@@ -284,7 +286,7 @@ readParam cons consStr mtuple = do
 ----------------------------------DECODING----------------------------------------------------------------------------------------------------
 
 --по сути вся эта городуха нужна только для корректных сообщений об ошибках
-ereadMap :: Read a => String -> BS -> BS -> Except E a
+ereadMap :: (MError m, Read a) => String -> BS -> BS -> m a
 ereadMap t bs param = case t of
     "Int" -> eread bs $ template "{0}целым числом" [must]
     "[Int]" -> eread bs $ template "{0}массивом, состоящим из целых чисел в формате [x,y,z]" [must]
@@ -299,12 +301,11 @@ ereadMap t bs param = case t of
     "Date" -> eread bs $ template "{0}датой в формате YYYY-MM-DD" [must]
     "[Date]" -> eread bs $ template "{0}списком дат в формате [YYYY-MM-DD,YYYY-MM-DD,YYYY-MM-DD]" [must]
     "(Date,Date)" -> eread bs $ template "{0}списком дат в формате (YYYY-MM-DD,YYYY-MM-DD)" [must]
-    _ -> throwE . RequestError $ template "Неизвестный тип параметра {1}: {0}" [t, show param]
+    _ -> Error.throw . RequestError $ template "Неизвестный тип параметра {1}: {0}" [t, show param]
     where must = template "Параметр запроса {0} должен быть " [show param]
 
-eread :: Read a => BC.ByteString -> String -> Except E a
-eread bs error = catchE (except . readEither . unpackString $ bs) $ \e -> do
-    throwE . RequestError $ error
+eread :: (MError m, Read a) => BC.ByteString -> String -> m a
+eread bs error = Error.catchEither (readEither . unpackString $ bs) $ \e -> RequestError error
 
 -- eread :: Read a => BC.ByteString -> Except String a
 -- eread = except . readEither . BC.unpack

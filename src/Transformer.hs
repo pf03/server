@@ -271,55 +271,29 @@ readFile path = ExceptT $ toEE (BC.readFile path) `Exception.catch` handler wher
         | isDoesNotExistError e = return $ Left $ IOError $ template  "Файл \"{0}\" не найден!" [path]
         | otherwise = return $ Left  $ IOError  $ template "Ошибка чтения файла \"{0}\"" [path]
 
-writeResponse :: (ToJSON a) => a -> T()
+writeResponse :: (Log.MonadLog m, ToJSON a) => a -> m ()
 writeResponse json = do
     Log.colorTextT Color.Yellow Log.Warning "Запись ответа в файл в целях отладки..."
     liftIO $ B.writeFile "response.json" $ convert . Aeson.encodePretty $ json --строгая версия
     --liftIO $ B.appendFile "log.txt" $ convert ("\n" :: String)  --строгая версия
 
-writeResponseJSON :: LC.ByteString -> T()
+writeResponseJSON :: Log.MonadLog m => LC.ByteString -> m ()
 writeResponseJSON json = do
     Log.colorTextT Color.Yellow Log.Warning "Запись ответа в файл в целях отладки..."
     liftIO $ B.writeFile "response.json" $ convert json --строгая версия
     --liftIO $ B.appendFile "log.txt" $ convert ("\n" :: String)  --строгая версия
 
 
------------------------------------------------------------------------------------------------------------------------
---для работы с телом запроса, поделенным на чанки
-stream :: (Eq a, Monoid a) => IO a -> (a -> IO()) -> IO()
-stream source receiver = helper 0 source receiver where
-  helper n source receiver = do
-      a <- source
-      if a == mempty
-        then putStrLn $ template "Успешно прочитано {0} чаcтей тела запроса" [show n]
-        else do
-            receiver a
-            helper (n+1) source receiver
 
---для работы с телом запроса, поделенным на чанки - должно быть не более одного чанка
-streamOne :: (Eq a, Monoid a) => IO a -> ExceptT E IO a
-streamOne source = helper 0 source where
-    helper n source = do
-        liftIO $ putStrLn "streamOne"
-        a <- liftIO source
-        if a == mempty
-            then do
-                liftIO $ putStrLn $ template "Успешно прочитано {0} чаcтей тела запроса" [show n]
-                return a
-            else if n>=1
-                then throwE $ RequestError "Слишком длинное тело запроса. Тело запроса должно состоять не более, чем из одного чанка"
-                else (a <>) <$> helper (n + 1) source
 
---для работы с телом запроса, поделенным на чанки - должно быть пустым
-streamEmpty :: (Eq a, Monoid a) => IO a -> ExceptT E IO ()
-streamEmpty source = do
-    a <- liftIO source
-    if a == mempty
-        then return ()
-        else throwE $ RequestError "Тело запроса должно быть пустым"
 
+--надо ли это?
 eDecode :: FromJSON a => LC.ByteString -> Except E a
 eDecode = except . typeError ParseError . eitherDecode
+
+--новая версия
+-- eDecode :: (MError m, FromJSON a) => LC.ByteString -> m a
+-- eDecode bs = catchEither (eitherDecode bs) ParseError
 
 -- ltest :: IO ()
 -- ltest = runT $ do

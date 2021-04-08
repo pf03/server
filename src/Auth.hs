@@ -66,7 +66,7 @@ login = do
     case users  :: [(Int, Bool)] of 
         [(userId, isAdmin)]   -> do
             Log.debugT users
-            when (userId == 1) $ throwM $ AuthError "Невозможно авторизоваться удаленным пользователем" 
+            when (userId == 1) $ Error.throw $ AuthError "Невозможно авторизоваться удаленным пользователем" 
             let role = if isAdmin then "admin" else "user"
             date <- liftEIO getCurrentTime 
             genToken date userId role 
@@ -80,7 +80,7 @@ login = do
                 -- let str = template "{0}_{1}_{2}" [secret, convert userId, convert day]
                 -- return $ Token $ template "{0}_{1}_{2}" [show userId, day, toHex . hash $ str]
             -- else throwT $ AuthError "Неверный логин или пароль!"
-        _ -> throwM $ AuthError "Неверный логин или пароль!"
+        _ -> Error.throw $ AuthError "Неверный логин или пароль!"
 
 --проверка токена происходит без базы данных
 auth :: (MIOError m, MCache m) => Wai.Request -> m ()
@@ -110,10 +110,10 @@ auth_ (Token t)  = do
                             then Cache.setAuth $ AuthAdmin userId
                             else do
                                 --return Nothing
-                                throwM $ AuthError "Неверный токен!"
-                else throwM $ AuthError "Неверная дата токена!"
-            _ -> throwM $ AuthError "Неверный токен!" --"Неверный формат токена!"
-        _ -> throwM $ AuthError "Неверный токен!" --"Неверный формат токена!"
+                                Error.throw $ AuthError "Неверный токен!"
+                else Error.throw $ AuthError "Неверная дата токена!"
+            _ -> Error.throw $ AuthError "Неверный токен!" --"Неверный формат токена!"
+        _ -> Error.throw $ AuthError "Неверный токен!" --"Неверный формат токена!"
 
 genToken :: Monad m => UTCTime -> Int -> String -> m Token
 genToken  date userId role = do

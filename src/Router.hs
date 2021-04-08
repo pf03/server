@@ -10,11 +10,12 @@ import Control.Monad.Trans.Except
 import API
 import qualified Data.ByteString as B
 import Common
-import Error
+import qualified Error
+import Error (MError)
 
 --роутер проверяет только роли, иногда id, НО роутер не использует БД (у него даже нет доступа к соединению)
 --использование БД в компетенции АПИ функций.
-router :: B.ByteString -> PathInfo -> Auth -> Except E API
+router :: MError m => B.ByteString -> PathInfo -> Auth -> m API
 ---AUTH---
 router _ ["login"] _ = return $ API Auth []
 ---UPLOAD---
@@ -67,7 +68,7 @@ router p ["posts", n] _ = withInt p n $ \pid -> API SelectById [Post, Id pid]
 router p ["drafts", n] _ = withInt p n $ \pid -> API SelectById [Draft, Id pid]
 
 --UNKNOWN---
-router p _ _ = unknownPath p
+router p _ _ = Error.throw $ unknownPathError p
 
 -- routerById name text apiType = withInt name text $ \pid -> API Select [User, Id pid]
 
@@ -78,14 +79,13 @@ router p _ _ = unknownPath p
 
 
 
-ereadInt :: B.ByteString -> Text -> Except E Int 
+ereadInt :: MError m => B.ByteString -> Text -> m Int 
 ereadInt p text = do
     let str = unpack text
-    catchE (except . readEither $ str) $ \e -> do
-        unknownPath p
-        --throwE . RequestError $ template "Значение {0} в роутере должно быть целым числом" [str] -- тут скорей нужно пропустить роутер дальше, типа функция неизвестна
+    Error.catchEither (readEither str) $ \e -> unknownPathError p
+        --Error.throw . RequestError $ template "Значение {0} в роутере должно быть целым числом" [str] -- тут скорей нужно пропустить роутер дальше, типа функция неизвестна
 
-withInt :: B.ByteString -> Text -> (Int -> API) -> Except E API
+withInt :: MError m => B.ByteString -> Text -> (Int -> API) -> m API
 withInt p text f = do
     pid <- ereadInt p text 
     return $ f pid
@@ -93,17 +93,17 @@ withInt p text f = do
 --можно из типа E вычислить код ошибки
 --ошибка 401
 --апи функция, которая требует авторизации
-withUserE :: Auth -> Except E API -> Except E API
-withUserE AuthNo _ = throwE authErrorDefault
+withUserE :: MError m => Auth -> m API -> m API
+withUserE AuthNo _ = Error.throw Error.authErrorDefault
 withUserE _ eapi = eapi
 
 --то же с другой сигнатурой
-withUser :: Auth -> API -> Except E API
-withUser AuthNo _ = throwE authErrorDefault
+withUser :: MError m => Auth -> API -> m API
+withUser AuthNo _ = Error.throw Error.authErrorDefault
 withUser _ api = return api
 
-withAuth :: Auth -> (Int -> API) -> Except E API
-withAuth AuthNo f = throwE authErrorDefault
+withAuth :: MError m => Auth -> (Int -> API) -> m API
+withAuth AuthNo f = Error.throw Error.authErrorDefault
 withAuth (AuthAdmin uid) f = return $ f uid
 withAuth (AuthUser uid) f = return $ f uid
 
@@ -114,8 +114,8 @@ user AuthNo = False
 user _ = True
 
 --ошибка 400
-unknownPath :: B.ByteString -> Except E a
-unknownPath rawPathInfo = throwE . RequestError $ template "Неизвестный путь: {0}" [show rawPathInfo]
+unknownPathError :: B.ByteString -> E
+unknownPathError rawPathInfo = RequestError $ template "Неизвестный путь: {0}" [show rawPathInfo]
 
 
 

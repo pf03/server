@@ -40,8 +40,8 @@ import qualified Cache
 --юзер удаляется, автор привязывается к дефолтному юзеру, авторизация админ на уровне роутера
 user :: MT m => Int -> m ()
 user pid = do 
-    when (pid == 1) $ throwM $ DBError "Невозможно удалить пользователя по умолчанию с id = 1"
-    when (pid == 2) $ throwM $ DBError "Невозможно удалить админа с id = 2"
+    when (pid == 1) $ Error.throw $ DBError "Невозможно удалить пользователя по умолчанию с id = 1"
+    when (pid == 2) $ Error.throw $ DBError "Невозможно удалить админа с id = 2"
     DB.update Author [sql|UPDATE authors SET user_id = 1 WHERE user_id = {0}|] [q pid]
     DB.update Comment [sql|UPDATE comments SET user_id = 1 WHERE user_id = {0}|] [q pid]
     DB.delete User [sql|DELETE FROM users WHERE id = {0}|] [q pid]
@@ -49,7 +49,7 @@ user pid = do
 --юзер удаляется, автор привязывается к дефолтному юзеру, авторизация админ на уровне роутера
 author :: MT m => Int -> m ()
 author pid = do 
-    when (pid == 1) $ throwM $ DBError "Невозможно удалить автора по умолчанию с id = 1"
+    when (pid == 1) $ Error.throw $ DBError "Невозможно удалить автора по умолчанию с id = 1"
     DB.update Content [sql|UPDATE contents SET author_id = 1 WHERE author_id = {0}|] [q pid] 
     DB.delete Author [sql|DELETE FROM authors WHERE id = {0}|] [q pid]
 
@@ -117,7 +117,7 @@ checkNotExist pid name1 name2 templ = do
     results <- DB.query_ $ template templ [q pid] 
     case results :: [(Int, String)] of
         [] -> return ()
-        _ -> throwM $ DBError  (template "Невозможно удалить {0}, так как к нему привязаны следующие {1}:\n{2}" [name1, name2, showResults]) where
+        _ -> Error.throw $ DBError  (template "Невозможно удалить {0}, так как к нему привязаны следующие {1}:\n{2}" [name1, name2, showResults]) where
             showResults = concatMap helper results
             helper :: (Int, String) -> String 
             helper (pid2, name2) = template "id = {0}, name = {1}\n" [show pid2, name2]

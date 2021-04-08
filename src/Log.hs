@@ -25,7 +25,7 @@ module Log(
     defaultSettings,
     defaultConfig,
     file,
-    clearFile, off, on
+    clearFile, off, on, logM
     --Pretty(..) 
     ) 
 where 
@@ -68,6 +68,12 @@ on :: MonadLog m => m ()
 on = do
     LogSettings cs le fn  <- Log.getSettings
     Log.setSettings cs True fn
+
+logM :: (MonadLog m, Show a) => m a -> m a 
+logM m = do
+    a <- m
+    Log.debugT a
+    return a 
 
 --это для возможного переопределения класса show
 -- class Show a => Pretty a where

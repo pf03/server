@@ -15,7 +15,8 @@ import Data.Aeson hiding (encode)
 import Types
 import Class
 import qualified Log
-import qualified DB 
+import DB (MT, MDB) 
+import qualified DB
 
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
@@ -24,7 +25,6 @@ import qualified Data.ByteString.Lazy.Char8 as LC
 
 import Common
 import Transformer
-import Error 
 import Data.Maybe
 import Control.Monad.Except
 import Data.List
@@ -46,24 +46,27 @@ import qualified Delete
 import qualified Insert
 import qualified Cache
 import Router
+import qualified Error
+import Error (MError)
 
 import Data.Typeable
 
-
-get :: Request -> T Response
+-- можно сделать дополнительно MRequest для монады, которая имеет доступ к запросу, либо сделать ее часть Cache,
+-- сто нелогично, так как Cache меняется, а Request нет. И request нужен не везде, где нужен Cache.
+get :: MT m => Request -> m Response
 get req = do
     Log.setSettings Color.Blue  True "Response.get"
     Log.dataT Log.Debug req
     json <- Response.getJSON_ req
     Response.json json
 
-json :: LC.ByteString -> T Response
+json :: Monad m => LC.ByteString -> m Response
 json = return . Wai.responseLBS status200 [(hContentType, "text/plain")] 
 
 --для некоторых типов ошибки нельзя выводить текст, например ошибка конфига
 errorHandler :: E -> Response
 errorHandler e = do
-    let status = getStatus e
+    let status = Error.getStatus e
     let text = if status == internalServerError500 
         then convertL ("Внутренняя ошибка сервера" :: String) --проверить (вообще есть ли такие ошибки? как правило сервер просто не запускается в таких случаях)
         else convertL . show $ e
@@ -72,16 +75,14 @@ errorHandler e = do
 
 
 ---------------------------------- бывший модуль DB---------------------------------------------------------------
-
-
-getJSON_ :: Request -> T LC.ByteString
+getJSON_ :: MT m => Request -> m LC.ByteString
 getJSON_ req = do
     Cache.resetChanged
     Log.setSettings Color.Blue True "Response.getJSONwithUpload" 
     Log.funcT Log.Debug "..."
     let (rawPathInfo, pathInfo, qs) = ( Wai.rawPathInfo req, Wai.pathInfo req, Wai.queryString req)
 
-    requestBody <- toT $ streamOne (getRequestBodyChunk req)
+    requestBody <- Upload.streamOne (getRequestBodyChunk req)
     Log.debugT requestBody
     --эту функцию можно использовать для тестирования и эмуляции запросов
     let qsBody = parseQuery requestBody
@@ -91,18 +92,18 @@ getJSON_ req = do
     Auth.auth req
     auth <- Cache.getAuth
 
-    api@(API apiType queryTypes) <- logT $ router rawPathInfo pathInfo auth
+    api@(API apiType queryTypes) <- Log.logM $ router rawPathInfo pathInfo auth
     
     params <- if apiType `elem` [API.Auth, API.Delete, API.Insert, API.Update] 
-        then catchT (logT $ Params.parseParams qsBody api) $
-            \(RequestError e) -> throwT $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в теле запроса методом x-www-form-urlencoded" [e] 
-        else catchT (logT $ Params.parseParams qs api) $
-            \(RequestError e) -> throwT $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в строке запроса" [e] 
+        then Error.catch (Log.logM $ Params.parseParams qsBody api) $
+            \(RequestError e) -> Error.throw $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в теле запроса методом x-www-form-urlencoded" [e] 
+        else Error.catch (Log.logM $ Params.parseParams qs api) $
+            \(RequestError e) -> Error.throw $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в строке запроса" [e] 
     Cache.setParams params
     getJSON api req
 
 --эта обертка для удобства тестирования--эту обертку перенести в Test
-getJSONTest :: BC.ByteString -> PathInfo -> HTTP.Query -> HTTP.Query -> RequestHeaders -> T LC.ByteString
+getJSONTest :: MT m => BC.ByteString -> PathInfo -> HTTP.Query -> HTTP.Query -> RequestHeaders -> m LC.ByteString
 getJSONTest rawPathInfo pathInfo qs qsBody headers = do
     Cache.resetCache --это нужно только для тестов, в сервере и так трансформер возрождается заново при каждом запросе
     --Log.setSettings Color.Blue True "Response.getJSONTest" 
@@ -110,16 +111,16 @@ getJSONTest rawPathInfo pathInfo qs qsBody headers = do
     let req  = Wai.defaultRequest {requestHeaders = headers}
     Auth.auth req
     auth <- Cache.getAuth
-    api@(API apiType queryTypes) <- logT $ router rawPathInfo pathInfo auth
+    api@(API apiType queryTypes) <- Log.logM $ router rawPathInfo pathInfo auth
     params <- if apiType `elem` [API.Auth, API.Delete, API.Insert, API.Update] 
-        then catchT (logT $ Params.parseParams qsBody api) $
-            \(RequestError e) -> throwT $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в теле запроса методом x-www-form-urlencoded" [e] 
-        else catchT (logT $ Params.parseParams qs api) $
-            \(RequestError e) -> throwT $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в строке запроса" [e] 
+        then Error.catch (Log.logM $ Params.parseParams qsBody api) $
+            \(RequestError e) -> Error.throw $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в теле запроса методом x-www-form-urlencoded" [e] 
+        else Error.catch (Log.logM $ Params.parseParams qs api) $
+            \(RequestError e) -> Error.throw $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в строке запроса" [e] 
     Cache.setParams params
     getJSON api req
 
-getJSON:: API -> Request -> T LC.ByteString
+getJSON :: MT m => API -> Request -> m LC.ByteString
 getJSON api req = case api of
     API Auth [] -> encode Auth.login
 
@@ -166,7 +167,7 @@ getJSON api req = case api of
     API SelectById [API.Post, Id n] -> encode $ Response.getPost n
     API SelectById [API.Draft, Id n] -> encode $ Response.getDraft n
 
-encode :: (Typeable a, ToJSON a) => T a -> T LC.ByteString
+encode :: MT m => (Typeable a, ToJSON a) => m a -> m LC.ByteString
 encode ta = do
     a <- ta
     json <- if showType a == "()" then encodePretty <$> Cache.getChanged else encodePretty <$> ta
@@ -176,7 +177,7 @@ encode ta = do
 showType :: Typeable a => a -> String
 showType = show . typeOf
 
-getPosts :: T [Post]
+getPosts :: MT m => m [Post]
 getPosts = do
     --эта строка первая, чтобы не перезаписывать настройки лога
     categories <- Response.getAllCategories
@@ -184,9 +185,9 @@ getPosts = do
     Log.funcT Log.Debug "..."
     Cache.modifyParams $ evalParams categories
     selectPosts <- Select.posts
-    toT $ JSON.evalPosts categories selectPosts
+    JSON.evalPosts categories selectPosts
 
-getDrafts :: T [Draft]
+getDrafts :: MT m => m [Draft]
 getDrafts = do
     --эта строка первая, чтобы не перезаписывать настройки лога
     categories <- Response.getAllCategories
@@ -194,57 +195,57 @@ getDrafts = do
     Log.funcT Log.Debug "..."
     Cache.modifyParams $ evalParams categories
     selectDrafts <- Select.drafts
-    toT $ JSON.evalDrafts categories selectDrafts
+    JSON.evalDrafts categories selectDrafts
 
-getPost :: Int -> T (Maybe Post)
+getPost :: MT m => Int -> m (Maybe Post)
 getPost pid = do
     --эта строка первая, чтобы не перезаписывать настройки лога
     categories <- Response.getAllCategories
     Log.setSettings Color.Blue True "Response.getPost" 
     Log.funcT Log.Debug "..."
     selectPosts <- Select.post pid
-    jsonPosts <- toT $ JSON.evalPosts categories selectPosts
+    jsonPosts <- JSON.evalPosts categories selectPosts
     return $ listToMaybe jsonPosts --проверить как это работает. evalUnitedPosts должно объединять все в один пост
 
-getDraft :: Int -> T (Maybe Draft)
+getDraft :: MT m => Int -> m (Maybe Draft)
 getDraft pid = do
     --эта строка первая, чтобы не перезаписывать настройки лога
     categories <- Response.getAllCategories
     Log.setSettings Color.Blue True "Response.getDraft" 
     Log.funcT Log.Debug "..."
     selectDrafts <- Select.draft pid
-    jsonDrafts <- toT $ JSON.evalDrafts categories selectDrafts
+    jsonDrafts <- JSON.evalDrafts categories selectDrafts
     return $ listToMaybe jsonDrafts --проверить как это работает. evalUnitedDrafts должно объединять все в один пост
 
-getAllCategories :: T [Category]
+getAllCategories :: MT m => m [Category]
 getAllCategories = do
     Log.setSettings Color.Blue True "Response.getAllCategories"
     Log.funcT Log.Debug "..."
     allCategories <- Select.allCategories
-    toT $ evalCategories allCategories allCategories
+    evalCategories allCategories allCategories
 
-getCategories :: T [Category]
+getCategories :: MT m => m [Category]
 getCategories = do
     Log.setSettings Color.Blue True "Response.getCategories"
     Log.funcT Log.Debug "..."
     allCategories <- Select.allCategories
     categories <- Select.categories
-    toT $ evalCategories allCategories categories
+    evalCategories allCategories categories
 
-updateCategory :: Int -> T () 
+updateCategory :: MT m => Int -> m () 
 updateCategory pid = do 
     params <- Cache.getParams 
     Log.setSettings Color.Blue True "Response.updateCategory"
     Log.funcT Log.Debug "..."
     allCategories <- Select.allCategories
-    toT $ checkCyclicCategory pid params allCategories
+    checkCyclicCategory pid params allCategories
     Update.category pid
 
 --эту логику перенести в select??
-getCategory :: Int -> T (Maybe Category)
+getCategory :: MT m => Int -> m (Maybe Category)
 getCategory pid = do
     Log.setSettings Color.Blue True "Response.getCategory"
     Log.funcT Log.Debug "..."
     allCats <- Select.allCategories
     mcat <- Select.category pid
-    toT $ sequenceA $ evalCategory allCats <$> mcat
+    sequenceA $ evalCategory allCats <$> mcat

@@ -97,7 +97,7 @@ tagToContent Execute = do
 draft :: MT m => m ()
 draft = do
     params <- addAuthAuthorIdParam
-    when (params ! "author_id" == ParamEq (Int 1)) $ throwM $ DBError 
+    when (params ! "author_id" == ParamEq (Int 1)) $ Error.throw $ DBError 
         "Невозможно создать черновик от удаленного автора (автора по умолчанию) id = 1"
     checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
     Insert.tagToContent Check
@@ -138,7 +138,7 @@ comment :: MT m => Int -> m ()
 comment postId = do
     Insert.addAuthUserIdParam
     params <- Cache.addIdParam "post_id" postId
-    when (params ! "user_id" == ParamEq (Int 1)) $ throwM $ DBError 
+    when (params ! "user_id" == ParamEq (Int 1)) $ Error.throw $ DBError 
         "Невозможно создать комментарий от удаленного пользователя (пользователя по умолчанию) id = 1"
     checkExist "post_id" [sql|SELECT 1 FROM posts WHERE posts.id = {0}|]
     checkExist "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
@@ -165,7 +165,7 @@ checkExist name templ = do
         helper name param@(ParamEq (Int pid)) templ = do
             exist <- DB.query_ $ template templ [q pid]
             case exist :: [Only Int] of
-                [] -> throwM $ DBError $ template 
+                [] -> Error.throw $ DBError $ template 
                     "Указан несуществующий параметр {0}: {1}" [show name, show pid]
                 _ -> return ()
 
@@ -175,7 +175,7 @@ checkExistAll name all templ = do
     exist <- fromOnly <<$>> DB.query_ templ
     when (length exist /= length all) $ do
         let notExist = filter (`notElem` exist) all
-        throwM $ DBError $ template "Параметры {0} из списка {1} не существуют" 
+        Error.throw $ DBError $ template "Параметры {0} из списка {1} не существуют" 
             [show name, show notExist]
 
 
@@ -188,7 +188,7 @@ checkNotExist description name templ = do
             exist <- query_ $ template templ [val v] 
             case exist :: [Only Int] of
                 [] -> return ()
-                _ -> throwM $ DBError  (template "{2} с таким {0} = {1} уже существует" 
+                _ -> Error.throw $ DBError  (template "{2} с таким {0} = {1} уже существует" 
                     [show name, toString v, description])
         toString :: Val -> String
         toString (Int n)  = show n
@@ -233,7 +233,7 @@ rowEither params nqs = list <$> mapM helper nqs where
 cell :: MError m => Param -> m Query
 cell (ParamEq v) = return $ val v
 cell ParamNo     = return [sql|null|]
-cell p           = throwM $ DevError $ template "Неверный шаблон параметра {0} в функции cell" [show p]
+cell p           = Error.throw $ DevError $ template "Неверный шаблон параметра {0} в функции cell" [show p]
 
 -- class Monad m => MonadError m where
 --     throw :: m a
@@ -257,8 +257,8 @@ addAuthAuthorIdParam = do
         WHERE users.id = {0}
     |] [p paramUserId]) 
     case mauthorId :: (Maybe Int) of
-        Nothing       -> throwM $ AuthError "Данная функция доступна только авторам"
-        Just 1        -> throwM $ AuthError "Невозможна аутентификация удаленного автора"
+        Nothing       -> Error.throw $ AuthError "Данная функция доступна только авторам"
+        Just 1        -> Error.throw $ AuthError "Невозможна аутентификация удаленного автора"
         Just authorId -> Cache.addIdParam "author_id" authorId
 
 -- | Админ может СОЗДАВАТЬ только свои публикации (комментарии)
@@ -268,6 +268,6 @@ addAuthUserIdParam = do
     case auth of
         AuthAdmin userId -> Cache.addIdParam "user_id" userId
         AuthUser userId  -> Cache.addIdParam "user_id" userId
-        _                -> throwM authErrorDefault
+        _                -> Error.throw authErrorDefault
 
 

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 12614402f73654820e87fe0807d22ab1ca398eaa07cb65154c76adc0b782205d
+-- hash: 8a0c6c3cc1bdf3bd70e443fe32c37489f96b75785ac99714893211879f0c7657
 
 name:           server
 version:        0.1.0.0
@@ -42,7 +42,6 @@ library
       Log.Types
       Migrations
       Params
-      Query
       Response
       Router
       Row

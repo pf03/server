@@ -34,7 +34,7 @@ app :: Application
 app req f = do
     configString <- getEnv "configString"
     putStrLn "app"
-    response <- evalTwithHandler  (Response.get req) Response.errorHandler configString
+    response <- evalTwithHandler  (Response.get req :: T Response) Response.errorHandler configString
     emptyBody 0 (getRequestBodyChunk req)
     f $ response
 
