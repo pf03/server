@@ -34,11 +34,12 @@ import           Select                           (authUserIdParam, cond, p, val
 import qualified State                            as S
 import           Transformer
 import           Types
+import qualified Cache
 
 ----------------------------------User-----------------------------------------
 user :: MT m => m ()
 user = do
-    params <- S.getParams
+    params <- Cache.getParams
     checkNotExist "Пользователь" "login" [sql|SELECT 1 FROM users WHERE users.login = {0}|]
     passQuery <- (return . template [sql|md5 (CONCAT_WS(' ', {0}, {1}))|]) <$$> [cell(params ! "login"), cell(params ! "pass")]
     DB.insert User
@@ -55,7 +56,7 @@ user = do
 ----------------------------------Author---------------------------------------
 author :: MT m => m ()
 author = do
-    params <- S.getParams
+    params <- Cache.getParams
     checkExist "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
     --проверка на то, что данный автор уже существует
     checkNotExist "Автор" "user_id" [sql|SELECT 1 FROM authors WHERE authors.user_id = {0}|]
@@ -67,7 +68,7 @@ author = do
 -- категорию без родителя, "parent_id" - необязаельный параметр
 category :: MT m => m ()
 category = do
-    params <- S.getParams
+    params <- Cache.getParams
     checkExist "parent_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
     insert Category [sql|INSERT into categories (parent_id, category_name) values {0}|] <$$>
         [row params ["parent_id", "category_name"]]
@@ -75,19 +76,19 @@ category = do
 ----------------------------------Tag------------------------------------------
 tag :: MT m => m ()
 tag = do
-    params <- S.getParams
+    params <- Cache.getParams
     checkNotExist "Тег" "name" [sql|SELECT 1 FROM tags WHERE tags.name = {0}|]
     insert Tag [sql|INSERT into tags (name)  values ({0})|] [p $ params ! "name"]
 
 --сначала должна идти проверочная часть, потом часть с записью в бд
 tagToContent :: MT m => Action -> m ()
 tagToContent Check = do
-    params <- S.getParams
+    params <- Cache.getParams
     let tagIds = valInt <$> (\(ParamAll list) -> list) (params ! "tag_id") -- :: [Val]
     c <- cond [sql|id|] $ ParamIn (Int <$> tagIds)
     checkExistAll "tag_id" tagIds $ [sql|SELECT id FROM tags|] `whereAll` [c]
 tagToContent Execute = do
-    params <- S.getParams
+    params <- Cache.getParams
     unless (emptyParam $ params ! "tag_id") $ do
         execute__ [sql|INSERT into tags_to_contents (tag_id, content_id) values {0}|] 
             [rows params ["tag_id", "content_id"]]
@@ -103,8 +104,8 @@ draft = do
     [Only cid] <- (query_ . template 
         [sql|INSERT into contents (author_id, name, creation_date, category_id, text, photo) values {0} RETURNING id|]) <$$>
         [rowEither params [Left "author_id", Left "name", Right [sql|current_date|], Left "category_id", Left "text", Left "photo"]]
-    S.addChanged Insert Content 1
-    S.addIdParam "content_id" cid
+    Cache.addChanged Insert Content 1
+    Cache.addIdParam "content_id" cid
     Insert.tagToContent Execute
     Insert.photos
     insert Draft [sql|INSERT into drafts (content_id) values ({0})|] <$$>
@@ -113,7 +114,7 @@ draft = do
 ----------------------------------Post-----------------------------------------
 publish :: MT m => Int -> m ()
 publish pid = do
-    params <- S.addIdParam "draft_id" pid
+    params <- Cache.addIdParam "draft_id" pid
     checkExist "draft_id" [sql|SELECT 1 FROM drafts WHERE drafts.id = {0}|]
     [(contentId, mpostId)] <- query_ $ template 
         [sql|SELECT content_id, post_id FROM drafts WHERE drafts.id = {0}|]
@@ -136,7 +137,7 @@ publish pid = do
 comment :: MT m => Int -> m ()
 comment postId = do
     Insert.addAuthUserIdParam
-    params <- S.addIdParam "post_id" postId
+    params <- Cache.addIdParam "post_id" postId
     when (params ! "user_id" == ParamEq (Int 1)) $ throwM $ DBError 
         "Невозможно создать комментарий от удаленного пользователя (пользователя по умолчанию) id = 1"
     checkExist "post_id" [sql|SELECT 1 FROM posts WHERE posts.id = {0}|]
@@ -147,7 +148,7 @@ comment postId = do
 ----------------------------------Photo----------------------------------------
 photos :: MT m => m ()
 photos = do
-    params <- S.getParams
+    params <- Cache.getParams
     unless (emptyParam $ params ! "photos") $ do
         insert Photo [sql|INSERT into photos (photo, content_id) values {0}|]
             [rows params ["photos", "content_id"]]
@@ -157,7 +158,7 @@ photos = do
 -- никогда не выскочит
 checkExist :: MT m => BSName -> Query -> m ()
 checkExist name templ = do
-    param <- S.getParam name
+    param <- Cache.getParam name
     helper name param templ where
         helper name ParamNo templ = return ()
         helper name ParamNull templ = return ()
@@ -180,7 +181,7 @@ checkExistAll name all templ = do
 
 checkNotExist :: MT m => String -> BSName -> Query -> m()
 checkNotExist description name templ = do
-    param <- S.getParam name
+    param <- Cache.getParam name
     helper name param templ where
         helper name ParamNo templ = return ()
         helper name param@(ParamEq v) templ = do
@@ -248,7 +249,7 @@ cellByNumber ParamNo _         = [sql|null|]
 addAuthAuthorIdParam :: MT m => m (ParamsMap Param)
 addAuthAuthorIdParam = do
     Insert.addAuthUserIdParam
-    paramUserId <- S.getParam "user_id"
+    paramUserId <- Cache.getParam "user_id"
     mauthorId <- fromOnly <<$>> listToMaybe  <$> query_ (template [sql|
     SELECT authors.id FROM authors
         LEFT JOIN users
@@ -258,15 +259,15 @@ addAuthAuthorIdParam = do
     case mauthorId :: (Maybe Int) of
         Nothing       -> throwM $ AuthError "Данная функция доступна только авторам"
         Just 1        -> throwM $ AuthError "Невозможна аутентификация удаленного автора"
-        Just authorId -> S.addIdParam "author_id" authorId
+        Just authorId -> Cache.addIdParam "author_id" authorId
 
 -- | Админ может СОЗДАВАТЬ только свои публикации (комментарии)
 addAuthUserIdParam :: (MError m, MCache m) => m (ParamsMap Param)
 addAuthUserIdParam = do
-    auth <- S.getAuth
+    auth <- Cache.getAuth
     case auth of
-        AuthAdmin userId -> S.addIdParam "user_id" userId
-        AuthUser userId  -> S.addIdParam "user_id" userId
+        AuthAdmin userId -> Cache.addIdParam "user_id" userId
+        AuthUser userId  -> Cache.addIdParam "user_id" userId
         _                -> throwM authErrorDefault
 
 

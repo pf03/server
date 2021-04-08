@@ -28,6 +28,7 @@ import qualified State as S
 import Select
 import Update
 import Error
+import qualified Cache
 
 -- | Удаление 4 типов
 -- 1. Удаленная сущность заменяется на значение по умолчанию. Используется для users и authors
@@ -56,7 +57,7 @@ author pid = do
 post :: MT m => Int -> m () 
 post pid = do 
     checkAuthExistPost pid
-    ParamEq (Int cid) <- S.getParam "content_id" 
+    ParamEq (Int cid) <- Cache.getParam "content_id" 
     DB.delete Post [sql|DELETE FROM posts WHERE id = {0}|] [q pid]   
     DB.delete Content [sql|DELETE FROM contents WHERE id = {0}|] [q cid]   
     DB.delete Draft [sql|DELETE FROM drafts WHERE post_id = {0}|] [q pid] 
@@ -68,7 +69,7 @@ post pid = do
 draft :: MT m => Int -> m ()
 draft pid = do
     checkAuthExistDraft pid
-    ParamEq (Int cid) <- S.getParam "content_id" 
+    ParamEq (Int cid) <- Cache.getParam "content_id" 
     DB.delete Draft [sql|DELETE FROM drafts WHERE id = {0}|] [q pid]   
     DB.delete Content [sql|DELETE FROM contents WHERE id = {0}|] [q cid]   
     DB.execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [q cid]   

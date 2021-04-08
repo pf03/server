@@ -20,6 +20,7 @@ import Error
 import qualified State as S
 import System.Console.ANSI
 import Text.Read
+import qualified Response
 
 -- ЭТОТ МОДУЛЬ НЕ ДЛЯ РЕВЬЮ, А ДЛЯ ОТЛАДКИ
 
@@ -585,7 +586,7 @@ listOfTestCasesByOne name qs = do
                     Log.off
                     --str <- catchT (DB.getJSONTest (convert $ show pathInfo) pathInfo query query headers) (\e -> return "")
                     catchT (do 
-                        str <- DB.getJSONTest (convert $ show pathInfo) pathInfo query query headers
+                        str <- Response.getJSONTest (convert $ show pathInfo) pathInfo query query headers
                         tmp <- toT . (Just <$>) . typeError ParseError . eitherDecode $ str
                         Log.colorTextT Color.Green Log.Debug $ template "Аутентификация успешно завершена, токен: {0} . Нажмите Enter для следующего теста, q + Enter для выхода или номер_теста + Enter..." [show tmp]
                         return tmp
@@ -596,7 +597,7 @@ listOfTestCasesByOne name qs = do
                         return Nothing)
                 _ -> do 
                     Log.on
-                    DB.getJSONTest (convert $ show pathInfo) pathInfo query query headers
+                    Response.getJSONTest (convert $ show pathInfo) pathInfo query query headers
                     Log.colorTextT Color.Green Log.Debug  "Запрос успешно завершен. Нажмите Enter для следующего теста, q + Enter для выхода или номер_теста + Enter..."
 
                     return mt

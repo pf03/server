@@ -12,7 +12,6 @@ import Types --(Path, E)
 import GHC.Generics 
 import Data.Aeson
 import Data.Aeson.Types
-import Error
 import Control.Monad.Except
 import Common
 import Data.List
@@ -20,6 +19,8 @@ import Control.Monad.Trans.Except
 import Database.PostgreSQL.Simple
 import Class
 import qualified Data.Map as M
+import qualified Error
+import Error (MError)
 
 -- в результирующем json убрать префиксы, и возможно сделать snake_case
 data Post = Post {
@@ -98,22 +99,22 @@ type Photo = Row.Photo
 
 --здесь лучше упорядочить функции!!!!!!!!!!!!!!!!
 
-evalCategories :: [Select.Category] -> [Select.Category] -> Except E [Category]
+evalCategories :: MError m => [Select.Category] -> [Select.Category] -> m [Category]
 evalCategories allCategories  = mapM (_evalCategory [] allCategories . Row.categoryId)
 
-evalCategory :: [Select.Category] -> Select.Category -> Except E Category
+evalCategory :: MError m => [Select.Category] -> Select.Category -> m Category
 evalCategory  allCategories category = _evalCategory [] allCategories (Row.categoryId category)
 
 --intenal
-_evalCategory :: [Int] -> [Select.Category] -> Int -> Except E Category
+_evalCategory :: MError m => [Int] -> [Select.Category] -> Int -> m Category
 _evalCategory  childs rcs categoryId = do
     if categoryId `elem` childs then do
         --циклическая категория повесит наш сервак при формировании json, поэтому выкинем ошибку
-        throwE . DBError $ template "Обнаружена циклическая категория {0}, которая является своим же родителем" [show categoryId]
+        Error.throw . DBError $ template "Обнаружена циклическая категория {0}, которая является своим же родителем" [show categoryId]
     else do
         let mrc = findById categoryId rcs --двух категорий с одинаковым первичным ключом быть не может. Но может быть Nothing
         case mrc of 
-            Nothing -> throwE . DBError $ template "Отсутствует категория {0}" [show categoryId]
+            Nothing -> Error.throw . DBError $ template "Отсутствует категория {0}" [show categoryId]
             Just (Row.Category categoryId mparentId name) -> do
                 case mparentId of
                     Nothing -> return $ Category categoryId Nothing name  
@@ -123,7 +124,7 @@ _evalCategory  childs rcs categoryId = do
 
 --не учтен вариант корневой категории в params
 --категория не должна быть своим же родителем
-checkCyclicCategory :: Int -> ParamsMap Param -> [Select.Category] -> Except E ()
+checkCyclicCategory :: MError m => Int -> ParamsMap Param -> [Select.Category] -> m ()
 checkCyclicCategory categoryId params rcs = do
     case params M.! "parent_id" of
         ParamNo -> return () --не меняем parent_id
@@ -131,39 +132,39 @@ checkCyclicCategory categoryId params rcs = do
         ParamEq (Int parentId) -> do
             grandParents <- getParents parentId rcs
             when (categoryId `elem` grandParents) $ 
-                throwE . DBError $ template "Категрия {0} имеет в списке родителей {1} категорию {2}. Невозможно создать циклическую категорию" 
+                Error.throw . DBError $ template "Категрия {0} имеет в списке родителей {1} категорию {2}. Невозможно создать циклическую категорию" 
                     [show parentId, show grandParents, show categoryId]
     
     
-getParents :: Int -> [Select.Category] -> Except E [Int]
+getParents :: MError m => Int -> [Select.Category] -> m [Int]
 getParents = helper [] where
-    helper :: [Int] -> Int -> [Select.Category] -> Except E [Int]
+    helper :: MError m => [Int] -> Int -> [Select.Category] -> m [Int]
     helper acc categoryId rcs = do
         let mrc = findById categoryId rcs
         case mrc of 
-            Nothing -> throwE . DBError $ template "Отсутствует категория {0}" [show categoryId]
+            Nothing -> Error.throw . DBError $ template "Отсутствует категория {0}" [show categoryId]
             Just (Row.Category categoryId mparentId name) -> case mparentId of
                 Nothing -> return acc
                 Just parentId -> do
                     when (parentId `elem` acc) $
-                        throwE . DBError $ template "Категория {0} является своим же родителем" [show parentId]
+                        Error.throw . DBError $ template "Категория {0} является своим же родителем" [show parentId]
                     helper ([parentId] <> acc) parentId rcs
 
-getCategoryById :: Int -> [Category] -> String -> Except E Category
+getCategoryById :: MError m => Int -> [Category] -> String -> m Category
 getCategoryById cid cs err = let mcategory = findById cid cs in 
     case mcategory of
         Nothing -> do
-            throwE . DBError $ err
+            Error.throw . DBError $ err
         Just category -> return category
 
-evalDrafts :: [Category] -> [Select.Draft] -> Except E [Draft]
+evalDrafts :: MError m => [Category] -> [Select.Draft] -> m [Draft]
 evalDrafts cs l = uniteDrafts <$> mapM (evalDraft cs) l  
 
-evalPosts :: [Category] -> [Select.Post] -> Except E [Post]
+evalPosts :: MError m => [Category] -> [Select.Post] -> m [Post]
 evalPosts cs l = unitePosts <$> mapM (evalPost cs) l 
 
 
-evalPost :: [Category] -> Select.Post -> Except E Post
+evalPost :: MError m => [Category] -> Select.Post -> m Post
 evalPost cs (rpost :. rcontent :. rcategory :.  rauthor :. user :. _ :. mtag :. mphoto) = do
     let author = turnAuthor rauthor user
     let postId = Row.postId rpost
@@ -173,7 +174,7 @@ evalPost cs (rpost :. rcontent :. rcategory :.  rauthor :. user :. _ :. mtag :. 
     let post = turnPost rpost content
     return post 
 
-evalDraft :: [Category] -> Select.Draft -> Except E Draft
+evalDraft :: MError m => [Category] -> Select.Draft -> m Draft
 evalDraft cs (rdraft :. rcontent :. rcategory :.  rauthor :. user :. _ :. mtag :. mphoto) = do
     let author = turnAuthor rauthor user
     let draftId = Row.draftId rdraft

@@ -15,6 +15,7 @@ import qualified Log
 import API 
 import Control.Monad.IO.Class
 import Error
+import qualified Cache
 
 --это для postgreSQL, но можно абстрагироваться еще сильнее по типу connection
 -- class Monad m => MDB m where
@@ -68,7 +69,7 @@ _execute queryType apiType q qs   = do
     Log.debugT query 
     conn <- DB.getConnection
     rows <- liftEIO $ SQL.execute_ conn query
-    S.addChanged queryType apiType rows
+    Cache.addChanged queryType apiType rows
     --S.getChanged
 
 -- _executeM :: QueryType -> APIType -> Query -> [T Query] ->  T ()

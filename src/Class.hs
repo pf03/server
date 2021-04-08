@@ -11,7 +11,7 @@ import qualified Log
 import Types
 import qualified State as S
 import Control.Exception
-import Error
+import qualified Error
 import Database.PostgreSQL.Simple
 import Data.List
 import qualified Data.Text.Encoding as T
@@ -46,7 +46,7 @@ instance ToTransformer Identity where
 --иначе зачем нам вообще Except
 --ошибки sql почему то не ловит
 instance ToTransformer IO where
-    toT m = toT $ ExceptT $ toEE m `catch` iohandler `catch` sqlhandler `catch` otherhandler where
+    toT m = toT $ ExceptT $ Error.toEE m `catch` iohandler `catch` sqlhandler `catch` otherhandler where
         --тут нужно как-то конкретизировать ошибку, хотя бы ее тип
         --handler :: Exception e => e -> IO (EE a)
         iohandler :: IOException -> IO (EE a)

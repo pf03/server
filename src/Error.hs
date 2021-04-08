@@ -1,7 +1,7 @@
 --importPriority = 70
 module Error where
 
-import Control.Exception
+import Control.Exception as Exception
 import Control.Monad.Except
 import Control.Monad.Trans.Except
 import Types  --100
@@ -59,19 +59,19 @@ findPosition str = error "todo"
 --проверить как MonadFail работает при неудачном сопоставлении с образцом
 --и в случае необходимости переопределить функцию fail
 class MonadFail m => MError m where
-    throwM :: E -> m a
-    catchM :: m a -> (E -> m a) -> m a
+    throw :: E -> m a
+    catch :: m a -> (E -> m a) -> m a
     liftE :: Either E a -> m a
     liftE ea = case ea of 
-        Left e -> throwM e
+        Left e -> Error.throw e
         Right a -> return a
 
 class (MError m, MonadIO m) => MIOError m
 
 liftEIO :: MIOError m => IO a -> m a
 liftEIO m = do
-    ea <- liftIO $  (Right <$> m) `catch` iohandler `catch` sqlhandler `catch` otherhandler 
-    liftE ea
+    ea <- liftIO $  (Right <$> m) `Exception.catch` iohandler `Exception.catch` sqlhandler `Exception.catch` otherhandler 
+    Error.liftE ea
 
     where
     iohandler :: IOException -> IO (EE a)

@@ -29,22 +29,22 @@ import           Select                           (cond, p, val)
 import qualified State                            as S
 import           Transformer
 import           Types
-
+import qualified Cache
 ----------------------------------User-----------------------------------------
 user :: MT m => Int -> m ()
 user pid = do
-    S.addIdParam "id" pid
+    Cache.addIdParam "id" pid
     checkExist "id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
     --логин нужен для проверки пароля
     [Only login] <- query_ $ template [sql|SELECT users.login FROM users WHERE users.id = {0}|] [q pid]
-    params <- S.addStrParam "login" login
+    params <- Cache.addStrParam "login" login
     DB.update User [sql|UPDATE users SET {0} WHERE id = {1}|] <$$>
         [updates params ["first_name", "last_name", "avatar", "pass"], return $ q pid]
 
 ----------------------------------Author---------------------------------------
 author :: MT m => Int -> m ()
 author pid = do
-    params <- S.addIdParam "id" pid
+    params <- Cache.addIdParam "id" pid
     checkExist "id" [sql|SELECT 1 FROM authors WHERE authors.id = {0}|]
     checkExist "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
     DB.update Author [sql|UPDATE authors SET {0} WHERE id = {1}|] <$$>
@@ -53,7 +53,7 @@ author pid = do
 ----------------------------------Category-------------------------------------
 category :: MT m => Int -> m ()
 category pid = do
-    params <- S.addIdParam "id" pid
+    params <- Cache.addIdParam "id" pid
     checkExist "id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
     checkExist "parent_id" [sql|SELECT 1 FROM categories WHERE categories.parent_id = {0}|]
     DB.update Category [sql|UPDATE categories SET {0} WHERE id = {1}|] <$$>
@@ -62,14 +62,14 @@ category pid = do
 ----------------------------------Tag------------------------------------------
 tag :: MT m => Int -> m ()
 tag pid = do
-    params <- S.addIdParam "id" pid
+    params <- Cache.addIdParam "id" pid
     checkExist "id" [sql|SELECT 1 FROM tags WHERE tags.id = {0}|]
     DB.update Tag [sql|UPDATE tags SET name = {0} WHERE id = {1}|] [p $ params ! "name", q pid]
 
 tagToContent :: MT m => Action -> m ()
 tagToContent Check = withParam "tag_id" $ Insert.tagToContent Check
 tagToContent Execute = withParam "tag_id" $ do
-    ParamEq (Int cid) <- S.getParam "content_id"
+    ParamEq (Int cid) <- Cache.getParam "content_id"
     DB.execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [q cid]
     Insert.tagToContent Execute
 
@@ -77,10 +77,10 @@ tagToContent Execute = withParam "tag_id" $ do
 draft :: MT m => Int-> m ()
 draft pid = do
     checkAuthExistDraft pid
-    params <- S.getParams
+    params <- Cache.getParams
     checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
     Update.tagToContent Check
-    ParamEq (Int cid) <- S.getParam "content_id"
+    ParamEq (Int cid) <- Cache.getParam "content_id"
     DB.update Content [sql|UPDATE contents SET {0} WHERE id = {1}|] <$$>
         [updates params ["name", "category_id", "text", "photo"], return $ q cid]
     Update.tagToContent Execute
@@ -96,26 +96,26 @@ checkAuthExistDraft pid = do
         LEFT JOIN users ON users.id = authors.user_id
     |] `whereAllM` [cond [sql|drafts.id|] $ ParamEq (Int pid)]
     (uid, aid, cid) <- checkAuthExist pid "draft_id" query
-    S.addIdParam "id" pid
-    S.addIdParam "user_id" uid
-    S.addIdParam "author_id" aid
-    S.addIdParam "content_id" cid
+    Cache.addIdParam "id" pid
+    Cache.addIdParam "user_id" uid
+    Cache.addIdParam "author_id" aid
+    Cache.addIdParam "content_id" cid
 
 ----------------------------------Post-----------------------------------------
 post :: MT m => Int -> m ()
 post pid = do
     params <- checkAuthExistPost pid
     when (params ! "author_id" == ParamEq (Int 1)) $ 
-        throwM $ DBError "Невозможно создать черновик от удаленного автора (автора по умолчанию) id = 1"
+        Error.throw $ DBError "Невозможно создать черновик от удаленного автора (автора по умолчанию) id = 1"
     checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
     Insert.tagToContent Check
     [Only cid] <- query_ . template 
         [sql|INSERT into contents (author_id, name, creation_date, category_id, text, photo) values {0} RETURNING id|] <$$>
         [rowEither params [Left "author_id", Left "name", Right [sql|current_date|], Left "category_id", Left "text", Left "photo"]]
-    S.addChanged Insert Content 1
+    Cache.addChanged Insert Content 1
     DB.insert Draft [sql|INSERT into drafts (content_id, post_id) values ({0}, {1})|]
         [q cid, q pid]
-    S.addIdParam "content_id" cid --перезаписываем
+    Cache.addIdParam "content_id" cid --перезаписываем
     Insert.tagToContent Execute
     Insert.photos
 
@@ -131,10 +131,10 @@ checkAuthExistPost pid = do
         LEFT JOIN users ON users.id = authors.user_id
     |] `whereAllM` [cond [sql|posts.id|] $ ParamEq (Int pid)]
     (uid, aid, cid) <- checkAuthExist pid "post_id" query
-    S.addIdParam "id" pid
-    S.addIdParam "user_id" uid
-    S.addIdParam "author_id" aid
-    S.addIdParam "content_id" cid
+    Cache.addIdParam "id" pid
+    Cache.addIdParam "user_id" uid
+    Cache.addIdParam "author_id" aid
+    Cache.addIdParam "content_id" cid
 
 ----------------------------------Comment--------------------------------------
 -- * В общем случае checkAuthExist возвращает три параметра, поэтому здесь небольшой костыль
@@ -147,7 +147,7 @@ checkAuthExistComment pid = do
 ----------------------------------Photo----------------------------------------
 photos :: MT m => m ()
 photos = withParam "photos" $ do
-    ParamEq (Int cid) <- S.getParam "content_id"
+    ParamEq (Int cid) <- Cache.getParam "content_id"
     delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [q cid]
     Insert.photos
 
@@ -163,25 +163,25 @@ updates params names = DB.concat "," <$> mapMaybeM helper names where
     upd field (ParamEq v) = return . Just $ template [sql|{0} = {1}|] [field, val v]
     upd field ParamNo = return Nothing
     upd field ParamNull = return . Just $ template [sql|{0} = null|] [field]
-    upd field param = throwM $ DevError $ template "Неверный шаблон {0} в функции updates" [show param]
+    upd field param = Error.throw $ DevError $ template "Неверный шаблон {0} в функции updates" [show param]
 
 checkAuthExist :: MT m => Int -> BSName -> Query ->  m (Int, Int, Int)
 checkAuthExist pid name query = do
     exist <- DB.query_ query
     case exist of
-        [] -> throwM $ DBError  (template "Указан несуществующий параметр {0}: {1}" [show name, show pid])
+        [] -> Error.throw $ DBError  (template "Указан несуществующий параметр {0}: {1}" [show name, show pid])
         [(uid, aid, cid)] -> do
-            auth <- S.getAuth
+            auth <- Cache.getAuth
             case auth of
-                AuthNo                            -> throwM authErrorDefault
+                AuthNo                            -> Error.throw authErrorDefault
                 AuthAdmin _                       -> return (uid, aid, cid) --админ может РЕДАКТИРОВАТЬ все публикации (модерация)
                 AuthUser authuid | uid == authuid -> return (uid, aid, cid) --юзер может РЕДАКТИРОВАТЬ только своё
-                _                                 -> throwM authErrorWrong
-        res -> throwM $ DevError $ template "Неверный результат запроса {0} в функции checkAuthExist" [show res]
+                _                                 -> Error.throw authErrorWrong
+        res -> Error.throw $ DevError $ template "Неверный результат запроса {0} в функции checkAuthExist" [show res]
 
 withParam :: MCache m => BSName -> m() -> m()
 withParam name t = do
-    param <- S.getParam name
+    param <- Cache.getParam name
     case param of
         ParamNo -> return ()
         _       -> t

@@ -24,9 +24,11 @@ import Data.Map as M ((!))
 import Data.Maybe
 import qualified State as S
 --import Transformer
-import Error
+import qualified Error
+import Error (MError)
 --import qualified DB
 import DB --((<<+>>))
+import qualified Cache
 
 --Можно добавить еще пару классов MCache (чистая монада), MDB (грязная)
 ----------------------------------User-----------------------------------------------------------
@@ -37,7 +39,7 @@ user pid = listToMaybe <$> DB.query_ query where
         query =  selectUsersQuery <+> template [sql|WHERE users.id = {0}|] [q pid]
 
 users :: MT m => m [User]
-users = DB.query_ =<< usersQuery =<< S.getParams
+users = DB.query_ =<< usersQuery =<< Cache.getParams
 
 --отделение чистого кода от грязного
 selectUsersQuery :: Query 
@@ -102,7 +104,7 @@ draft pid = do
 
 drafts :: MT m => m [Draft]
 drafts = do
-    params <- S.getParams
+    params <- Cache.getParams
     paramUserId <- authUserIdParam
     let conditions = [
             cond [sql|users.id|] paramUserId
@@ -152,10 +154,10 @@ selectPostsQuery = [sql|
         LEFT JOIN tags ON tags.id = tags_to_contents.tag_id
         LEFT JOIN photos ON photos.content_id = contents.id|]
 
---S.getParams можно использовать на самом низком уровне!!
+--Cache.getParams можно использовать на самом низком уровне!!
 postsQuery :: (MError m, MCache m) => m SQL.Query
 postsQuery = do
-    params <- S.getParams
+    params <- Cache.getParams
     let p name = params ! name
     let conditions =  [
             postIdsSubquery [sql|tags_to_contents.tag_id|] (p "tag_id"),
@@ -209,9 +211,9 @@ postsQuery = do
                 "category_id"-> return [sql|contents.category_id|]
                 "photos" -> return $ DB.brackets [sql|SELECT COUNT(*) FROM photos WHERE
                         photos.content_id = contents.id|]
-                _ -> throwM $ DevError $ template "Неверный параметр {0} в функции orderBy" [paramName]
+                _ -> Error.throw $ DevError $ template "Неверный параметр {0} в функции orderBy" [paramName]
         orderBy ParamNo = return [sql||]
-        orderBy p = throwM $ DevError $ template "Неверный шаблон параметра {0} в функции orderBy" [show p]
+        orderBy p = Error.throw $ DevError $ template "Неверный шаблон параметра {0} в функции orderBy" [show p]
 
 -------------------------Tag-------------------------------------------------------------
 type Tag = Row.Tag 
@@ -255,11 +257,11 @@ commentsQuery postId = selectCommentsQuery `whereAllM` (return <$> conditions) <
 -------------------------Pagination--------------------------------------------------------
 pagination :: (MError m, MCache m) => m SQL.Query
 pagination  = do
-    paramPage <- S.getParam "page"
+    paramPage <- Cache.getParam "page"
     case paramPage of 
         ParamEq (Int page) -> return $ template [sql|LIMIT {0} OFFSET {1}|] [q quantity, q $ (page-1)*quantity] where
             quantity = 20
-        _ -> throwM $ DevError $ template "Неверный шаблон параметра {0} в функции pagination" [show paramPage]
+        _ -> Error.throw $ DevError $ template "Неверный шаблон параметра {0} в функции pagination" [show paramPage]
 --------------------------Templates-------------------------------------------------------
 -- c этой функцией нужно осторожно, так как она работает только для ParamEq
 --возможно здесь сделать обработку ошибок для некорректных паттернов??
@@ -284,16 +286,16 @@ cond field param = case param of
     ParamLike v -> return $ template [sql|{0} = {1}|] [field, val v] --ilike только для строки, для остальных равенство
     ParamNo -> return $ [sql|TRUE|]  --это только для Select, для других запросов может быть по другому!!!!
     ParamNull -> return $ template [sql|{0} = null|] [field] --не проверено
-    _ -> throwM $ DevError $ template "Неверный шаблон параметра {0} в функции cond" [show param]
+    _ -> Error.throw $ DevError $ template "Неверный шаблон параметра {0} в функции cond" [show param]
 
 --админ может ЧИТАТЬ все публикации
 authUserIdParam :: (MError m, MCache m) => m Param
 authUserIdParam = do
-    auth <- S.getAuth
+    auth <- Cache.getAuth
     case auth of
         AuthAdmin _ -> return ParamNo
         AuthUser userId -> return $ ParamEq (Int userId)
-        _ -> throwM authErrorDefault
+        _ -> Error.throw Error.authErrorDefault
 
 
 

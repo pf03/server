@@ -44,6 +44,7 @@ import qualified Select
 import qualified Update
 import qualified Delete
 import qualified Insert
+import qualified Cache
 import Router
 
 import Data.Typeable
@@ -75,7 +76,7 @@ errorHandler e = do
 
 getJSON_ :: Request -> T LC.ByteString
 getJSON_ req = do
-    S.resetChanged
+    Cache.resetChanged
     Log.setSettings Color.Blue True "Response.getJSONwithUpload" 
     Log.funcT Log.Debug "..."
     let (rawPathInfo, pathInfo, qs) = ( Wai.rawPathInfo req, Wai.pathInfo req, Wai.queryString req)
@@ -85,10 +86,10 @@ getJSON_ req = do
     --эту функцию можно использовать для тестирования и эмуляции запросов
     let qsBody = parseQuery requestBody
     --Log.debugT req  
-    logT $ Auth.auth req
+    --logT $ Auth.auth req --нужна ли эта функция logT, она вызывает ошибку
 
     Auth.auth req
-    auth <- S.getAuth
+    auth <- Cache.getAuth
 
     api@(API apiType queryTypes) <- logT $ router rawPathInfo pathInfo auth
     
@@ -97,25 +98,25 @@ getJSON_ req = do
             \(RequestError e) -> throwT $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в теле запроса методом x-www-form-urlencoded" [e] 
         else catchT (logT $ Params.parseParams qs api) $
             \(RequestError e) -> throwT $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в строке запроса" [e] 
-    S.setParams params
+    Cache.setParams params
     getJSON api req
 
 --эта обертка для удобства тестирования--эту обертку перенести в Test
 getJSONTest :: BC.ByteString -> PathInfo -> HTTP.Query -> HTTP.Query -> RequestHeaders -> T LC.ByteString
 getJSONTest rawPathInfo pathInfo qs qsBody headers = do
-    S.resetCache --это нужно только для тестов, в сервере и так трансформер возрождается заново при каждом запросе
+    Cache.resetCache --это нужно только для тестов, в сервере и так трансформер возрождается заново при каждом запросе
     --Log.setSettings Color.Blue True "Response.getJSONTest" 
     --Log.funcT Log.Debug "..."
     let req  = Wai.defaultRequest {requestHeaders = headers}
     Auth.auth req
-    auth <- S.getAuth
+    auth <- Cache.getAuth
     api@(API apiType queryTypes) <- logT $ router rawPathInfo pathInfo auth
     params <- if apiType `elem` [API.Auth, API.Delete, API.Insert, API.Update] 
         then catchT (logT $ Params.parseParams qsBody api) $
             \(RequestError e) -> throwT $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в теле запроса методом x-www-form-urlencoded" [e] 
         else catchT (logT $ Params.parseParams qs api) $
             \(RequestError e) -> throwT $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в строке запроса" [e] 
-    S.setParams params
+    Cache.setParams params
     getJSON api req
 
 getJSON:: API -> Request -> T LC.ByteString
@@ -168,7 +169,7 @@ getJSON api req = case api of
 encode :: (Typeable a, ToJSON a) => T a -> T LC.ByteString
 encode ta = do
     a <- ta
-    json <- if showType a == "()" then encodePretty <$> S.getChanged else encodePretty <$> ta
+    json <- if showType a == "()" then encodePretty <$> Cache.getChanged else encodePretty <$> ta
     writeResponseJSON json
     return json
 
@@ -181,7 +182,7 @@ getPosts = do
     categories <- Response.getAllCategories
     Log.setSettings Color.Blue True "Response.getPosts" 
     Log.funcT Log.Debug "..."
-    S.modifyParams $ evalParams categories
+    Cache.modifyParams $ evalParams categories
     selectPosts <- Select.posts
     toT $ JSON.evalPosts categories selectPosts
 
@@ -191,7 +192,7 @@ getDrafts = do
     categories <- Response.getAllCategories
     Log.setSettings Color.Blue True "Response.getDrafts" 
     Log.funcT Log.Debug "..."
-    S.modifyParams $ evalParams categories
+    Cache.modifyParams $ evalParams categories
     selectDrafts <- Select.drafts
     toT $ JSON.evalDrafts categories selectDrafts
 
@@ -232,7 +233,7 @@ getCategories = do
 
 updateCategory :: Int -> T () 
 updateCategory pid = do 
-    params <- S.getParams 
+    params <- Cache.getParams 
     Log.setSettings Color.Blue True "Response.updateCategory"
     Log.funcT Log.Debug "..."
     allCategories <- Select.allCategories

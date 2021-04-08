@@ -40,6 +40,7 @@ import Data.List.Split
 import Text.Read
 import qualified Network.Wai as Wai
 import Error
+import qualified Cache
 
 --простейший токен привязывается к пользователю, время жизни 1 сутки
 
@@ -58,7 +59,7 @@ instance FromJSON Token
 --во избежание коллизий нужно сделать ограничения на формат логина, пароля, email
 login :: MT m => m Token
 login = do
-    params <- S.getParams
+    params <- Cache.getParams
     users <- DB.query_ $ template [sql|SELECT id, is_admin FROM users where login = {0} and pass = md5 (CONCAT_WS(' ', {0}, {1}))|] 
         [p $ params ! "login", p $ params ! "pass"]  
     --Log.debugT users
@@ -82,11 +83,11 @@ login = do
         _ -> throwM $ AuthError "Неверный логин или пароль!"
 
 --проверка токена происходит без базы данных
-auth :: Wai.Request -> T ()
+auth :: (MIOError m, MCache m) => Wai.Request -> m ()
 auth req  = do
     let h = Wai.requestHeaders req
     case lookup "Authorization" h of
-        Nothing -> S.setAuth AuthNo --nothing только в случае отсутствия токена, в других случаях ошибка
+        Nothing -> Cache.setAuth AuthNo --nothing только в случае отсутствия токена, в других случаях ошибка
         Just a -> auth_ (Token $ BC.unpack a)
 
 --проверка токена, используется при каждом запросе
@@ -104,9 +105,9 @@ auth_ (Token t)  = do
                 if day == curDay then do
                     correctToken <- genToken date userId role
                     if correctToken == Token t && role == "user"
-                        then S.setAuth $ AuthUser userId
+                        then Cache.setAuth $ AuthUser userId
                         else if correctToken == Token t && role == "admin"
-                            then S.setAuth $ AuthAdmin userId
+                            then Cache.setAuth $ AuthAdmin userId
                             else do
                                 --return Nothing
                                 throwM $ AuthError "Неверный токен!"

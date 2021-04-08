@@ -45,6 +45,7 @@ import qualified Network.Wai as Wai
 import Network.Wai.Internal as Wai
 import qualified Data.ByteString as B
 import Data.Map as M ((!))
+import qualified Cache
 
 --при некорректном запросе с телом ответ с ошибкой не возвращается. При запросе без тела нормально возвращается
 --при запросе get
@@ -55,11 +56,11 @@ import Data.Map as M ((!))
 --загрузка фотографии на сервер
 photo :: (MIOError m, MCache m) => Request -> m ()
 photo req = do
-    --params <- S.getParams 
-    ParamEq (Str name) <- S.getParam "name"
+    --params <- Cache.getParams 
+    ParamEq (Str name) <- Cache.getParam "name"
     let path = "images/" <> name
     saveBinary req path
-    --S.getChanged 
+    --Cache.getChanged 
 
 
 saveBinary :: (MIOError m, MCache m) => Request -> Path -> m ()
@@ -88,7 +89,7 @@ saveBinary req path = do
         if bs == mempty 
             then do
                 putStrLnT $ template "Успешно записано {0} чаcтей файла" [show n] 
-                S.addChanged Upload Photo 1
+                Cache.addChanged Upload Photo 1
                 --return () 
             else do
                 liftEIO $ B.appendFile path bs 

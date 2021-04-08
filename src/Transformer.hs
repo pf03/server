@@ -24,7 +24,7 @@ import Network.Wai (responseLBS, Application)
 -- import Error
 import Types  --100
 -- import Parse
-import Error
+--import Error
 import Class
 import Database.PostgreSQL.Simple.SqlQQ
 import Database.PostgreSQL.Simple
@@ -38,6 +38,10 @@ import Common
 import Data.Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
 import DB
+import qualified Error
+import Error -- (MError, MIOError,throw, catch)
+
+import Control.Exception as Exception
 
 
 --трансформер со всеми интерфейсами
@@ -59,8 +63,8 @@ catchT ta f  = StateT $ \s -> catchE (runStateT ta s) $ \e -> runStateT (f e) s
 --     catchError = catchT
 
 instance MError T where
-    throwM = throwT
-    catchM = catchT
+    throw = throwT
+    catch = catchT
     
 instance MIOError T
 
@@ -211,7 +215,7 @@ runE_ m = void (runExceptT m)
 --read config as both object and string
 readConfig :: ExceptT E IO (Config, String)
 readConfig = do
-    bs <- ExceptT $ toEE (L.readFile pathConfig) `catch` handler
+    bs <- ExceptT $ toEE (L.readFile pathConfig) `Exception.catch` handler
     fileConfig <- toE $ eDecode bs
     --print fileConfig
     return (fileConfig, show bs) where
@@ -224,7 +228,7 @@ pathConfig :: FilePath
 pathConfig = "config.json"
 
 connectDB :: ConnectInfo -> ExceptT E IO Connection
-connectDB connectInfo = ExceptT $ toEE (connect connectInfo) `catch` handler where
+connectDB connectInfo = ExceptT $ toEE (connect connectInfo) `Exception.catch` handler where
     handler :: SqlError -> IO (EE Connection )
     handler e = return . Left  . DBError $ "Ошибка соединения с базой данных!"
 
@@ -261,7 +265,7 @@ testLog = runT $ do
 --переместить в какой-то другой модуль
 -----------------работа с файлами-----------------------------------------------------------------------------------
 readFile :: String -> ExceptT E IO B.ByteString
-readFile path = ExceptT $ toEE (BC.readFile path) `catch` handler where
+readFile path = ExceptT $ toEE (BC.readFile path) `Exception.catch` handler where
     handler :: IOException -> IO (EE B.ByteString )
     handler e
         | isDoesNotExistError e = return $ Left $ IOError $ template  "Файл \"{0}\" не найден!" [path]

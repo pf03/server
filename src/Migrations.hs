@@ -17,7 +17,7 @@ import qualified Data.ByteString.Lazy as L
 import Control.Exception
 import Data.Int
 import Control.Monad
-import Query
+import qualified DB
 import Common
 import qualified Data.Map as M
 import Transformer
@@ -71,21 +71,21 @@ base = do
     queryBS <- toT $ Transformer.readFile pathMigrations
     --Log.dataT Log.Warning queryBS
     let query = Query queryBS
-    execute__ query []
+    DB.execute__ query []
 
 --обработка ошибок при запросах к бд!
 hashPasswords :: T()
 hashPasswords = do
-    users <- query_ [sql|SELECT id, login, pass FROM users|] :: T [(Int, B.ByteString, B.ByteString)]
+    users <- DB.query_ [sql|SELECT id, login, pass FROM users|] :: T [(Int, B.ByteString, B.ByteString)]
     Log.textT Log.Info "Получен список пользователей..."
-    rows <- executeMany [sql|
+    rows <- DB.executeMany [sql|
         UPDATE users
         SET pass = md5(upd.lp)
         FROM (VALUES (?, ?)) as upd(id, lp)
         WHERE users.id = upd.id
     |] $ map (\(uid, l, p) -> (uid, l <> " " <> p)) users
     Log.textT Log.Info "Пароли хешированы..."
-    execute_ [sql|
+    DB.execute_ [sql|
         ALTER TABLE users 
             ALTER COLUMN pass TYPE VARCHAR (32)
     |] []
@@ -94,7 +94,7 @@ hashPasswords = do
 --это тоже можно запихнуть в файл
 renameNewsToPosts :: T()
 renameNewsToPosts = do
-    execute__ [sql|
+    DB.execute__ [sql|
         DROP TABLE IF EXISTS posts;
         ALTER TABLE news RENAME TO posts;
         ALTER TABLE drafts RENAME COLUMN news_id TO post_id;
