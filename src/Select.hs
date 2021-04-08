@@ -150,6 +150,7 @@ selectPostsQuery = [sql|
         LEFT JOIN tags ON tags.id = tags_to_contents.tag_id
         LEFT JOIN photos ON photos.content_id = contents.id|]
 
+--S.getParams можно использовать на самом низком уровне!!
 postsQuery :: (MError m, MCache m) => m SQL.Query
 postsQuery = do
     params <- S.getParams
@@ -166,7 +167,7 @@ postsQuery = do
     selectPostsQuery `whereAllM` conditions  <<+>> orderBy (p "order_by") <<+>> pagination
 
         where
-            
+
         postIdsSubquery :: MError m => Query -> Param -> m SQL.Query
         
         postIdsSubquery field (ParamAll vals) = [sql|posts.id|] `inSubqueryM` 
@@ -185,8 +186,6 @@ postsQuery = do
                 cond [sql|categories.category_name|] param,
                 postIdsSubquery [sql|tags.name|] param
                 ]
-
-        --containsCond param = error $ template "Нет шаблона для {0}" [show param]
 
         --поиск по имени и id тега
         --вытягиваем id постов, в которых хотя бы один из тегов удовлетворяет условию. После чего возвращаем все теги постов с данными id
@@ -219,24 +218,21 @@ tag pid = listToMaybe <$> query_ query where
         query = selectTagsQuery <+> template [sql|WHERE tags.id = {0}|] [q pid]
 
 tags :: T [Tag]
-tags = query_ =<< tagsQuery =<< S.getParams
+tags = query_ =<< tagsQuery
 
 selectTagsQuery ::  Query
 selectTagsQuery = [sql|SELECT * FROM tags|] 
 
 --здесь можно добавить MonadCache
-tagsQuery :: (MError m, MCache m) => ParamsMap Param -> m Query
-tagsQuery params = return selectTagsQuery <<+>> pagination
+tagsQuery :: (MError m, MCache m) => m Query
+tagsQuery  = return selectTagsQuery <<+>> pagination
 
 -------------------------Comment----------------------------------------------------------
 
 type Comment =  Row.Comment :. Row.Post :. Row.User
--- comments::  Int -> T (Maybe Tag)
--- comments postId = listToMaybe <$> query_ query where
---         query = selectTagsQuery <+> template [sql|WHERE tags.id = {0}|] [q pid]
 
 comments :: Int -> T [Comment]
-comments postId = query_ =<< commentsQuery postId =<< S.getParams
+comments postId = query_ =<< commentsQuery postId
 
 selectCommentsQuery ::  Query
 selectCommentsQuery = [sql|
@@ -245,8 +241,8 @@ selectCommentsQuery = [sql|
         LEFT JOIN users ON users.id = comments.user_id
     |] 
 
-commentsQuery :: (MError m, MCache m) => Int -> ParamsMap Param -> m Query
-commentsQuery postId params = selectCommentsQuery `whereAllM` (return <$> conditions) <<+>> pagination where
+commentsQuery :: (MError m, MCache m) => Int -> m Query
+commentsQuery postId = selectCommentsQuery `whereAllM` (return <$> conditions) <<+>> pagination where
     conditions :: [SQL.Query]
     conditions =  [
         template [sql|posts.id = {0}|] [q postId]

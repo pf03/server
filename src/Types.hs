@@ -196,9 +196,16 @@ data Action = Check | Execute --flag
 
 --это уже есть
 
-class Monad m => MError m where
-    throwM :: E -> m a
-    catchM :: m a -> (E -> m a) -> m a
+
+
+
+-- Эту функцию не обязательно определять для класса, так как она предполагает разрушение монады. 
+-- То есть зависит от конкретной реализации монады
+-- runME :: Monad m => m a -> Either E a
+-- runME m = do
+--     catchM _
+--         $ \e -> do
+--         return $ undefined
 
 -- class MonadError E m => MError2 m
 
@@ -214,9 +221,5 @@ modifyCache f = do
     cache <- getCache
     setCache $ f cache 
 
---это для postgreSQL, но можно абстрагироваться еще сильнее по типу connection
-class Monad m => MDB m where
-    getConnection :: m Connection  --setConnection не нужно, соединение устанавливается еще до формирования монады
 
---трансформер со всеми интерфейсами
-class (Log.MonadLog m, MCache m, MError m, MDB m) => MT m
+

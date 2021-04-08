@@ -6,6 +6,9 @@ import Control.Monad.Except
 import Control.Monad.Trans.Except
 import Types  --100
 import Network.HTTP.Types
+import Database.PostgreSQL.Simple
+import qualified Data.Text.Encoding as T
+import qualified Data.Text as T
 
 
 instance Show E where
@@ -50,3 +53,26 @@ toE = except . runExcept
 
 findPosition :: [Char] -> Integer
 findPosition str = error "todo"
+
+-------------------------------------------MError------------------------------------------
+
+class Monad m => MError m where
+    throwM :: E -> m a
+    catchM :: m a -> (E -> m a) -> m a
+    liftE :: Either E a -> m a
+    liftE ea = case ea of 
+        Left e -> throwM e
+        Right a -> return a
+
+liftEIO :: (MError m, MonadIO m) => IO a -> m a
+liftEIO m = do
+    ea <- liftIO $  (Right <$> m) `catch` iohandler `catch` sqlhandler `catch` otherhandler 
+    liftE ea
+
+    where
+    iohandler :: IOException -> IO (EE a)
+    iohandler e = return . Left  . IOError . show $ e 
+    sqlhandler :: SqlError -> IO (EE a)
+    sqlhandler e = return . Left . DBError . T.unpack . T.decodeUtf8 . sqlErrorMsg $ e 
+    otherhandler :: SomeException -> IO (EE a)
+    otherhandler e = return . Left . SomeError . show $ e

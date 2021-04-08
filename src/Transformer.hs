@@ -36,7 +36,11 @@ import Control.Applicative ((<|>))
 import Common
 import Data.Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
+import Query
 
+
+--трансформер со всеми интерфейсами
+class (Log.MonadLog m, MCache m, MError m, MDB m) => MT m
 
 --Пользователи ничего не должны знать о внутренней структуре нашего трансформера.
 --Для них есь три сущности - class ToTransformer, функции toT, runT ну и несколько вспомогательныйх функций типа printT
@@ -56,6 +60,8 @@ catchT ta f  = StateT $ \s -> catchE (runStateT ta s) $ \e -> runStateT (f e) s
 instance MError T where
     throwM = throwT
     catchM = catchT
+    
+
 
 
 

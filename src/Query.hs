@@ -13,24 +13,28 @@ import qualified Data.Text.Encoding as T
 import qualified Data.Text as T
 import qualified Log
 import API 
-import Transformer
 import Control.Monad.IO.Class
+import Error
+
+--это для postgreSQL, но можно абстрагироваться еще сильнее по типу connection
+class Monad m => MDB m where
+    getConnection :: m Connection  --setConnection не нужно, соединение устанавливается еще до формирования монады
 
 --Ошибки в этом модуле не должны отдаваться пользователю, а записываться в лог. Пользователю должен отдаваться стандартный текст!!!
 
 --Для единоообразия во все запросы можно встроить template
 
--- query2_ :: (Log.MonadLog m, MDB m, Show r, FromRow r) => Query -> m [r]
--- query2_ q = do
---     conn <- getConnection
---     Log.debugT q
---     liftIO $ SQL.query_ conn q --LiftIO использовать нельзя, т.к теряется обработка ошибок
-
-query_ :: (Show r, FromRow r) => Query -> T [r]
+query_ :: (Log.MonadLog m, MDB m, MError m,  Show r, FromRow r) => Query -> m [r]
 query_ q = do
-    conn <- S.getConnection
+    conn <- getConnection
     Log.debugT q
-    toT $ SQL.query_ conn q
+    liftEIO $ SQL.query_ conn q --LiftIO использовать нельзя, т.к теряется обработка ошибок
+
+-- query_ :: (Show r, FromRow r) => Query -> T [r]
+-- query_ q = do
+--     conn <- S.getConnection
+--     Log.debugT q
+--     toT $ SQL.query_ conn q
 
 query :: (Show r, ToRow q, FromRow r) => Query -> q -> T [r]
 query query q = do

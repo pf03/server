@@ -63,6 +63,13 @@ instance ToTransformer IO where
 -- typecheck as the type is ambiguous. While it is possible to catch exceptions of 
 -- any type, see the section "Catching all exceptions" (in Control.Exception ) for an explanation of the problems with doing so.
 
+--
+
+
+
+
+
+
 --toT++log
 logT :: (ToTransformer m, Show a)  => m a -> T a 
 logT m = do
@@ -81,12 +88,12 @@ logT m = do
 --фантазия на тему обработки ошибок
 --возможно инфиксная функция
 --здесь указывается только тип ошибки
-toTwithE_ :: ToTransformer m => m a -> (String -> E) -> T a
-toTwithE_ = undefined 
+-- toTwithE_ :: ToTransformer m => m a -> (String -> E) -> T a
+-- toTwithE_ = undefined 
 
---здесь указывается сама ошибка
-toTwithE :: ToTransformer m => m a -> E -> T a
-toTwithE = undefined 
+-- --здесь указывается сама ошибка
+-- toTwithE :: ToTransformer m => m a -> E -> T a
+-- toTwithE = undefined 
 
 
 instance ToTransformer (Reader S) where

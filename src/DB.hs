@@ -50,6 +50,8 @@ import Network.HTTP.Types
 
 import Data.Typeable
 
+
+
 --эту обертку перенести в Response
 getJSON_ :: Request -> T LC.ByteString
 getJSON_ req = do
