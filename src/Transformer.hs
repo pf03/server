@@ -62,9 +62,7 @@ instance MError T where
     throwM = throwT
     catchM = catchT
     
-
-
-
+instance MIOError T
 
 instance MCache T where
     getCache = gets cache

@@ -11,7 +11,7 @@ import qualified Row
 import Database.PostgreSQL.Simple.Types as SQL
 import Database.PostgreSQL.Simple.SqlQQ
 import Common
-import Query
+import DB
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
 import Control.Monad.Identity
@@ -27,6 +27,7 @@ import API
 import qualified State as S
 import Select
 import Update
+import Error
 
 -- | Удаление 4 типов
 -- 1. Удаленная сущность заменяется на значение по умолчанию. Используется для users и authors
@@ -36,50 +37,50 @@ import Update
 -- 4. Простое удаление, если от сущности ничего не зависит. Используется для comments
 
 --юзер удаляется, автор привязывается к дефолтному юзеру, авторизация админ на уровне роутера
-user :: Int -> T ()
+user :: MT m => Int -> m ()
 user pid = do 
-    when (pid == 1) $ throwT $ DBError "Невозможно удалить пользователя по умолчанию с id = 1"
-    when (pid == 2) $ throwT $ DBError "Невозможно удалить админа с id = 2"
-    update Author [sql|UPDATE authors SET user_id = 1 WHERE user_id = {0}|] [q pid]
-    update Comment [sql|UPDATE comments SET user_id = 1 WHERE user_id = {0}|] [q pid]
-    delete User [sql|DELETE FROM users WHERE id = {0}|] [q pid]
+    when (pid == 1) $ throwM $ DBError "Невозможно удалить пользователя по умолчанию с id = 1"
+    when (pid == 2) $ throwM $ DBError "Невозможно удалить админа с id = 2"
+    DB.update Author [sql|UPDATE authors SET user_id = 1 WHERE user_id = {0}|] [q pid]
+    DB.update Comment [sql|UPDATE comments SET user_id = 1 WHERE user_id = {0}|] [q pid]
+    DB.delete User [sql|DELETE FROM users WHERE id = {0}|] [q pid]
 
 --юзер удаляется, автор привязывается к дефолтному юзеру, авторизация админ на уровне роутера
-author :: Int -> T ()
+author :: MT m => Int -> m ()
 author pid = do 
-    when (pid == 1) $ throwT $ DBError "Невозможно удалить автора по умолчанию с id = 1"
-    update Content [sql|UPDATE contents SET author_id = 1 WHERE author_id = {0}|] [q pid] 
-    delete Author [sql|DELETE FROM authors WHERE id = {0}|] [q pid]
+    when (pid == 1) $ throwM $ DBError "Невозможно удалить автора по умолчанию с id = 1"
+    DB.update Content [sql|UPDATE contents SET author_id = 1 WHERE author_id = {0}|] [q pid] 
+    DB.delete Author [sql|DELETE FROM authors WHERE id = {0}|] [q pid]
 
 --для поста каскадное удаление
-post :: Int -> T () 
+post :: MT m => Int -> m () 
 post pid = do 
     checkAuthExistPost pid
     ParamEq (Int cid) <- S.getParam "content_id" 
-    delete Post [sql|DELETE FROM posts WHERE id = {0}|] [q pid]   
-    delete Content [sql|DELETE FROM contents WHERE id = {0}|] [q cid]   
-    delete Draft [sql|DELETE FROM drafts WHERE post_id = {0}|] [q pid] 
-    execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [q cid]   
-    delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [q cid]   
-    delete Comment [sql|DELETE FROM comments WHERE post_id = {0}|] [q pid]
+    DB.delete Post [sql|DELETE FROM posts WHERE id = {0}|] [q pid]   
+    DB.delete Content [sql|DELETE FROM contents WHERE id = {0}|] [q cid]   
+    DB.delete Draft [sql|DELETE FROM drafts WHERE post_id = {0}|] [q pid] 
+    DB.execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [q cid]   
+    DB.delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [q cid]   
+    DB.delete Comment [sql|DELETE FROM comments WHERE post_id = {0}|] [q pid]
 
 --для черновика каскадное удаление
-draft :: Int -> T ()
+draft :: MT m => Int -> m ()
 draft pid = do
     checkAuthExistDraft pid
     ParamEq (Int cid) <- S.getParam "content_id" 
-    delete Draft [sql|DELETE FROM drafts WHERE id = {0}|] [q pid]   
-    delete Content [sql|DELETE FROM contents WHERE id = {0}|] [q cid]   
-    execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [q cid]   
-    delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [q cid]
+    DB.delete Draft [sql|DELETE FROM drafts WHERE id = {0}|] [q pid]   
+    DB.delete Content [sql|DELETE FROM contents WHERE id = {0}|] [q cid]   
+    DB.execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [q cid]   
+    DB.delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [q cid]
 
-comment :: Int -> T ()
+comment :: MT m => Int -> m ()
 comment pid = do 
     checkAuthExistComment pid
-    delete Comment [sql|DELETE FROM comments WHERE id = {0}|] [q pid] 
+    DB.delete Comment [sql|DELETE FROM comments WHERE id = {0}|] [q pid] 
 
 --удаление строго по условию, если не привязаны другие категории и контент
-category :: Int -> T ()
+category :: MT m => Int -> m ()
 category pid = do
     --проверка на связанные сущности
     checkNotExist pid "категорию" "дочерние категории" $ template [sql|
@@ -101,21 +102,21 @@ category pid = do
         WHERE categories.id = {0}
     |] [q pid]
 
-    delete Category [sql|DELETE FROM categories WHERE id = {0}|] [q pid] 
+    DB.delete Category [sql|DELETE FROM categories WHERE id = {0}|] [q pid] 
 
 --Каскадное удаление. Удаляется тег и все привязки тега к контенту
-tag :: Int -> T ()
+tag :: MT m => Int -> m ()
 tag pid = do
-    execute_ [sql|DELETE FROM tags_to_contents WHERE tag_id = {0}|] [q pid] 
-    delete Tag [sql|DELETE FROM tags WHERE id = {0}|] [q pid] 
+    DB.execute_ [sql|DELETE FROM tags_to_contents WHERE tag_id = {0}|] [q pid] 
+    DB.delete Tag [sql|DELETE FROM tags WHERE id = {0}|] [q pid] 
 
 -- используется для категорий
-checkNotExist :: Int -> String -> String -> Query -> T() 
+checkNotExist :: MDB m => Int -> String -> String -> Query -> m () 
 checkNotExist pid name1 name2 templ = do
-    results <- query_ $ template templ [q pid] :: T [(Int, String)]
-    case results of
+    results <- DB.query_ $ template templ [q pid] 
+    case results :: [(Int, String)] of
         [] -> return ()
-        _ -> throwT $ DBError  (template "Невозможно удалить {0}, так как к нему привязаны следующие {1}:\n{2}" [name1, name2, showResults]) where
+        _ -> throwM $ DBError  (template "Невозможно удалить {0}, так как к нему привязаны следующие {1}:\n{2}" [name1, name2, showResults]) where
             showResults = concatMap helper results
             helper :: (Int, String) -> String 
             helper (pid2, name2) = template "id = {0}, name = {1}\n" [show pid2, name2]

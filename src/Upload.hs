@@ -9,7 +9,7 @@ import Database.PostgreSQL.Simple.Time
 import Class
 import Types
 import qualified Query 
-import Query (q, (<+>), whereAll, inList)
+--import DB (q, (<+>), whereAll, inList)
 -- import Data.Text
 import Control.Monad.Except
 import Control.Monad.Trans.Except
@@ -53,16 +53,16 @@ import Data.Map as M ((!))
 --запрос post то же самое
 
 --загрузка фотографии на сервер
-photo :: Request -> T Changed
+photo :: (MIOError m, MCache m) => Request -> m ()
 photo req = do
     --params <- S.getParams 
     ParamEq (Str name) <- S.getParam "name"
     let path = "images/" <> name
     saveBinary req path
-    S.getChanged 
+    --S.getChanged 
 
 
-saveBinary :: Request -> Path -> T ()
+saveBinary :: (MIOError m, MCache m) => Request -> Path -> m ()
 saveBinary req path = do
     -- chunk  <- toT $ getRequestBodyChunk  req 
     -- Log.debugT chunk
@@ -70,20 +70,20 @@ saveBinary req path = do
     let fileSize =  requestBodyLength req 
     let maxFileSize = 5*1024*1024
     case fileSize of 
-        ChunkedBody -> throwT $ RequestError $ template "Неизвестный размер файла. Выберите файл меньше 5МБ ({0}Б)" [show maxFileSize]
-        KnownLength  n| n >= maxFileSize -> throwT $ RequestError $ template "Размер файла составляет {0} Б . Выберите файл меньше 5 МБ ({1} Б)" [show n, show maxFileSize]
+        ChunkedBody -> throwM $ RequestError $ template "Неизвестный размер файла. Выберите файл меньше 5МБ ({0}Б)" [show maxFileSize]
+        KnownLength  n| n >= maxFileSize -> throwM $ RequestError $ template "Размер файла составляет {0} Б . Выберите файл меньше 5 МБ ({1} Б)" [show n, show maxFileSize]
         _ -> return()
-    toT $ B.writeFile path mempty
-    toT $ stream 0 (getRequestBodyChunk req) 
+    liftEIO $ B.writeFile path mempty
+    stream 0 (getRequestBodyChunk req) 
     
 
     where
-    stream :: Int -> IO B.ByteString -> T ()
+    stream :: (MIOError m, MCache m) => Int -> IO B.ByteString -> m ()
     stream n str = do
         -- when (n > 100) $ do 
         -- throwT $ RequestError "Слишком большой размер файла!" -- какой? около 1,41МБ
         -- удалить, то что загрузили!!!
-        bs <- toT str 
+        bs <- liftEIO str 
         --print bs
         if bs == mempty 
             then do
@@ -91,7 +91,7 @@ saveBinary req path = do
                 S.addChanged Upload Photo 1
                 --return () 
             else do
-                toT $ B.appendFile path bs 
+                liftEIO $ B.appendFile path bs 
                 -- print $ B.length bs
                 -- print $ B.length "xxs"
                 -- print $ B.length "яяя"

@@ -66,9 +66,9 @@ class MonadFail m => MError m where
         Left e -> throwM e
         Right a -> return a
 
+class (MError m, MonadIO m) => MIOError m
 
-
-liftEIO :: (MError m, MonadIO m) => IO a -> m a
+liftEIO :: MIOError m => IO a -> m a
 liftEIO m = do
     ea <- liftIO $  (Right <$> m) `catch` iohandler `catch` sqlhandler `catch` otherhandler 
     liftE ea

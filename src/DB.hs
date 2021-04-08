@@ -21,7 +21,7 @@ import Error
 --     getConnection :: m Connection  --setConnection не нужно, соединение устанавливается еще до формирования монады
 
 --DB по умолчанию уже использует интерфейс лога и обработки ошибок
-class (Log.MonadLog m, MError m) => MDB m where
+class (Log.MonadLog m, MIOError m) => MDB m where
     getConnection :: m Connection
 --полный трансформер
 class (MDB m, MCache m) => MT m
