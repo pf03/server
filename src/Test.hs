@@ -15,12 +15,12 @@ import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy.Char8 as LC
 import Auth
 import Data.Aeson
-import Class
 import Error
 import qualified State as S
 import System.Console.ANSI
 import Text.Read
 import qualified Response
+import ToTransformer
 
 -- ЭТОТ МОДУЛЬ НЕ ДЛЯ РЕВЬЮ, А ДЛЯ ОТЛАДКИ
 
@@ -623,10 +623,6 @@ listOfTestCasesByOne name qs = do
             case readEither answ of
                 Right newn -> return (Just newn)
                 _ -> return Nothing
-            
-            
-        
-    
 
 forMMem :: (Foldable t, Monad m) => t a -> b -> (b -> a -> m b) -> m b
 forMMem cont init f = foldM f init cont

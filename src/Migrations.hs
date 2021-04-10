@@ -11,19 +11,21 @@ import  qualified Data.ByteString as B
 import Types
 import qualified Log
 import qualified System.Console.ANSI as Color (Color(..)) 
-import Class
 import qualified State as S
 import qualified Data.ByteString.Lazy as L
 import Control.Exception
 import Data.Int
 import Control.Monad
 import qualified DB
+import DB (MT, MDB)
 import Common
 import qualified Data.Map as M
 import Transformer
+import qualified File
 
 --использовать этот список
 --list :: M.Map String (T())
+list :: MDB m => [(String, m ())]
 list = --M.fromList 
     [
         ("0000 УДАЛЕНИЕ таблиц, создание новых и наполнение тестовыми данными", base),
@@ -33,7 +35,7 @@ list = --M.fromList
 
 
 --сделать возможность выбора номера миграции
-all :: T()
+all :: MDB m => m()
 all = do
     --сделать лог, который не пишется в файл логов, а только в консоль (сообщение пользователю) 
     Log.setSettings Color.Yellow True "application" 
@@ -46,7 +48,7 @@ all = do
             putStrLnT "Неверный выбор. Попробуйте снова"
             Migrations.all 
 
-allForce :: T()
+allForce :: MDB m => m()
 allForce = do
     Log.colorTextT Color.Blue Log.Info "Производятся миграции..."
     Log.off
@@ -54,7 +56,7 @@ allForce = do
     Log.on
     Log.colorTextT Color.Green Log.Info "Все миграции выполнены успешно."
 
-wrapper :: (String, T()) -> T()
+wrapper :: MDB m => (String, m()) -> m()
 wrapper (name, func) = do
     Log.colorTextT Color.Blue Log.Info "Производится следующая миграция:"
     Log.colorTextT Color.Cyan Log.Info name
@@ -66,24 +68,24 @@ pathMigrations :: FilePath
 pathMigrations = "migrations/0000_base.sql"
 
 --DB initialization from sql file
-base :: T()
+base :: MDB m => m ()
 base = do 
-    queryBS <- toT $ Transformer.readFile pathMigrations
+    queryBS <- File.read pathMigrations
     --Log.dataT Log.Warning queryBS
     let query = Query queryBS
     DB.execute__ query []
 
 --обработка ошибок при запросах к бд!
-hashPasswords :: T()
+hashPasswords :: MDB m => m ()
 hashPasswords = do
-    users <- DB.query_ [sql|SELECT id, login, pass FROM users|] :: T [(Int, B.ByteString, B.ByteString)]
+    users <- DB.query_ [sql|SELECT id, login, pass FROM users|]
     Log.textT Log.Info "Получен список пользователей..."
     rows <- DB.executeMany [sql|
         UPDATE users
         SET pass = md5(upd.lp)
         FROM (VALUES (?, ?)) as upd(id, lp)
         WHERE users.id = upd.id
-    |] $ map (\(uid, l, p) -> (uid, l <> " " <> p)) users
+    |] $ map (\(uid, l, p) -> (uid, l <> " " <> p)) (users :: [(Int, B.ByteString, B.ByteString)])
     Log.textT Log.Info "Пароли хешированы..."
     DB.execute_ [sql|
         ALTER TABLE users 
@@ -92,7 +94,7 @@ hashPasswords = do
     Log.textT Log.Info "Урезана длина строки пароля до 32 символов..."
 
 --это тоже можно запихнуть в файл
-renameNewsToPosts :: T()
+renameNewsToPosts :: MDB m => m ()
 renameNewsToPosts = do
     DB.execute__ [sql|
         DROP TABLE IF EXISTS posts;
@@ -100,91 +102,3 @@ renameNewsToPosts = do
         ALTER TABLE drafts RENAME COLUMN news_id TO post_id;
         ALTER TABLE comments RENAME COLUMN news_id TO post_id;
     |] []
-
---Было
--- CREATE TABLE posts (
---     id SERIAL PRIMARY KEY,
---     content_id INTEGER not null
--- );
--- CREATE TABLE drafts (
---     id SERIAL PRIMARY KEY,
---     content_id INTEGER not null,
---     posts_id INTEGER
--- );
---стало
--- CREATE TABLE posts (
---     id SERIAL PRIMARY KEY,
---     content_id INTEGER not null
---     draft_id INTEGER not null
--- );
--- CREATE TABLE drafts (
---     id SERIAL PRIMARY KEY,
---     content_id INTEGER not null,
--- );
---они могут ссылаться на разный контент, так как черновик возможно отредактировали, но не опубликовали
-
-
-
--- testException :: IO()
--- testException = do
---     let connectDBInfo  = ConnectInfo {connectHost = "127.0.0.1", connectPort = 5432, connectUser = "postgres", connectPassword = "demo", connectDatabase = "server"}
---     conn <- connect connectDBInfo
---     (execute_ conn [sql| WRONG SQL |]) `catch` sqlhandler
-
-
---     return()
-
--- sqlhandler :: SqlError -> IO Int64
--- sqlhandler e = do
---     putStrLn "Неверный запрос"
---     return 0
-
-
-
-
-
--- _hashPasswords :: IO()
--- _hashPasswords = do
---     --это в модуль DB!!
---     -- разобраться с пакетом postgresql-simple-migration
---     let connectDBInfo  = ConnectInfo {connectHost = "127.0.0.1", connectPort = 5432, connectUser = "postgres", connectPassword = "demo", connectDatabase = "server"}
---     conn <- connect connectDBInfo
---     putStrLn "Производится следующая миграция: хеширование паролей"
---     let num = 3
---     users <- query_ conn [sql|SELECT id, login, pass FROM users|] :: IO [(Int, B.ByteString, B.ByteString)]
---     putStrLn "Получен список пользователей..."
---     -- rows <- execute_ conn [sql|
---     --     ALTER TABLE users 
---     --         ALTER COLUMN pass TYPE bytea USING pass::bytea
---     -- |]
---     -- putStrLn $ "rows affected: " ++ show rows
-
---     -- executeMany conn [sql|
---     --     INSERT INTO  VALUES (?,?)
---     -- |] ([(1, "hello"),(2, "world")]::[(Int, String)])
-
---     -- print users
---     -- let hashed_passwords = map (\(uid, pass) -> (uid, hash pass)) passwords
---     --let hashed_passwords = map (\(uid, pass) -> (uid, "haskellpassword"::B.ByteString)) passwords
---     -- return()
-
-
--- --можно хешировать login ++ " " ++ pass для того, чтобы одинаковые пароли имели разный хеш
--- --в общем случае возможны коллизии
---     rows <- executeMany conn [sql|
---         UPDATE users
---         SET pass = md5(upd.lp)
---         FROM (VALUES (?, ?)) as upd(id, lp)
---         WHERE users.id = upd.id
---     |] $ map (\(uid, l, p) -> (uid, l <> " " <> p)) users
---     putStrLn "Пароли хешированы..."
-
---     -- putStrLn  $ "affected "++show rows ++" rows" 
-    
---     execute_ conn [sql|
---         ALTER TABLE users 
---             ALTER COLUMN pass TYPE VARCHAR (32)
---     |]
---     putStrLn "Урезана длина строки пароля до 32 символов..."
---     putStrLn "Миграция окончена успешно"
---     return()

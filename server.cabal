@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 8a0c6c3cc1bdf3bd70e443fe32c37489f96b75785ac99714893211879f0c7657
+-- hash: d5cf4910cb0cce8f3fc65e5fcb780fe214ec1c3faf9ef26a1a501bc70b076242
 
 name:           server
 version:        0.1.0.0
@@ -30,11 +30,12 @@ library
       API
       Auth
       Cache
-      Class
       Common
       DB
       Delete
       Error
+      File
+      Identifiable
       Insert
       JSON
       Log
@@ -48,6 +49,7 @@ library
       Select
       State
       Test
+      ToTransformer
       Transformer
       Types
       Update

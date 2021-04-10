@@ -2,7 +2,6 @@ module DB --(Query.query_,)
 where
 import Database.PostgreSQL.Simple as SQL
 import Types
-import Class
 import qualified State as S
 import Data.Int
 import qualified Data.ByteString as B
@@ -22,7 +21,7 @@ import qualified Cache
 --     getConnection :: m Connection  --setConnection не нужно, соединение устанавливается еще до формирования монады
 
 --DB по умолчанию уже использует интерфейс лога и обработки ошибок
-class (Log.MonadLog m, MIOError m) => MDB m where
+class (Log.MLog m, MIOError m) => MDB m where
     getConnection :: m Connection
 --полный трансформер
 class (MDB m, MCache m) => MT m
@@ -33,7 +32,7 @@ class (MDB m, MCache m) => MT m
 
 query_ :: (MDB m,  Show r, FromRow r) => Query -> m [r]
 query_ q = do
-    conn <- getConnection
+    conn <- DB.getConnection
     Log.debugT q
     liftEIO $ SQL.query_ conn q --LiftIO использовать нельзя, т.к теряется обработка ошибок
 

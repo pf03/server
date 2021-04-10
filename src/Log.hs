@@ -3,7 +3,7 @@
 --{-# LANGUAGE OverlappingInstances #-}
 module Log(
     module Log.Types,
-    MonadLog (..),
+    MLog (..),
     sendT,
     receiveT,
     receiveDataT,
@@ -54,22 +54,22 @@ import qualified Data.Text as T
 import Database.PostgreSQL.Simple.Types
 
 
-class MonadIO m => MonadLog m where
+class MonadIO m => MLog m where
   getSettings :: m LogSettings
   setSettings :: ColorScheme -> Enable -> FuncName -> m ()
   getConfig :: m ConfigLog
 
-off :: MonadLog m => m ()
+off :: MLog m => m ()
 off = do
     LogSettings cs le fn  <- Log.getSettings
     Log.setSettings cs False fn
 
-on :: MonadLog m => m ()
+on :: MLog m => m ()
 on = do
     LogSettings cs le fn  <- Log.getSettings
     Log.setSettings cs True fn
 
-logM :: (MonadLog m, Show a) => m a -> m a 
+logM :: (MLog m, Show a) => m a -> m a 
 logM m = do
     a <- m
     Log.debugT a
@@ -113,85 +113,85 @@ logM m = do
 
 showQ = T.unpack . T.decodeUtf8 . fromQuery
 
-sendT :: MonadLog m => m ()
+sendT :: MLog m => m ()
 sendT = do
     fname <- getfnameT 
     Log.textT Info $ template "Отправляем запрос {0}.................." [fname]
 
-receiveT :: MonadLog m => m ()
+receiveT :: MLog m => m ()
 receiveT = do 
     fname <- getfnameT 
     Log.textT Info $ template "Получили ответ {0}.................." [fname]
 
-receiveDataT :: (MonadLog m, Show a) => String -> a -> m ()
+receiveDataT :: (MLog m, Show a) => String -> a -> m ()
 receiveDataT dataName dataValue = do
     fname <- getfnameT 
     Log.textT Info $ template "Получили {1} в запросе {0}.................." [fname, dataName]
     Log.dataT Data dataValue
 
-receiveConvertDataT :: (MonadLog m, Show a, ToJSON a) => String -> a -> m ()
+receiveConvertDataT :: (MLog m, Show a, ToJSON a) => String -> a -> m ()
 receiveConvertDataT dataName dataValue = do
     fname <- getfnameT 
     Log.textT Info $ template "Получили {1} в запросе {0}.................." [fname, dataName]
     Log.convertDataT Data dataValue
 
-errorT :: (MonadLog m, Show e) => e -> m ()
+errorT :: (MLog m, Show e) => e -> m ()
 errorT error = do
     (config, settings) <- Log.getConfigSettings
     liftIO $ Log.error config settings error
 
 --всего лишь добавляем название функции для удобства отладки
-funcT :: MonadLog m => LogLevel -> String -> m ()
+funcT :: MLog m => LogLevel -> String -> m ()
 funcT level text = do
     fname <- getfnameT 
     textT level $ template "Функция {0}:" [fname]
 
-colorTextT :: MonadLog m => ColorScheme -> LogLevel -> String -> m ()
+colorTextT :: MLog m => ColorScheme -> LogLevel -> String -> m ()
 colorTextT colorScheme level text = do
     Log.setSettings colorScheme True ""
     Log.textT level text
 
-debugT :: MonadLog m => (MonadLog m, Show a) => a -> m ()
+debugT :: MLog m => (MLog m, Show a) => a -> m ()
 debugT = Log.dataT Debug
 
--- prettyT :: MonadLog m => (MonadLog m, Pretty a) => a -> m ()
+-- prettyT :: MLog m => (MLog m, Pretty a) => a -> m ()
 -- prettyT dataValue = do 
 --     (config, settings) <- Log.getConfigSettings
 --     liftIO $ Log.pretty config settings dataValue
 
--- queryT :: MonadLog m => (MonadLog m) => Query -> m ()
+-- queryT :: MLog m => (MLog m) => Query -> m ()
 -- queryT dataValue = do 
 --     (config, settings) <- Log.getConfigSettings
 --     liftIO $ Log.query config settings dataValue
 
-textT :: MonadLog m => LogLevel -> String -> m ()
+textT :: MLog m => LogLevel -> String -> m ()
 textT level text = do
     (config, msettings) <- Log.getConfigSettings
     liftIO $ Log.text config msettings level text
 
-dataT :: (MonadLog m, Show a) => LogLevel -> a -> m ()
+dataT :: (MLog m, Show a) => LogLevel -> a -> m ()
 dataT level dataValue = do
     (config, settings) <- Log.getConfigSettings
     liftIO $ Log.ldata config settings level dataValue
 
-convertDataT :: (MonadLog m, Show a, ToJSON a) => LogLevel -> a -> m ()
+convertDataT :: (MLog m, Show a, ToJSON a) => LogLevel -> a -> m ()
 convertDataT level dataValue = do
     (config, settings) <- getConfigSettings
     liftIO $ Log.convertData config settings level dataValue
 
-getfnameT :: MonadLog m => m String 
+getfnameT :: MLog m => m String 
 getfnameT = funcName <$> Log.getSettings
 
-getConfigSettings :: MonadLog m => m (ConfigLog, LogSettings) 
+getConfigSettings :: MLog m => m (ConfigLog, LogSettings) 
 getConfigSettings = do
     config <- Log.getConfig 
     settings <- Log.getSettings
     return (config, settings)
 
-_setSettings :: MonadLog m => LogSettings -> m ()
+_setSettings :: MLog m => LogSettings -> m ()
 _setSettings (LogSettings s e n) = Log.setSettings s e n
 
-resetSettings :: MonadLog m => m ()
+resetSettings :: MLog m => m ()
 resetSettings = Log._setSettings Log.defaultSettings
 
 

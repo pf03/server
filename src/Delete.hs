@@ -16,7 +16,6 @@ import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
 import Control.Monad.Identity
 import Data.Map as M ((!), fromList)
-import Class
 import Control.Monad.Trans.Except
 import Transformer
 import qualified Log

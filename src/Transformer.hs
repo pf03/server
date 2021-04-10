@@ -25,7 +25,7 @@ import Network.Wai (responseLBS, Application)
 import Types  --100
 -- import Parse
 --import Error
-import Class
+import ToTransformer
 import Database.PostgreSQL.Simple.SqlQQ
 import Database.PostgreSQL.Simple
 import Control.Exception
@@ -76,6 +76,11 @@ instance MDB T where
     getConnection = gets connectionDB
 -- instance MIO T
 instance MT T
+
+instance Log.MLog T where 
+  getSettings = S.getLogSettings
+  setSettings = S.setLogSettings
+  getConfig = S.getLogConfig
 
 
 
@@ -213,6 +218,8 @@ runE_ :: ExceptT E IO () -> IO()
 runE_ m = void (runExceptT m)
 
 --read config as both object and string
+
+--использовать готовую функцию работы с файлами из модуля File.hs!
 readConfig :: ExceptT E IO (Config, String)
 readConfig = do
     bs <- ExceptT $ toEE (L.readFile pathConfig) `Exception.catch` handler
@@ -262,26 +269,26 @@ testLog = runT $ do
     Log.colorTextT Color.Yellow Log.Debug $ "Yellow color scheme " ++ klichko
         where klichko = "Есть очень много по этому поводу точек зрения. Я четко придерживаюсь и четко понимаю, что те проявления, если вы уже так ребром ставите вопрос, что якобы мы"
 
---переместить в какой-то другой модуль
------------------работа с файлами-----------------------------------------------------------------------------------
-readFile :: String -> ExceptT E IO B.ByteString
-readFile path = ExceptT $ toEE (BC.readFile path) `Exception.catch` handler where
-    handler :: IOException -> IO (EE B.ByteString )
-    handler e
-        | isDoesNotExistError e = return $ Left $ IOError $ template  "Файл \"{0}\" не найден!" [path]
-        | otherwise = return $ Left  $ IOError  $ template "Ошибка чтения файла \"{0}\"" [path]
+-- переместить в какой-то другой модуль
+-- ---------------работа с файлами-----------------------------------------------------------------------------------
+-- readFile :: String -> ExceptT E IO B.ByteString
+-- readFile path = ExceptT $ toEE (BC.readFile path) `Exception.catch` handler where
+--     handler :: IOException -> IO (EE B.ByteString )
+--     handler e
+--         | isDoesNotExistError e = return $ Left $ IOError $ template  "Файл \"{0}\" не найден!" [path]
+--         | otherwise = return $ Left  $ IOError  $ template "Ошибка чтения файла \"{0}\"" [path]
 
-writeResponse :: (Log.MonadLog m, ToJSON a) => a -> m ()
-writeResponse json = do
-    Log.colorTextT Color.Yellow Log.Warning "Запись ответа в файл в целях отладки..."
-    liftIO $ B.writeFile "response.json" $ convert . Aeson.encodePretty $ json --строгая версия
-    --liftIO $ B.appendFile "log.txt" $ convert ("\n" :: String)  --строгая версия
+-- writeResponse :: (Log.MLog m, ToJSON a) => a -> m ()
+-- writeResponse json = do
+--     Log.colorTextT Color.Yellow Log.Warning "Запись ответа в файл в целях отладки..."
+--     liftIO $ B.writeFile "response.json" $ convert . Aeson.encodePretty $ json --строгая версия
+--     --liftIO $ B.appendFile "log.txt" $ convert ("\n" :: String)  --строгая версия
 
-writeResponseJSON :: Log.MonadLog m => LC.ByteString -> m ()
-writeResponseJSON json = do
-    Log.colorTextT Color.Yellow Log.Warning "Запись ответа в файл в целях отладки..."
-    liftIO $ B.writeFile "response.json" $ convert json --строгая версия
-    --liftIO $ B.appendFile "log.txt" $ convert ("\n" :: String)  --строгая версия
+-- writeResponseJSON :: Log.MLog m => LC.ByteString -> m ()
+-- writeResponseJSON json = do
+--     Log.colorTextT Color.Yellow Log.Warning "Запись ответа в файл в целях отладки..."
+--     liftIO $ B.writeFile "response.json" $ convert json --строгая версия
+--     --liftIO $ B.appendFile "log.txt" $ convert ("\n" :: String)  --строгая версия
 
 
 

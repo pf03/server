@@ -21,7 +21,6 @@ import Control.Monad.Identity
 import Select ( p, val )
 import Data.Map as M ((!), fromList)
 import qualified Data.Map as M (insert)
-import Class
 import Control.Monad.Trans.Except
 import Transformer
 import qualified Log

@@ -11,7 +11,7 @@ import Data.Aeson
 import Data.Aeson.Types
 import Data.Text (pack, Text(..))
 import Types (Path)
-import Class
+import Identifiable
 
 data User = User {
     userId :: Int, --snake case for table name

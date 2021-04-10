@@ -13,7 +13,6 @@ import Data.Aeson hiding (encode)
 --import qualified Data.ByteString.Lazy as L
 
 import Types
-import Class
 import qualified Log
 import DB (MT, MDB) 
 import qualified DB
@@ -50,6 +49,7 @@ import qualified Error
 import Error (MError)
 
 import Data.Typeable
+import qualified File
 
 -- можно сделать дополнительно MRequest для монады, которая имеет доступ к запросу, либо сделать ее часть Cache,
 -- сто нелогично, так как Cache меняется, а Request нет. И request нужен не везде, где нужен Cache.
@@ -171,7 +171,7 @@ encode :: MT m => (Typeable a, ToJSON a) => m a -> m LC.ByteString
 encode ta = do
     a <- ta
     json <- if showType a == "()" then encodePretty <$> Cache.getChanged else encodePretty <$> ta
-    writeResponseJSON json
+    File.writeResponseJSON json
     return json
 
 showType :: Typeable a => a -> String

@@ -17,10 +17,10 @@ import Common
 import Data.List
 import Control.Monad.Trans.Except
 import Database.PostgreSQL.Simple
-import Class
 import qualified Data.Map as M
 import qualified Error
 import Error (MError)
+import Identifiable
 
 -- в результирующем json убрать префиксы, и возможно сделать snake_case
 data Post = Post {

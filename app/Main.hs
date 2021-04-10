@@ -9,7 +9,6 @@ import Database.PostgreSQL.Simple.SqlQQ
 import qualified Migrations
 import Types
 import Transformer
-import Class
 import qualified Log
 import System.Environment
 import Control.Concurrent
