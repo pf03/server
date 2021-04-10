@@ -26,8 +26,12 @@ class (Log.MLog m, MIOError m) => MDB m where
 --полный трансформер
 class (MDB m, MCache m) => MT m
 
---Ошибки в этом модуле не должны отдаваться пользователю, а записываться в лог. Пользователю должен отдаваться стандартный текст!!!
+connectDB :: MIOError m => ConnectInfo -> m Connection
+connectDB connectInfo = connect connectInfo `Error.catchEIO` handler where
+    handler :: SqlError -> E
+    handler e = DBError $ "Ошибка соединения с базой данных!"
 
+--Ошибки в этом модуле не должны отдаваться пользователю, а записываться в лог. Пользователю должен отдаваться стандартный текст!!!
 --Для единоообразия во все запросы можно встроить template
 
 query_ :: (MDB m,  Show r, FromRow r) => Query -> m [r]

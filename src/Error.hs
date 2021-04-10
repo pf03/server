@@ -1,7 +1,12 @@
 --importPriority = 70
+
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE UndecidableInstances #-}
 module Error where
 
-import Control.Exception as Exception
+import qualified Control.Exception as Exception (catch)
+import Control.Exception as Exception hiding (throw, catch)
 import Control.Monad.Except
 import Control.Monad.Trans.Except
 import Types  --100
@@ -38,7 +43,7 @@ authErrorDefault = AuthError "Данная функция требует авт�
 authErrorWrong :: E
 authErrorWrong = AuthError "Неверная авторизация"
 
-instance Exception E
+instance Exception.Exception E
 
 --конкретизируем тип ошибки конструктором c
 typeError :: (String -> E) -> ES a  -> EE a
@@ -54,7 +59,7 @@ toE = except . runExcept
 findPosition :: [Char] -> Integer
 findPosition str = error "todo"
 
--------------------------------------------MError------------------------------------------
+-------------------------------------------MError------------------------------
 
 --проверить как MonadFail работает при неудачном сопоставлении с образцом
 --и в случае необходимости переопределить функцию fail
@@ -80,7 +85,7 @@ catchEither eba handler = case eba of
 --catch :: forall e a. Exception e => IO a -> (e -> IO a) -> IO a
 
 
-
+-------------------------------------------MIOError------------------------------
 class (MError m, MonadIO m) => MIOError m
 
 --не проверено, но должно работать
@@ -119,3 +124,9 @@ liftEIO m = do
     otherhandler :: SomeException -> IO (EE a)
     otherhandler e = return . Left . SomeError . show $ e
 
+-------------------------------------------ExceptT E IO------------------------------
+instance MError (ExceptT E IO) where
+    throw = throwE 
+    catch = catchE
+
+instance MIOError (ExceptT E IO)
