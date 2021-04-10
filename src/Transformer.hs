@@ -39,7 +39,7 @@ import qualified Data.Aeson.Encode.Pretty as Aeson
 import DB
 import qualified Error
 import Error -- (MError, MIOError,throw, catch)
-
+import Cache
 import Control.Exception as Exception
 
 -----------------------------INSTANCES-----------------------------------------

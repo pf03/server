@@ -64,11 +64,7 @@ data S = S {
     
 } deriving (Show, Generic)
 
-data Cache = Cache {
-    changed :: Changed,
-    auth :: Auth,
-    params :: ParamsMap Param
-} deriving (Show, Generic)
+
 
 data Config = Config {
     _warp :: ConfigWarp,
@@ -209,17 +205,6 @@ data Action = Check | Execute --flag
 
 -- class MonadError E m => MError2 m
 
-class Monad m => MCache m where
-    getCache :: m Cache
-    setCache :: Cache -> m ()
-
-getsCache :: MCache m => (Cache -> a) -> m a
-getsCache f = f <$> getCache
-
-modifyCache :: MCache m => (Cache -> Cache) -> m ()
-modifyCache f = do
-    cache <- getCache
-    setCache $ f cache 
 
 
 

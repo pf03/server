@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: d5cf4910cb0cce8f3fc65e5fcb780fe214ec1c3faf9ef26a1a501bc70b076242
+-- hash: 97e4acf8d6649ec984e33d289eac1dc5f2128a46655a17b4cf280c380e778e04
 
 name:           server
 version:        0.1.0.0
@@ -44,7 +44,6 @@ library
       Migrations
       Params
       Response
-      Router
       Row
       Select
       State

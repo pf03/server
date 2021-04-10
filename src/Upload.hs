@@ -34,7 +34,6 @@ import Text.Read
 import qualified Params
 import qualified Insert
 import API
-import Router
 import Data.Aeson.Encode.Pretty
 import qualified Delete
 import qualified State as S
@@ -43,7 +42,7 @@ import qualified Network.Wai as Wai
 import Network.Wai.Internal as Wai
 import qualified Data.ByteString as B
 import Data.Map as M ((!))
-import qualified Cache
+import  Cache
 
 --при некорректном запросе с телом ответ с ошибкой не возвращается. При запросе без тела нормально возвращается
 --при запросе get

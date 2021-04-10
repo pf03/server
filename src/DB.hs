@@ -14,7 +14,7 @@ import qualified Log
 import API 
 import Control.Monad.IO.Class
 import Error
-import qualified Cache
+import Cache
 
 --это для postgreSQL, но можно абстрагироваться еще сильнее по типу connection
 -- class Monad m => MDB m where
@@ -29,7 +29,7 @@ class (MDB m, MCache m) => MT m
 connectDB :: MIOError m => ConnectInfo -> m Connection
 connectDB connectInfo = connect connectInfo `Error.catchEIO` handler where
     handler :: SqlError -> E
-    handler e = DBError $ "Ошибка соединения с базой данных!"
+    handler e = DBError "Ошибка соединения с базой данных!"
 
 --Ошибки в этом модуле не должны отдаваться пользователю, а записываться в лог. Пользователю должен отдаваться стандартный текст!!!
 --Для единоообразия во все запросы можно встроить template

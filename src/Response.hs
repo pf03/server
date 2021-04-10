@@ -44,7 +44,6 @@ import qualified Update
 import qualified Delete
 import qualified Insert
 import qualified Cache
-import Router
 import qualified Error
 import Error (MError)
 
@@ -92,7 +91,7 @@ getJSON_ req = do
     Auth.auth req
     auth <- Cache.getAuth
 
-    api@(API apiType queryTypes) <- Log.logM $ router rawPathInfo pathInfo auth
+    api@(API apiType queryTypes) <- Log.logM $ API.router rawPathInfo pathInfo auth
     
     params <- if apiType `elem` [API.Auth, API.Delete, API.Insert, API.Update] 
         then Error.catch (Log.logM $ Params.parseParams qsBody api) $

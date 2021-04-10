@@ -27,7 +27,7 @@ import qualified Error
 import Error (MError)
 --import qualified DB
 import DB --((<<+>>))
-import qualified Cache
+import Cache
 
 --Можно добавить еще пару классов MCache (чистая монада), MDB (грязная)
 ----------------------------------User-----------------------------------------------------------
@@ -283,7 +283,7 @@ cond field param = case param of
     ParamBt (v1,v2) -> return $ template [sql|{0} BETWEEN {1} AND {2}|] [field, val v1, val v2]
     --ParamLike (Str s) -> return $ template [sql|{0} ILIKE '%{1}%'|] [field, q s]
     ParamLike v -> return $ template [sql|{0} = {1}|] [field, val v] --ilike только для строки, для остальных равенство
-    ParamNo -> return $ [sql|TRUE|]  --это только для Select, для других запросов может быть по другому!!!!
+    ParamNo -> return [sql|TRUE|]  --это только для Select, для других запросов может быть по другому!!!!
     ParamNull -> return $ template [sql|{0} = null|] [field] --не проверено
     _ -> Error.throw $ DevError $ template "Неверный шаблон параметра {0} в функции cond" [show param]
 

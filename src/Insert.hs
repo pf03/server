@@ -34,7 +34,7 @@ import           Select                           (authUserIdParam, cond, p, val
 import qualified State                            as S
 import           Transformer
 import           Types
-import qualified Cache
+import           Cache
 
 ----------------------------------User-----------------------------------------
 user :: MT m => m ()
@@ -64,7 +64,7 @@ author = do
         [row params ["user_id", "description"]]
 
 ----------------------------------Category-------------------------------------
--- * нельзя вставить категорию с нeсуществующим родителем, но можно вставить
+-- * Нельзя вставить категорию с нeсуществующим родителем, но можно вставить
 -- категорию без родителя, "parent_id" - необязаельный параметр
 category :: MT m => m ()
 category = do

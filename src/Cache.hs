@@ -7,7 +7,30 @@ import qualified Data.Map as M
 import API
 import Data.Int
 import Data.Char
+-----------------------------TYPES---------------------------------------------
+--сомнительное решение--!!! Тогда все типы кеша нужно перенести сюда!!
+--то есть, если мы хотим внести в проект MCache, то нужно скопировать этот модуль, он как бы корневой??
+data Cache = Cache {
+    changed :: Changed,
+    auth :: Auth,
+    params :: ParamsMap Param
+} deriving (Show, Generic)
 
+
+-----------------------------MCACHE--------------------------------------------
+class Monad m => MCache m where
+    getCache :: m Cache
+    setCache :: Cache -> m ()
+
+getsCache :: MCache m => (Cache -> a) -> m a
+getsCache f = f <$> getCache
+
+modifyCache :: MCache m => (Cache -> Cache) -> m ()
+modifyCache f = do
+    cache <- getCache
+    setCache $ f cache 
+
+-----------------------------Getters&Setters-----------------------------------
 addChanged :: MCache m => QueryType -> APIType -> Int64 -> m ()
 addChanged _ _ n |n <= 0 = return ();
 addChanged _ (Id _) _ = return ();
@@ -31,7 +54,6 @@ addChanged qt at n = do
     queryType Delete = "deleted"
     queryType Upload = "uploaded"
 
-
 getChanged :: MCache m => m Changed 
 getChanged = getsCache changed
 
@@ -49,7 +71,6 @@ modifyParams f = do
     params <- getParams
     setParams $ f params
     getParams
-
 
 getParam :: MCache m => BSName -> m Param
 getParam name = getsCache (\st -> params st ! name)
