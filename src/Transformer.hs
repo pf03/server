@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE InstanceSigs #-}
 module Transformer  where
 --mtl
 import Control.Monad.State.Lazy
@@ -9,7 +10,7 @@ import Control.Monad.Except
 import Control.Monad.Trans.Except
 import Control.Monad.Reader
 import Data.Maybe
-import qualified State as S
+import State as S
 
 import qualified System.Console.ANSI as Color
 
@@ -42,8 +43,9 @@ import Error -- (MError, MIOError,throw, catch)
 import Cache
 import Control.Exception as Exception
 
------------------------------INSTANCES-----------------------------------------
--- | Трансформер со всеми интерфейсами
+-- | Данный модуль реализует класс типов MT (и остальные классы) с помощью трансформера T
+
+-----------------------------Instances-----------------------------------------
 
 instance Log.MLog T where 
   getSettings = S.getLogSettings
@@ -51,14 +53,14 @@ instance Log.MLog T where
   getConfig = S.getLogConfig
 
 instance MError T where
-    throw = throwT
-    catch = catchT
+    -- throw = throwT
+    -- catch = catchT where
 
-throwT :: E -> T a
-throwT e  = toT (throwE e::Except E a)
+    throw :: E -> T a
+    throw e  = toT (throwE e::Except E a)
 
-catchT :: T a -> (E -> T a) -> T a
-catchT ta f  = StateT $ \s -> catchE (runStateT ta s) $ \e -> runStateT (f e) s
+    catch :: T a -> (E -> T a) -> T a
+    catch ta f  = StateT $ \s -> catchE (runStateT ta s) $ \e -> runStateT (f e) s
     
 instance MIOError T
 

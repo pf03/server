@@ -17,33 +17,57 @@ import API
 import qualified Data.Map as M
 import qualified Error
 import Error (MError)
+import Cache
+
+-----------------------------Types---------------------------------------------
+data Templ = Eq | In | All | Lt | Gt | Bt | Like  deriving (Show, Eq)
+
+data ParamType = ParamTypePage 
+    | ParamTypeStr 
+    | ParamTypeInt 
+    | ParamTypeDate 
+    | ParamTypeSort  [BSName] 
+    | ParamTypeFileName [BSName] deriving Show
+
+data ParamDesc = ParamDesc {
+    templs :: [Templ],
+    paramType :: ParamType,
+    must :: Bool,
+    nullable :: Bool
+}
+
+--type BSName = BS    --created_at --Cache.hs
+type BSKey = BS     --created_at__lt
+type BSValue = BS   --"2021-01-01"
+type BSTempl = BS   --"__lt"
+
+
+-----------------------------GLOBAL CONSTANTS, used in other functions-----------------------------------------------------
 
 --Any означает отсутствие параметра
 --Eq отсутствие суффикса
-
------------------------------GLOBAL CONSTANTS, used in other functions-----------------------------------------------------
 templates :: [(Templ, BSTempl)]
 templates = [(Eq ,""), (In, "__in"), (All, "__all"), (Lt, "__lt"), (Gt, "__gt"), (Bt, "__bt"), (Like, "__like")]
 
 
 --возможно перенести в роутер???
-possibleParamDescs :: API.API -> ParamsMap ParamDesc
-possibleParamDescs (API.API queryType apiType) = M.fromList list where
+possibleParamDescs :: API -> ParamsMap ParamDesc
+possibleParamDescs (API queryType apiType) = M.fromList list where
     param a b c d = (a, ParamDesc b c d False)
     paramNull a b c d = (a, ParamDesc b c d True)
     list = case queryType of
-        API.Auth -> [
+        Auth -> [
                 param "login" [Eq] ParamTypeStr True,
                 param "pass" [Eq] ParamTypeStr True
                 ]
 
-        API.Upload -> case apiType of 
-            [API.Photo] -> [
+        Upload -> case apiType of 
+            [Photo] -> [
                 param "name" [Eq]  (ParamTypeFileName ["jpg", "png", "bmp"]) True
                 ]
 
-        API.Select -> case apiType of 
-            [API.Post] -> map ($ False) [
+        Select -> case apiType of 
+            [Post] -> map ($ False) [
                 param "created_at" [Eq, Lt, Gt, Bt] ParamTypeDate,
                 param "author_name" [Eq, Like] ParamTypeStr,
                 param "category_id" [Eq, In] ParamTypeInt,
@@ -55,11 +79,11 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
                 param "page" [Eq] ParamTypePage
                 ]
             _ -> map ($ False) [param "page" [Eq] ParamTypePage] --в тз про фильтры для других функций кроме posts ничего не сказано
-        API.SelectById -> []
-        API.Delete -> []
+        SelectById -> []
+        Delete -> []
 
-        API.Insert -> case apiType of 
-            [API.User] -> [
+        Insert -> case apiType of 
+            [User] -> [
                 --В каком формате нужно хранить и отдавать картинки (аватарки пользователей, фотографии к новостям)?
                 --Просто URL до картинки. URL должен вести до твоего сервера, по запросу на этот URL сама картинка должна возвращаться
                 param "last_name" [Eq] ParamTypeStr True,
@@ -68,19 +92,19 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
                 param "login" [Eq] ParamTypeStr True,
                 param "pass" [Eq] ParamTypeStr True
                 ]
-            [API.Author] -> [
+            [Author] -> [
                 param "user_id" [Eq] ParamTypeInt True,
                 param "description" [Eq] ParamTypeStr True
                 ]
             -- parent_id нельзя редактировать, чтобы не возникло циклических категорий. Можно только удалить категорию и создать заново
             --хотя удалить категорию тоже не всегда можно из-за связанных сущностей. Поэтому лучше сделать проверку на цикличность
-            [API.Category] -> [
+            [Category] -> [
                 param "parent_id" [Eq] ParamTypeInt False,
                 param "category_name" [Eq] ParamTypeStr True
                 ]
-            [API.Tag] -> [param "name" [Eq] ParamTypeStr True]
+            [Tag] -> [param "name" [Eq] ParamTypeStr True]
             --тут еще добавить список тегов!!!
-            [API.Draft] -> [
+            [Draft] -> [
                 param "name" [Eq] ParamTypeStr True,
                 param "category_id" [Eq] ParamTypeInt True,
                 param "text" [Eq] ParamTypeStr True,
@@ -90,16 +114,16 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
                 param "tag_id" [All] ParamTypeInt True,
                 param "photos" [All] ParamTypeStr True --отличаем от главного фото
                 ]
-            [API.Draft, Id n, Post] -> [] --publish
-            [API.Post] -> [] --[param "draft_id" [Eq] ParamTypeInt True] --draft_id уже в роутере
-            [API.Post, Id n, API.Comment] -> [
+            [Draft, Id n, Post] -> [] --publish
+            [Post] -> [] --[param "draft_id" [Eq] ParamTypeInt True] --draft_id уже в роутере
+            [Post, Id n, Comment] -> [
                 --param "user_id" [Eq] ParamTypeInt True,  --это из авторизации
                 --param "creation_date" [Eq] ParamTypeDate True,   --дата берется на серваке
                 param "text" [Eq] ParamTypeStr True
                 ]
         --дополнительное требование - хотя бы один из параметров присутствует для update (checkParams)
-        API.Update -> case apiType of 
-            API.User:xs -> [
+        Update -> case apiType of 
+            User:xs -> [
                 --В каком формате нужно хранить и отдавать картинки (аватарки пользователей, фотографии к новостям)?
                 --Просто URL до картинки. URL должен вести до твоего сервера, по запросу на этот URL сама картинка должна возвращаться
                 param "last_name" [Eq] ParamTypeStr False,
@@ -107,17 +131,17 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
                 param "avatar" [Eq] ParamTypeStr False,  --потом подумать над загрузкой фото
                 param "pass" [Eq] ParamTypeStr False
                 ]
-            API.Author:xs -> [
+            Author:xs -> [
                 param "user_id" [Eq] ParamTypeInt False,
                 param "description" [Eq] ParamTypeStr False
                 ]
-            API.Category:xs -> [
+            Category:xs -> [
                 paramNull "parent_id" [Eq] ParamTypeInt False,
                 param "category_name" [Eq] ParamTypeStr False
                 ]
-            API.Tag:xs -> [param "name" [Eq] ParamTypeStr False]
+            Tag:xs -> [param "name" [Eq] ParamTypeStr False]
             --тут еще добавить список тегов!!!
-            API.Draft:xs -> [
+            Draft:xs -> [
                 --param "author_id" [Eq] ParamTypeInt False, --не редактируется
                 param "name" [Eq] ParamTypeStr False,
                 param "category_id" [Eq] ParamTypeInt False,
@@ -127,11 +151,11 @@ possibleParamDescs (API.API queryType apiType) = M.fromList list where
                 param "tag_id" [All] ParamTypeInt False,
                 param "photos" [All] ParamTypeStr False --отличаем от главного фото
                 ]
-            [API.Post, Id _, API.Comment] -> [
+            [Post, Id _, Comment] -> [
                 param "user_id" [Eq] ParamTypeInt False,
                 param "text" [Eq] ParamTypeStr False
                 ]
-            [API.Post, Id _] -> [
+            [Post, Id _] -> [
                 --param "author_id" [Eq] ParamTypeInt False,
                 param "name" [Eq] ParamTypeStr True,  --для создания нового контента эти параметры обязательны. Фронтенд может взять их из оригинального поста
                 param "category_id" [Eq] ParamTypeInt True,
@@ -150,14 +174,14 @@ concatParams = concat . M.mapWithKey possibleParams
 
 --------------------------------------------PARSE PARAMS WITH ERRORS HANDLING------------------------------------------------------------------
 
-parseParams :: MError m => Query -> API.API -> m (ParamsMap Param)
+parseParams :: MError m => Query -> API -> m (ParamsMap Param)
 parseParams qs api = do
     let paramDescs = possibleParamDescs api
     let names = M.keys paramDescs
     checkParams qs api paramDescs
     forMapWithKeyM paramDescs $ parseParam qs
 
-checkParams :: MError m => Query -> API.API -> ParamsMap ParamDesc -> m ()
+checkParams :: MError m => Query -> API -> ParamsMap ParamDesc -> m ()
 checkParams qs api paramDesc  = do 
     --Update должен иметь хотя бы один параметр, иначе не имеет смысла
     case api of

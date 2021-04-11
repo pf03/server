@@ -8,10 +8,9 @@ import           Error           (MError)
 import qualified Error
 import           Text.Read
 import           Types
+import           Cache
 
-data API = API QueryType [APIType] deriving (Show)
-data QueryType = Select | SelectById | Insert | Update | Delete | Upload | Auth deriving (Show, Read, Eq)
-data APIType = Post | User | Author | Category | Tag | Draft | Comment | Photo | Content | Id Int deriving (Show, Read, Eq)
+
 
 -- * Роутер проверяет только роли, иногда id, НО роутер не использует БД (у него даже нет доступа к соединению)
 -- Использование БД в компетенции API-функций.

@@ -47,6 +47,8 @@ import qualified Cache
 import qualified Error
 import Error (MError)
 
+import Cache
+
 import Data.Typeable
 import qualified File
 
@@ -91,9 +93,9 @@ getJSON_ req = do
     Auth.auth req
     auth <- Cache.getAuth
 
-    api@(API apiType queryTypes) <- Log.logM $ API.router rawPathInfo pathInfo auth
+    api@(API apiType queryTypes) <- Log.logM $ router rawPathInfo pathInfo auth
     
-    params <- if apiType `elem` [API.Auth, API.Delete, API.Insert, API.Update] 
+    params <- if apiType `elem` [Auth, Delete, Insert, Update] 
         then Error.catch (Log.logM $ Params.parseParams qsBody api) $
             \(RequestError e) -> Error.throw $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в теле запроса методом x-www-form-urlencoded" [e] 
         else Error.catch (Log.logM $ Params.parseParams qs api) $
@@ -111,7 +113,7 @@ getJSONTest rawPathInfo pathInfo qs qsBody headers = do
     Auth.auth req
     auth <- Cache.getAuth
     api@(API apiType queryTypes) <- Log.logM $ router rawPathInfo pathInfo auth
-    params <- if apiType `elem` [API.Auth, API.Delete, API.Insert, API.Update] 
+    params <- if apiType `elem` [Auth, Delete, Insert, Update] 
         then Error.catch (Log.logM $ Params.parseParams qsBody api) $
             \(RequestError e) -> Error.throw $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в теле запроса методом x-www-form-urlencoded" [e] 
         else Error.catch (Log.logM $ Params.parseParams qs api) $
@@ -123,48 +125,48 @@ getJSON :: MT m => API -> Request -> m LC.ByteString
 getJSON api req = case api of
     API Auth [] -> encode Auth.login
 
-    API Upload [API.Photo] -> encode $ Upload.photo req
+    API Upload [Photo] -> encode $ Upload.photo req
 
     --апи, которые не возвращают количество измененных строк
     --может publish сделать отдельным querytype?
-    API Insert [API.User] -> encode Insert.user
-    API Insert [API.Author] -> encode Insert.author
-    API Insert [API.Category] -> encode Insert.category
-    API Insert [API.Tag] -> encode Insert.tag
-    API Insert [API.Draft] -> encode Insert.draft
-    API Insert [API.Draft, Id n, API.Post] -> encode $ Insert.publish n
-    API Insert [API.Post, Id n, API.Comment] -> encode $ Insert.comment n
+    API Insert [User] -> encode Insert.user
+    API Insert [Author] -> encode Insert.author
+    API Insert [Category] -> encode Insert.category
+    API Insert [Tag] -> encode Insert.tag
+    API Insert [Draft] -> encode Insert.draft
+    API Insert [Draft, Id n, Post] -> encode $ Insert.publish n
+    API Insert [Post, Id n, Comment] -> encode $ Insert.comment n
 
-    API Update [API.User, Id n] -> encode $ Update.user n
-    API Update [API.Author, Id n] -> encode $ Update.author n
-    API Update [API.Category, Id n] -> encode $ Response.updateCategory n
-    API Update [API.Tag, Id n] -> encode $ Update.tag n
-    API Update [API.Draft, Id n] -> encode $ Update.draft n
-    API Update [API.Post, Id n] -> encode $ Update.post n
+    API Update [User, Id n] -> encode $ Update.user n
+    API Update [Author, Id n] -> encode $ Update.author n
+    API Update [Category, Id n] -> encode $ Response.updateCategory n
+    API Update [Tag, Id n] -> encode $ Update.tag n
+    API Update [Draft, Id n] -> encode $ Update.draft n
+    API Update [Post, Id n] -> encode $ Update.post n
 
-    API Delete [API.User, Id n] -> encode $ Delete.user n
-    API Delete [API.Author, Id n] -> encode $ Delete.author n
-    API Delete [API.Category, Id n] -> encode $ Delete.category n
-    API Delete [API.Tag, Id n] -> encode $ Delete.tag n
-    API Delete [API.Post, Id n] -> encode $ Delete.post n
-    API Delete [API.Draft, Id n] -> encode $ Delete.draft n
-    API Delete [API.Comment, Id n] -> encode $ Delete.comment n
+    API Delete [User, Id n] -> encode $ Delete.user n
+    API Delete [Author, Id n] -> encode $ Delete.author n
+    API Delete [Category, Id n] -> encode $ Delete.category n
+    API Delete [Tag, Id n] -> encode $ Delete.tag n
+    API Delete [Post, Id n] -> encode $ Delete.post n
+    API Delete [Draft, Id n] -> encode $ Delete.draft n
+    API Delete [Comment, Id n] -> encode $ Delete.comment n
 
     --апи, которые возвращают результат
-    API Select [API.User] -> encode Select.users
-    API Select [API.Author] -> encode $ evalAuthors <$> Select.authors
-    API Select [API.Category] -> encode Response.getCategories
-    API Select [API.Tag] -> encode Select.tags
-    API Select [API.Post] -> encode Response.getPosts
-    API Select [API.Draft] -> encode Response.getDrafts
-    API Select [API.Post, Id n, API.Comment] -> encode $ evalComments <$> Select.comments n
+    API Select [User] -> encode Select.users
+    API Select [Author] -> encode $ evalAuthors <$> Select.authors
+    API Select [Category] -> encode Response.getCategories
+    API Select [Tag] -> encode Select.tags
+    API Select [Post] -> encode Response.getPosts
+    API Select [Draft] -> encode Response.getDrafts
+    API Select [Post, Id n, Comment] -> encode $ evalComments <$> Select.comments n
 
-    API SelectById [API.User, Id n] -> encode $ Select.user n
-    API SelectById [API.Author, Id n] -> encode $ (evalAuthor <$>) <$> Select.author n
-    API SelectById [API.Category, Id n] -> encode $ Response.getCategory n
-    API SelectById [API.Tag, Id n] -> encode $ Select.tag n
-    API SelectById [API.Post, Id n] -> encode $ Response.getPost n
-    API SelectById [API.Draft, Id n] -> encode $ Response.getDraft n
+    API SelectById [User, Id n] -> encode $ Select.user n
+    API SelectById [Author, Id n] -> encode $ (evalAuthor <$>) <$> Select.author n
+    API SelectById [Category, Id n] -> encode $ Response.getCategory n
+    API SelectById [Tag, Id n] -> encode $ Select.tag n
+    API SelectById [Post, Id n] -> encode $ Response.getPost n
+    API SelectById [Draft, Id n] -> encode $ Response.getDraft n
 
 encode :: MT m => (Typeable a, ToJSON a) => m a -> m LC.ByteString
 encode ta = do

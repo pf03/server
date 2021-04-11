@@ -27,7 +27,7 @@ import qualified State as S
 import Select
 import Update
 import Error
-import qualified Cache
+import Cache
 
 -- | Удаление 4 типов
 -- 1. Удаленная сущность заменяется на значение по умолчанию. Используется для users и authors

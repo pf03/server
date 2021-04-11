@@ -43,26 +43,12 @@ data E = ParseError String | RequestError String | ConfigError String | DBError 
 type ES = Either String
 type EE = Either E
 
-----------------------------------------Transformer------------------------------------------------
---основной трансформер, контейнер с одним параметром
-type T = StateT S (ExceptT E IO)
 
 ------------------------------------Config---------------------------------------------------------
 
 --в случае разветвления логики сделать отдельный конфиг для каждого приложения
 --состояние приложения, используется в трансформере, Reader
-data S = S {
-    configWarp :: ConfigWarp,
-    -- configDB :: ConnectInfo,
-    connectionDB :: Connection,
-    configLog :: Log.ConfigLog,
-    logSettings :: Log.LogSettings,
-    -- changed :: Changed,
-    -- auth :: Auth,
-    -- params :: ParamsMap Param,
-    cache :: Cache
-    
-} deriving (Show, Generic)
+
 
 
 
@@ -143,67 +129,25 @@ type FuncName = String
 
 
 --новая версия
-data Templ = Eq | In | All | Lt | Gt | Bt | Like  deriving (Show, Eq)  
-data Param = ParamEq {paramEq :: Val} | ParamIn [Val] | ParamAll [Val] | ParamLt Val | ParamGt Val | ParamBt (Val, Val) | ParamLike Val | ParamNull | ParamNo   deriving (Show, Eq)
-data Val = Str { valStr :: String} | Int { valInt :: Int} | Date { valDate :: Date} deriving (Show, Eq)
---data Val = Str {getStr :: String} | Int {getInt :: Int} | Date {getDate :: Date} deriving Show
 
-data ParamType = ParamTypePage | ParamTypeStr | ParamTypeInt | ParamTypeDate | ParamTypeSort  [BSName] | ParamTypeFileName [BSName] deriving Show
---data Order a = OrderEq a | OrderLT a | OrderGT a | OrderAny
 
-type BS = BC.ByteString
-type BSName = BS  --created_at
-type BSKey = BS --created_at__lt
-type BSValue = BS --"2021-01-01"
-type BSTempl = BS --"__lt"
-type ParamsMap = M.Map BSName
---type ParamDesc = [(BSName, [Templ], ParamType)]
---type ParamDesc2 = [(BSName, [Templ], ParamType, Bool)] --последнее - обязательность --использовать адт здесь       
 
---это потом тоже под мап переделаем
--- data ParamDesc = ParamDesc {
---     bsname :: BSName,
---     templs :: [Templ],
---     paramType :: ParamType,
---     must :: Bool
--- } 
 
-data ParamDesc = ParamDesc {
-    templs :: [Templ],
-    paramType :: ParamType,
-    must :: Bool,
-    nullable :: Bool
-}      
-type APIName = String
 
-data Auth = AuthNo | AuthUser Int | AuthAdmin Int deriving (Show, Eq)
+
+
+--type APIName = String
+
+
 
 -- type Modified = M.Map String Int64 
 --newtype Changed = Changed {fromChanged :: M.Map String (M.Map String Int64) } deriving (Show, Generic)
-newtype Changed = Changed  (M.Map String (M.Map String Int64))  deriving (Show, Generic)
 
-instance ToJSON Changed
+
+
 
 data Action = Check | Execute --flag
 
-
---tagless final 
-
-
---это уже есть
-
-
-
-
--- Эту функцию не обязательно определять для класса, так как она предполагает разрушение монады. 
--- То есть зависит от конкретной реализации монады
--- runME :: Monad m => m a -> Either E a
--- runME m = do
---     catchM _
---         $ \e -> do
---         return $ undefined
-
--- class MonadError E m => MError2 m
 
 
 

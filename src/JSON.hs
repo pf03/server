@@ -21,6 +21,7 @@ import qualified Data.Map as M
 import qualified Error
 import Error (MError)
 import Identifiable
+import Cache
 
 -- в результирующем json убрать префиксы, и возможно сделать snake_case
 data Post = Post {
@@ -117,10 +118,10 @@ _evalCategory  childs rcs categoryId = do
             Nothing -> Error.throw . DBError $ template "Отсутствует категория {0}" [show categoryId]
             Just (Row.Category categoryId mparentId name) -> do
                 case mparentId of
-                    Nothing -> return $ Category categoryId Nothing name  
+                    Nothing -> return $ JSON.Category categoryId Nothing name  
                     Just parentId -> do
                         parentCategory <- _evalCategory (categoryId:childs) rcs parentId 
-                        return $ Category categoryId (Just parentCategory) name 
+                        return $ JSON.Category categoryId (Just parentCategory) name 
 
 --не учтен вариант корневой категории в params
 --категория не должна быть своим же родителем
@@ -220,19 +221,19 @@ maybeToList (Just a) = [a]
 ----------TURN--------------
 --turn from 'row' types to 'json' types
 turnContent ::  Row.Content -> Author -> Category -> [Tag] -> [Photo] -> Content
-turnContent (Row.Content a _ c d _ f g) author category = Content a author c d category f g --tags photos
+turnContent (Row.Content a _ c d _ f g) author category = JSON.Content a author c d category f g --tags photos
 
 turnAuthor :: Row.Author -> User -> Author
-turnAuthor (Row.Author a _ c) user = Author a user c 
+turnAuthor (Row.Author a _ c) user = JSON.Author a user c 
 
 turnComment :: Row.Comment -> User -> Comment
-turnComment (Row.Comment a _ _ d e) user = Comment a user d e
+turnComment (Row.Comment a _ _ d e) user = JSON.Comment a user d e
 
 turnPost :: Row.Post -> Content -> Post
-turnPost (Row.Post a _) = Post a --content
+turnPost (Row.Post a _) = JSON.Post a --content
 
 turnDraft :: Row.Draft -> Content -> Draft
-turnDraft (Row.Draft a _ c) content = Draft a content c
+turnDraft (Row.Draft a _ c) content = JSON.Draft a content c
 
 ---------GET-------------------
 getPostTags :: Post -> [Tag]

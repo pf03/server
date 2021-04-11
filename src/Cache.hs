@@ -1,23 +1,61 @@
+{-# LANGUAGE DeriveGeneric #-}
+
 module Cache where
 
-import Types 
+--import Types 
 --import qualified Data.Map.Internal as M
 import Data.Map as M ((!))
 import qualified Data.Map as M 
-import API
 import Data.Int
 import Data.Char
------------------------------TYPES---------------------------------------------
---сомнительное решение--!!! Тогда все типы кеша нужно перенести сюда!!
---то есть, если мы хотим внести в проект MCache, то нужно скопировать этот модуль, он как бы корневой??
+import Data.Aeson
+import GHC.Generics
+import Data.ByteString.Char8 as BC (ByteString)
+import Database.PostgreSQL.Simple.Time
+
+-- | Данный модуль реализует класс типов MCache для работы с состоянием в чистом коде.
+-- А также соответствующие типы и функции для работы с Cache 
+
+-----------------------------Types---------------------------------------------
 data Cache = Cache {
     changed :: Changed,
     auth :: Auth,
     params :: ParamsMap Param
 } deriving (Show, Generic)
 
+--Changed--
+newtype Changed = Changed  (M.Map String (M.Map String Int64))  deriving (Show, Generic)
+instance ToJSON Changed
 
------------------------------MCACHE--------------------------------------------
+--Auth--
+data Auth = AuthNo | AuthUser Int | AuthAdmin Int deriving (Show, Eq)
+
+--Params--
+
+type ParamsMap = M.Map BSName
+
+data Param = ParamEq {paramEq :: Val} 
+    | ParamIn [Val] 
+    | ParamAll [Val] 
+    | ParamLt Val 
+    | ParamGt Val 
+    | ParamBt (Val, Val) 
+    | ParamLike Val 
+    | ParamNull 
+    | ParamNo   deriving (Show, Eq)
+
+data Val = Str { valStr :: String} | Int { valInt :: Int} | Date { valDate :: Date} deriving (Show, Eq)
+
+type BSName = BS    --created_at
+type BS = ByteString
+
+--API--
+data API = API QueryType [APIType] deriving (Show)
+data QueryType = Select | SelectById | Insert | Update | Delete | Upload | Auth deriving (Show, Read, Eq)
+data APIType = Post | User | Author | Category | Tag | Draft | Comment | Photo | Content | Id Int deriving (Show, Read, Eq)
+
+
+-----------------------------Class---------------------------------------------
 class Monad m => MCache m where
     getCache :: m Cache
     setCache :: Cache -> m ()

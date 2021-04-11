@@ -9,7 +9,7 @@ import Control.Monad.Reader
 import Control.Monad.State.Lazy
 import qualified Log
 import Types
-import qualified State as S
+import State as S
 import Control.Exception
 import qualified Error
 import Database.PostgreSQL.Simple
