@@ -12,7 +12,6 @@ import Data.Aeson hiding (encode)
 
 --import qualified Data.ByteString.Lazy as L
 
-import Types
 import qualified Log
 import DB (MT, MDB) 
 import qualified DB
@@ -35,7 +34,7 @@ import qualified API
 import qualified Params
 import qualified State as S
 import API
-import JSON
+import qualified JSON
 import qualified Network.HTTP.Types.URI as HTTP
 import qualified Upload
 import qualified Auth
@@ -45,7 +44,7 @@ import qualified Delete
 import qualified Insert
 import qualified Cache
 import qualified Error
-import Error (MError)
+import Error --(MError)
 
 import Cache
 
@@ -154,15 +153,15 @@ getJSON api req = case api of
 
     --апи, которые возвращают результат
     API Select [User] -> encode Select.users
-    API Select [Author] -> encode $ evalAuthors <$> Select.authors
+    API Select [Author] -> encode $ JSON.evalAuthors <$> Select.authors
     API Select [Category] -> encode Response.getCategories
     API Select [Tag] -> encode Select.tags
     API Select [Post] -> encode Response.getPosts
     API Select [Draft] -> encode Response.getDrafts
-    API Select [Post, Id n, Comment] -> encode $ evalComments <$> Select.comments n
+    API Select [Post, Id n, Comment] -> encode $ JSON.evalComments <$> Select.comments n
 
     API SelectById [User, Id n] -> encode $ Select.user n
-    API SelectById [Author, Id n] -> encode $ (evalAuthor <$>) <$> Select.author n
+    API SelectById [Author, Id n] -> encode $ (JSON.evalAuthor <$>) <$> Select.author n
     API SelectById [Category, Id n] -> encode $ Response.getCategory n
     API SelectById [Tag, Id n] -> encode $ Select.tag n
     API SelectById [Post, Id n] -> encode $ Response.getPost n
@@ -178,27 +177,27 @@ encode ta = do
 showType :: Typeable a => a -> String
 showType = show . typeOf
 
-getPosts :: MT m => m [Post]
+getPosts :: MT m => m [JSON.Post]
 getPosts = do
     --эта строка первая, чтобы не перезаписывать настройки лога
     categories <- Response.getAllCategories
     Log.setSettings Color.Blue True "Response.getPosts" 
     Log.funcT Log.Debug "..."
-    Cache.modifyParams $ evalParams categories
+    Cache.modifyParams $ JSON.evalParams categories
     selectPosts <- Select.posts
     JSON.evalPosts categories selectPosts
 
-getDrafts :: MT m => m [Draft]
+getDrafts :: MT m => m [JSON.Draft]
 getDrafts = do
     --эта строка первая, чтобы не перезаписывать настройки лога
     categories <- Response.getAllCategories
     Log.setSettings Color.Blue True "Response.getDrafts" 
     Log.funcT Log.Debug "..."
-    Cache.modifyParams $ evalParams categories
+    Cache.modifyParams $ JSON.evalParams categories
     selectDrafts <- Select.drafts
     JSON.evalDrafts categories selectDrafts
 
-getPost :: MT m => Int -> m (Maybe Post)
+getPost :: MT m => Int -> m (Maybe JSON.Post)
 getPost pid = do
     --эта строка первая, чтобы не перезаписывать настройки лога
     categories <- Response.getAllCategories
@@ -208,7 +207,7 @@ getPost pid = do
     jsonPosts <- JSON.evalPosts categories selectPosts
     return $ listToMaybe jsonPosts --проверить как это работает. evalUnitedPosts должно объединять все в один пост
 
-getDraft :: MT m => Int -> m (Maybe Draft)
+getDraft :: MT m => Int -> m (Maybe JSON.Draft)
 getDraft pid = do
     --эта строка первая, чтобы не перезаписывать настройки лога
     categories <- Response.getAllCategories
@@ -218,20 +217,20 @@ getDraft pid = do
     jsonDrafts <- JSON.evalDrafts categories selectDrafts
     return $ listToMaybe jsonDrafts --проверить как это работает. evalUnitedDrafts должно объединять все в один пост
 
-getAllCategories :: MT m => m [Category]
+getAllCategories :: MT m => m [JSON.Category]
 getAllCategories = do
     Log.setSettings Color.Blue True "Response.getAllCategories"
     Log.funcT Log.Debug "..."
     allCategories <- Select.allCategories
-    evalCategories allCategories allCategories
+    JSON.evalCategories allCategories allCategories
 
-getCategories :: MT m => m [Category]
+getCategories :: MT m => m [JSON.Category]
 getCategories = do
     Log.setSettings Color.Blue True "Response.getCategories"
     Log.funcT Log.Debug "..."
     allCategories <- Select.allCategories
     categories <- Select.categories
-    evalCategories allCategories categories
+    JSON.evalCategories allCategories categories
 
 updateCategory :: MT m => Int -> m () 
 updateCategory pid = do 
@@ -239,14 +238,14 @@ updateCategory pid = do
     Log.setSettings Color.Blue True "Response.updateCategory"
     Log.funcT Log.Debug "..."
     allCategories <- Select.allCategories
-    checkCyclicCategory pid params allCategories
+    JSON.checkCyclicCategory pid params allCategories
     Update.category pid
 
 --эту логику перенести в select??
-getCategory :: MT m => Int -> m (Maybe Category)
+getCategory :: MT m => Int -> m (Maybe JSON.Category)
 getCategory pid = do
     Log.setSettings Color.Blue True "Response.getCategory"
     Log.funcT Log.Debug "..."
     allCats <- Select.allCategories
     mcat <- Select.category pid
-    sequenceA $ evalCategory allCats <$> mcat
+    sequenceA $ JSON.evalCategory allCats <$> mcat

@@ -3,7 +3,6 @@
 -- {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DeriveGeneric #-}
 module State where
-import Types 
 import Data.Map as M ((!))
 import qualified Data.Map as M 
 import qualified Log 
@@ -14,6 +13,8 @@ import Data.Char
 import Cache
 import GHC.Generics hiding (S)
 import Control.Monad.Except
+import Error
+import Config
 
 -- | Данный модуль формирует State для одной из реализаций класса типов MT 
 -- (и остальных классов) - трансформера T

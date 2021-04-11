@@ -8,7 +8,6 @@ import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State.Lazy
 import qualified Log
-import Types
 import State as S
 import Control.Exception
 import qualified Error
@@ -17,6 +16,7 @@ import Database.PostgreSQL.Simple
 import qualified Data.Text.Encoding as T
 import qualified Data.Text as T
 import Control.Monad.Identity
+import Error (E, EE)
 --этот модуль практически становится ненужным по мере перехода на классы типов
 ----------------------------------ToTransformer--------------------------------------------
 --подъем до основного трасформера
@@ -47,15 +47,15 @@ instance ToTransformer Identity where
 instance ToTransformer IO where
     toT m = toT $ ExceptT $ Error.toEE m `catch` iohandler `catch` sqlhandler `catch` otherhandler where
         iohandler :: IOException -> IO (EE a)
-        iohandler e = return . Left  . IOError . show $ e 
+        iohandler e = return . Left  . Error.IOError . show $ e 
         sqlhandler :: SqlError -> IO (EE a)
         sqlhandler e = do
             --return . Left . DBError . show $ e --wrong encoding
             --return . Left . DBError . BC.unpack . sqlErrorMsg $ e --not working
-            return . Left . DBError . T.unpack . T.decodeUtf8 . sqlErrorMsg $ e
+            return . Left . Error.DBError . T.unpack . T.decodeUtf8 . sqlErrorMsg $ e
             
         otherhandler :: SomeException -> IO (EE a)
-        otherhandler e = return . Left . SomeError . show $ e
+        otherhandler e = return . Left . Error.SomeError . show $ e
 
 --toT++log -- в логах есть аналог logM
 -- logT :: (ToTransformer m, Show a)  => m a -> T a 

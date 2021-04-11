@@ -11,7 +11,6 @@ import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Lazy.Char8 as LC
 import Control.Exception as Exception
 import qualified Data.Aeson.Encode.Pretty as Aeson
-import Types
 import Common
 import System.IO.Error
 import Control.Monad.IO.Class

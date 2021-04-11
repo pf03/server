@@ -3,7 +3,6 @@ module Auth where
 import           Data.Aeson
 import           GHC.Generics
 import qualified Row
-import           Types
 import           Common
 import           DB
 import qualified Data.ByteString                  as B

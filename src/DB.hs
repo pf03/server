@@ -1,7 +1,6 @@
 module DB --(Query.query_,)
 where
 import Database.PostgreSQL.Simple as SQL
-import Types
 import qualified State as S
 import Data.Int
 import qualified Data.ByteString as B

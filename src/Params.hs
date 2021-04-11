@@ -3,7 +3,6 @@ import Control.Monad.Identity
 import Network.HTTP.Types.URI
 import Data.ByteString.Char8 as BC (ByteString, unpack)
 import qualified Data.ByteString as B
-import Types
 import Database.PostgreSQL.Simple.Time
 import qualified Data.Text.Encoding as T
 import qualified Data.Text as T
@@ -15,8 +14,8 @@ import Text.Read
 import Data.List
 import API
 import qualified Data.Map as M
-import qualified Error
-import Error (MError)
+--import qualified Error
+import Error --(MError)
 import Cache
 
 -----------------------------Types---------------------------------------------

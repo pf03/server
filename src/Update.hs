@@ -28,7 +28,7 @@ import qualified Row
 import           Select                           (cond, p, val)
 import qualified State                            as S
 import           Transformer
-import           Types
+import           Common
 import           Cache
 ----------------------------------User-----------------------------------------
 user :: MT m => Int -> m ()

@@ -6,7 +6,6 @@ import  qualified Data.ByteString.Char8 as BC
 import qualified Data.ByteString.Lazy.Char8 as LC
 import qualified Log
 import Database.PostgreSQL.Simple.Time
-import Types
 --import DB (q, (<+>), whereAll, inList)
 -- import Data.Text
 import Control.Monad.Except

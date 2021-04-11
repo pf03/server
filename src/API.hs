@@ -7,7 +7,6 @@ import           Data.Text       (Text, unpack)
 import           Error           (MError)
 import qualified Error
 import           Text.Read
-import           Types
 import           Cache
 
 
@@ -94,8 +93,8 @@ withAuth (AuthAdmin uid) f = return $ f uid
 withAuth (AuthUser uid) f  = return $ f uid
 
 -- * Ошибка 400
-unknownPathError :: B.ByteString -> E
-unknownPathError rawPathInfo = RequestError $ template "Неизвестный путь: {0}" [show rawPathInfo]
+unknownPathError :: B.ByteString -> Error.E
+unknownPathError rawPathInfo = Error.RequestError $ template "Неизвестный путь: {0}" [show rawPathInfo]
 
 
 

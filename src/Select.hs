@@ -12,7 +12,6 @@ import GHC.Generics
 import Data.Aeson
 import Data.Aeson.Types
 import Data.Text (pack, Text(..))
-import Types hiding (T) --T перенести в трансформер
 import qualified Row
 import Database.PostgreSQL.Simple.Types as SQL
 import Database.PostgreSQL.Simple.SqlQQ
@@ -24,7 +23,7 @@ import Data.Maybe
 import qualified State as S
 --import Transformer
 import qualified Error
-import Error (MError)
+import Error --(MError)
 --import qualified DB
 import DB --((<<+>>))
 import Cache

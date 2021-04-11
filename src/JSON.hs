@@ -7,7 +7,6 @@ import qualified Row
 import qualified Select 
 import Database.PostgreSQL.Simple.Time
 import Data.Text (pack, Text(..))
-import Types --(Path, E)
 
 import GHC.Generics 
 import Data.Aeson
@@ -19,7 +18,7 @@ import Control.Monad.Trans.Except
 import Database.PostgreSQL.Simple
 import qualified Data.Map as M
 import qualified Error
-import Error (MError)
+import Error --(MError)
 import Identifiable
 import Cache
 

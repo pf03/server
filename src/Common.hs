@@ -22,7 +22,12 @@ import Database.PostgreSQL.Simple.Time
 import Data.Maybe
 import qualified Data.Map as M
 import Control.Monad.Except
+import Data.Text (Text(..))
 
+
+type PathInfo = [Text]
+type Path = String
+data Action = Check | Execute --flag
 
 ----------------вспомогательные монадические функции -------------------------------------
 ifJust :: Monad m => Maybe a -> m () -> m () 

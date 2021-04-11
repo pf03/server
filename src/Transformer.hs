@@ -22,13 +22,12 @@ import qualified Data.ByteString.Lazy.Char8 as LC
 import Network.Wai (responseLBS, Application)
 --наш проект
 -- import Error
-import Types  --100
 -- import Parse
 --import Error
 import ToTransformer
 import Database.PostgreSQL.Simple.SqlQQ
 import Database.PostgreSQL.Simple
-import Control.Exception
+
 import System.IO.Error (isDoesNotExistError)
 import Network.Wai.Handler.Warp (run)
 import System.Environment
@@ -42,6 +41,7 @@ import qualified Error
 import Error -- (MError, MIOError,throw, catch)
 import Cache
 import Control.Exception as Exception
+import Config
 
 -- | Данный модуль реализует класс типов MT (и остальные классы) с помощью трансформера T
 
@@ -192,23 +192,8 @@ getS Config {_warp = configWarp, _db = _, _log = configLog} connection = S {
     cache = Cache{changed = mempty, auth = AuthNo, params = mempty}
 }
 
--- | Read config as both object and string
-readConfig :: MIOError m => m (Config, String)
-readConfig = do
-    bs <- L.readFile pathConfig `Error.catchEIO` handler
-    fileConfig <- eDecode bs
-    return (fileConfig, show bs) where
-        handler :: IOException -> E
-        handler e
-            | isDoesNotExistError e = ConfigError "Файл конфигурации не найден!"
-            | otherwise = ConfigError "Ошибка чтения файла конфигурации"
 
-pathConfig :: FilePath
-pathConfig = "config.json"
 
------------------------------DECODE--------------------------------------------
-eDecode :: (MError m, FromJSON a) => LC.ByteString -> m a
-eDecode bs = catchEither (eitherDecode bs) ParseError
 
 -----------------------------LOG TEST------------------------------------------
 testLog :: IO()

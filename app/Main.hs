@@ -7,8 +7,9 @@ import Database.PostgreSQL.Simple
 import Database.PostgreSQL.Simple.SqlQQ
 
 import qualified Migrations
-import Types
 import Transformer
+import State
+import Config
 import qualified Log
 import System.Environment
 import Control.Concurrent
@@ -35,7 +36,7 @@ app req f = do
     putStrLn "app"
     response <- evalTwithHandler  (Response.get req :: T Response) Response.errorHandler configString
     emptyBody 0 (getRequestBodyChunk req)
-    f $ response
+    f response
 
 
 --Если не считывать тело запроса (например при ошибочном запросе пользователя), то вылетает ошибка Error: write ECONNRESET

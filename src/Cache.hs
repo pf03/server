@@ -31,7 +31,6 @@ instance ToJSON Changed
 data Auth = AuthNo | AuthUser Int | AuthAdmin Int deriving (Show, Eq)
 
 --Params--
-
 type ParamsMap = M.Map BSName
 
 data Param = ParamEq {paramEq :: Val} 

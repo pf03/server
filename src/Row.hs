@@ -8,10 +8,11 @@ import Database.PostgreSQL.Simple.FromRow
 import Database.PostgreSQL.Simple.Time
 import GHC.Generics 
 import Data.Aeson
-import Data.Aeson.Types
+import Data.Aeson.Types ()
 import Data.Text (pack, Text(..))
-import Types (Path)
 import Identifiable
+import Common
+
 
 data User = User {
     userId :: Int, --snake case for table name

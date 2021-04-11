@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 97e4acf8d6649ec984e33d289eac1dc5f2128a46655a17b4cf280c380e778e04
+-- hash: 74c15faae268b14bb2def06505a3354a9081d62eea5a00095992c4960d2841e8
 
 name:           server
 version:        0.1.0.0
@@ -31,6 +31,7 @@ library
       Auth
       Cache
       Common
+      Config
       DB
       Delete
       Error
@@ -50,7 +51,6 @@ library
       Test
       ToTransformer
       Transformer
-      Types
       Update
       Upload
   other-modules:

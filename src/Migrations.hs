@@ -8,7 +8,6 @@ import Database.PostgreSQL.Simple.SqlQQ
 import Database.PostgreSQL.Simple.Types
 -- import Crypto.Hash.MD5
 import  qualified Data.ByteString as B
-import Types
 import qualified Log
 import qualified System.Console.ANSI as Color (Color(..)) 
 import qualified State as S

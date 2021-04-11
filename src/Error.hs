@@ -9,12 +9,19 @@ import qualified Control.Exception as Exception (catch)
 import Control.Exception as Exception hiding (throw, catch)
 import Control.Monad.Except
 import Control.Monad.Trans.Except
-import Types  --100
 import Network.HTTP.Types
 import Database.PostgreSQL.Simple
 import qualified Data.Text.Encoding as T
 import qualified Data.Text as T
+import Data.Aeson
+import qualified Data.ByteString.Lazy.Char8 as LC
 
+
+-----------------------------Types---------------------------------------------
+data E = ParseError String | RequestError String | ConfigError String | DBError String | IOError String | AuthError String | DevError String | SomeError String
+-- это надо убрать, раз мы пользуемся мондами Parser - Except - ExceptT
+type ES = Either String
+type EE = Either E
 
 instance Show E where
     show (ParseError s) = "Ошибка парсинга JSON: "++s
@@ -130,3 +137,7 @@ instance MError (ExceptT E IO) where
     catch = catchE
 
 instance MIOError (ExceptT E IO)
+
+-----------------------------DECODE--------------------------------------------
+eDecode :: (MError m, FromJSON a) => LC.ByteString -> m a
+eDecode bs = catchEither (eitherDecode bs) ParseError

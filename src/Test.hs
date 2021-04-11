@@ -10,13 +10,12 @@ import Control.Monad.Trans.Except
 --import Control.Monad.Catch
 --import Control.Monad.Exception
 import Common
-import Types
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy.Char8 as LC
 import Auth
 import Data.Aeson
 import Error
-import qualified State as S
+import State
 import System.Console.ANSI
 import Text.Read
 import qualified Response
@@ -569,7 +568,7 @@ listOfTestCasesByOne name qs = do
     Log.colorTextT Color.Yellow Log.Debug  " Нажмите Enter для начала теста..."
     readLnT
     forMMem (zip [1,2..] qs) (Nothing, Nothing) $ \(mt, mn) (n, (pathInfo, query)) -> do
-        catchT (do
+        Error.catch (do
             
             toT clearScreen
             --Log.debugT (mt, mn)
@@ -584,8 +583,8 @@ listOfTestCasesByOne name qs = do
             newmt <- case pathInfo of
                 ["login"] -> do 
                     Log.off
-                    --str <- catchT (DB.getJSONTest (convert $ show pathInfo) pathInfo query query headers) (\e -> return "")
-                    catchT (do 
+                    --str <- Error.catch (DB.getJSONTest (convert $ show pathInfo) pathInfo query query headers) (\e -> return "")
+                    Error.catch (do 
                         str <- Response.getJSONTest (convert $ show pathInfo) pathInfo query query headers
                         tmp <- toT . (Just <$>) . typeError ParseError . eitherDecode $ str
                         Log.colorTextT Color.Green Log.Debug $ template "Аутентификация успешно завершена, токен: {0} . Нажмите Enter для следующего теста, q + Enter для выхода или номер_теста + Enter..." [show tmp]
@@ -606,7 +605,7 @@ listOfTestCasesByOne name qs = do
             return (newmt, newmn)
             ) $ \e -> do
                 case e of 
-                    IOError _ -> throwT e
+                    IOError _ -> Error.throw e
                     _ -> do
                         Log.colorTextT Color.Yellow Log.Debug  "Запрос НЕуспешно завершен."
                         Log.colorTextT Color.Yellow Log.Debug $ show (e::E)
@@ -619,7 +618,7 @@ listOfTestCasesByOne name qs = do
         readCommand :: Int -> Maybe Int -> T (Maybe Int)
         readCommand n mn = if Just n < mn  then return mn else do
             answ <- readLnT
-            when (answ == "q") $ throwT $ IOError "Выход из теста по требованию пользователя"
+            when (answ == "q") $ Error.throw $ IOError "Выход из теста по требованию пользователя"
             case readEither answ of
                 Right newn -> return (Just newn)
                 _ -> return Nothing

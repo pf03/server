@@ -6,7 +6,6 @@
 module Delete where
 
 import Data.Text (pack, Text(..))
-import Types 
 import qualified Row
 import Database.PostgreSQL.Simple.Types as SQL
 import Database.PostgreSQL.Simple.SqlQQ
