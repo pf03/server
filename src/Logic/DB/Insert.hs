@@ -1,8 +1,3 @@
-{-# LANGUAGE DeriveAnyClass    #-}
-{-# LANGUAGE DeriveGeneric     #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE RecordWildCards   #-}
-{-# LANGUAGE TypeOperators     #-}
 module Logic.DB.Insert
     (user
     , author
@@ -23,15 +18,12 @@ import           Interface.Cache                  as Cache
 import           Interface.DB                     as DB
 import           Interface.Error                  as Error
 import           Logic.DB.Select                  (authUserIdParam, cond, p, val)
-
 -- Other Modules
-import           Control.Monad.Identity
-import           Data.Map                         as M (fromList, (!))
-import qualified Data.Map                         as M (insert)
-import           Data.Maybe
-import           Data.Text                        (Text (..), pack)
-import           Database.PostgreSQL.Simple.SqlQQ
-import           Database.PostgreSQL.Simple.Types as SQL
+import           Control.Monad.Identity           (unless, when)
+import           Data.Map                         ((!))
+import           Data.Maybe                       (listToMaybe)
+import           Database.PostgreSQL.Simple.SqlQQ (sql)
+import           Database.PostgreSQL.Simple.Types as SQL (Only (..), Query)
 
 
 ----------------------------------User-----------------------------------------
@@ -39,7 +31,8 @@ user :: MT m => m ()
 user = do
     params <- Cache.getParams
     checkNotExist "Пользователь" "login" [sql|SELECT 1 FROM users WHERE users.login = {0}|]
-    passQuery <- (return . template [sql|md5 (CONCAT_WS(' ', {0}, {1}))|]) <$$> [cell(params ! "login"), cell(params ! "pass")]
+    passQuery <- (return . template [sql|md5 (CONCAT_WS(' ', {0}, {1}))|]) <$$> 
+        [cell(params ! "login"), cell(params ! "pass")]
     DB.insert User
         [sql|INSERT into users (last_name, first_name, avatar, login, pass, creation_date, is_admin) values {0}|] <$$>
         [rowEither params
@@ -152,8 +145,7 @@ photos = do
             [rows params ["photos", "content_id"]]
 
 ----------------------------------Common---------------------------------------
--- * в шаблон подставляется внутренний pid, если параметр обязательный, то ParamNo
--- никогда не выскочит
+-- * В шаблон подставляется внутренний pid, если параметр обязательный, то ParamNo никогда не выскочит
 checkExist :: MT m => BSName -> Query -> m ()
 checkExist name templ = do
     param <- Cache.getParam name
@@ -223,25 +215,15 @@ rowEither params nqs = list <$> mapM helper nqs where
         Left name -> cell (params ! name)
         Right q   -> return q
 
-
--- cell :: Param -> Query
--- cell (ParamEq v) = val v
--- cell ParamNo     = [sql|null|]
-
 cell :: MError m => Param -> m Query
 cell (ParamEq v) = return $ val v
 cell ParamNo     = return [sql|null|]
 cell p           = Error.throw $ DevError $ template "Неверный шаблон параметра {0} в функции cell" [show p]
 
--- class Monad m => MonadError m where
---     throw :: m a
---     catch ::
-
 cellByNumber :: Param -> Int -> Query
 cellByNumber (ParamEq v) _     = val v
 cellByNumber (ParamAll list) n = val (list !! n)
 cellByNumber ParamNo _         = [sql|null|]
-
 
 -- * Aдмин может CОЗДАВАТЬ только свои публикации
 addAuthAuthorIdParam :: MT m => m (ParamsMap Param)
@@ -259,7 +241,7 @@ addAuthAuthorIdParam = do
         Just 1        -> Error.throw $ AuthError "Невозможна аутентификация удаленного автора"
         Just authorId -> Cache.addIdParam "author_id" authorId
 
--- | Админ может СОЗДАВАТЬ только свои публикации (комментарии)
+-- * Админ может СОЗДАВАТЬ только свои публикации (комментарии)
 addAuthUserIdParam :: (MError m, MCache m) => m (ParamsMap Param)
 addAuthUserIdParam = do
     auth <- Cache.getAuth

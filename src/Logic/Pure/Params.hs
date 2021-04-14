@@ -43,7 +43,6 @@ type BSKey = BS     --created_at__lt
 type BSValue = BS   --"2021-01-01"
 type BSTempl = BS   --"__lt"
 
-
 -----------------------------GLOBAL CONSTANTS, used in other functions-----------------------------------------------------
 
 --Any означает отсутствие параметра

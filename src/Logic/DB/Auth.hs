@@ -1,46 +1,48 @@
 {-# LANGUAGE DeriveGeneric #-}
-module Logic.DB.Auth where
+module Logic.DB.Auth
+    ( Token(..)
+    , login
+    , auth
+    ) where
 
 -- Our Modules
 import           Common.Misc
-import           Interface.Cache                  as Cache
+import           Interface.Cache                  as Cache hiding (auth)
 import           Interface.DB                     as DB
 import           Interface.Error                  as Error
 import           Interface.Log                    as Log
 import           Logic.DB.Select                  (p)
 
-
-
 -- Other Modules
-import           Control.Monad.Identity
+import           Control.Monad.Identity           (when)
 import           Crypto.Hash.MD5                  (hash)
-import           Data.Aeson
+import           Data.Aeson                       (FromJSON, ToJSON)
 import qualified Data.ByteString                  as B
 import qualified Data.ByteString.Char8            as BC
-import qualified Data.ByteString.Internal         as B
-import           Data.List.Split
+import           Data.List.Split                  (splitOn)
 import           Data.Map                         as M (fromList, (!))
-import qualified Data.Text                        as T
-import qualified Data.Text.Encoding               as T
-import           Data.Time
-import           Data.Time.Format.ISO8601
-import           Data.Word
-import           Database.PostgreSQL.Simple.SqlQQ
-import           GHC.Generics
+import           Data.Time                        
+import           Data.Time.Format.ISO8601         (iso8601Show)
+import           Data.Word                        (Word8)
+import           Database.PostgreSQL.Simple.SqlQQ (sql)
+import           GHC.Generics                     (Generic)
 import qualified Network.Wai                      as Wai
-import           Numeric
+import           Numeric                          (showHex)
+import           Text.Read                        (readEither)
 
-import           Text.Read
-
+-----------------------------Types---------------------------------------------
 newtype Token = Token {token :: String}  deriving (Show, Generic, Eq)
 instance ToJSON Token
 instance FromJSON Token
 
+-----------------------------Public functions----------------------------------
 login :: MT m => m Token
 login = do
     params <- Cache.getParams
-    users <- DB.query_ $ template [sql|SELECT id, is_admin FROM users where login = {0} and pass = md5 (CONCAT_WS(' ', {0}, {1}))|]
-        [p $ params ! "login", p $ params ! "pass"]
+    users <- DB.query_ $ template [sql|
+        SELECT id, is_admin FROM users
+        WHERE login = {0} and pass = md5 (CONCAT_WS(' ', {0}, {1}))
+    |] [p $ params ! "login", p $ params ! "pass"]
     case users  :: [(Int, Bool)] of
         [(userId, isAdmin)]   -> do
             Log.debugT users
@@ -59,11 +61,12 @@ auth req  = do
         Nothing -> Cache.setAuth AuthNo
         Just a -> do
             date <- liftEIO getCurrentTime
-            checkAuth_ date (Token $ BC.unpack a)
+            checkAuth date (Token $ BC.unpack a)
 
-checkAuth_ :: (MError m, MCache m) => UTCTime -> Token -> m ()
-checkAuth_ date token  = do
-    (userId, role, day, hash) <- parseToken_ token
+-----------------------------Private functions---------------------------------
+checkAuth :: (MError m, MCache m) => UTCTime -> Token -> m ()
+checkAuth date token  = do
+    (userId, role, day, hash) <- parseToken token
     let curDay = iso8601Show . utctDay $ date
     if day == curDay then do
         correctToken <- genToken date userId role
@@ -74,8 +77,8 @@ checkAuth_ date token  = do
                 else Error.throw $ AuthError "Неверный токен!"
     else Error.throw $ AuthError "Неверная дата токена!"
 
-parseToken_ :: MError m => Token -> m (Int, String, String, String)
-parseToken_ (Token t)  = do
+parseToken :: MError m => Token -> m (Int, String, String, String)
+parseToken (Token t)  = do
     let strs = splitOn "_" t
     case strs of
         [userIdStr, role, day, hash] | role =="admin" || role == "user" || role == "author" -> do

@@ -114,8 +114,7 @@ getJSON api req = case api of
 
     API Upload [Photo] -> encode $ Upload.photo req
 
-    --апи, которые не возвращают количество измененных строк
-    --может publish сделать отдельным querytype?
+    --апи, которые возвращают количество измененных сущностей
     API Insert [User] -> encode Insert.user
     API Insert [Author] -> encode Insert.author
     API Insert [Category] -> encode Insert.category

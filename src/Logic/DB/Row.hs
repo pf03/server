@@ -5,18 +5,15 @@
 module Logic.DB.Row where
 
 -- Our Modules
-import Common.Identifiable
-import Common.Misc
+import           Common.Identifiable
+import           Common.Misc
 
 -- Other Modules
-import Database.PostgreSQL.Simple.FromRow
-import Database.PostgreSQL.Simple.Time
-import GHC.Generics 
-import Data.Aeson
-import Data.Aeson.Types ()
-import Data.Text (pack, Text(..))
-
-
+import           Data.Aeson                         
+import           Data.Text                          (Text (..), pack)
+import           Database.PostgreSQL.Simple.FromRow
+import           Database.PostgreSQL.Simple.Time
+import           GHC.Generics
 
 data User = User {
     userId :: Int, --snake case for table name
@@ -139,6 +136,3 @@ instance FromRow (Maybe TagToContent) where
 
 instance ToJSON Date where
   toJSON = String . pack . show
-
--- instance FromJSON Date where
---   toJSON = String . pack . show

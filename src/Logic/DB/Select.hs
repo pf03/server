@@ -1,9 +1,4 @@
-{-# LANGUAGE DeriveAnyClass    #-}
-{-# LANGUAGE DeriveGeneric     #-}
-{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeOperators     #-}
-
-{-# LANGUAGE RecordWildCards   #-}
 module Logic.DB.Select where
 
 -- Our Modules
@@ -37,7 +32,6 @@ user pid = listToMaybe <$> DB.query_ query where
 users :: MT m => m [User]
 users = DB.query_ =<< usersQuery =<< Cache.getParams
 
---отделение чистого кода от грязного
 selectUsersQuery :: Query
 selectUsersQuery = [sql|SELECT * FROM users|]
 
@@ -63,7 +57,6 @@ authorsQuery :: (MError m, MCache m) => m Query
 authorsQuery = return selectAuthorsQuery <<+>> pagination
 
 ----------------------------Category-----------------------------------------------------------
---запрос без пагинации для внутреннего использования и с пагинацией для внешнего
 type Category = Row.Category
 
 category::  MDB m => Int -> m (Maybe Category)
@@ -73,7 +66,7 @@ category pid = listToMaybe <$> DB.query_ query where
 categories :: MT m => m [Category]
 categories = DB.query_ =<< categoriesQuery
 
---все категории без пагинации нужны для вычисления родительских категорий
+-- * Все категории без пагинации нужны для вычисления родительских категорий
 allCategories :: MDB m => m [Category]
 allCategories = DB.query_ selectCategoriesQuery
 
@@ -85,7 +78,6 @@ categoriesQuery = return selectCategoriesQuery <<+>> pagination
 
 -------------------------Draft-------------------------------------------------------------
 type Content = Row.Content :. Row.Category :. Row.Author :. Row.User :. Maybe Row.TagToContent :. Maybe Row.Tag :. Maybe Row.Photo
-
 type Draft = Row.Draft :. Content
 
 draft::  MT m => Int -> m [Draft]
@@ -119,17 +111,8 @@ selectDraftsQuery = [sql|
     LEFT JOIN tags ON tags.id = tags_to_contents.tag_id
     LEFT JOIN photos ON photos.content_id = contents.id|]
 
--- draftsQuery :: ParamsMap Param -> Query
--- draftsQuery params = selectDraftsQuery <+> pagination (params ! "page")
-
 -------------------------Post-------------------------------------------------------------
-
 type Post = Row.Post :. Content
---type Post = Row.Post :. Row.Content :. Row.Category :. Row.Author :. Row.User :. Maybe Row.TagToContent :. Maybe Row.Tag
-
--- post::  Int -> m (Maybe Post)
--- post pid = listToMaybe <$> DB.query_ query where
---         query = selectPostsQuery <+> template [sql|WHERE categories.id = {0}|] [q pid]
 
 post::  MDB m => Int -> m [Post]
 post pid = DB.query_ query where
@@ -138,7 +121,6 @@ post pid = DB.query_ query where
 posts :: MT m => m [Post]
 posts = DB.query_ =<< postsQuery
 
---зачем здесь таблица categories? проверить!!!
 selectPostsQuery ::  Query
 selectPostsQuery = [sql|
         SELECT * FROM posts
@@ -150,7 +132,6 @@ selectPostsQuery = [sql|
         LEFT JOIN tags ON tags.id = tags_to_contents.tag_id
         LEFT JOIN photos ON photos.content_id = contents.id|]
 
---Cache.getParams можно использовать на самом низком уровне!!
 postsQuery :: (MError m, MCache m) => m SQL.Query
 postsQuery = do
     params <- Cache.getParams
@@ -167,13 +148,10 @@ postsQuery = do
     selectPostsQuery `whereAllM` conditions  <<+>> orderBy (p "order_by") <<+>> pagination
 
         where
-
         postIdsSubquery :: MError m => Query -> Param -> m Query
-
         postIdsSubquery field (ParamAll vals) = [sql|posts.id|] `inSubqueryM`
                 ([sql|SELECT posts.id FROM posts|] `whereAllM` map (existTagSubquery field . ParamEq ) vals)
         postIdsSubquery _ ParamNo = return [sql|TRUE|]
-        --postIdsSubquery (ParamEq val) = postIdsSubquery (ParamIn [val])
         postIdsSubquery field param = [sql|posts.id|] `inSubqueryM`
                 ([sql|SELECT posts.id FROM posts|] `whereAllM` [existTagSubquery field param] )
 
@@ -187,17 +165,18 @@ postsQuery = do
                 postIdsSubquery [sql|tags.name|] param
                 ]
 
-        --поиск по имени и id тега
-        --вытягиваем id постов, в которых хотя бы один из тегов удовлетворяет условию. После чего возвращаем все теги постов с данными id
+        -- | Поиск по имени и id тега
+        -- Вытягиваем id постов, в которых хотя бы один из тегов удовлетворяет условию. 
+        -- После чего возвращаем все теги постов с данными id
         existTagSubquery :: MError m => Query -> Param -> m Query
         existTagSubquery field param  = do
             c <- cond field param
             return $ exists $
                 [sql| SELECT 1 FROM contents
-                        LEFT JOIN tags_to_contents ON contents.id = tags_to_contents.content_id
-                        LEFT JOIN tags ON tags.id = tags_to_contents.tag_id
-                        WHERE contents.id = posts.content_id
-                        AND |] <+> c
+                    LEFT JOIN tags_to_contents ON contents.id = tags_to_contents.content_id
+                    LEFT JOIN tags ON tags.id = tags_to_contents.tag_id
+                    WHERE contents.id = posts.content_id
+                    AND |] <+> c
 
         orderBy :: MError m => Param -> m SQL.Query
         orderBy (ParamEq (Str paramName)) = return . template [sql|ORDER BY {0}|] <$$> [field] where
@@ -206,7 +185,7 @@ postsQuery = do
                 "author_name" -> return [sql|CONCAT_WS(' ', users.last_name, users.first_name)|]
                 "category_id"-> return [sql|contents.category_id|]
                 "photos" -> return $ DB.brackets [sql|SELECT COUNT(*) FROM photos WHERE
-                        photos.content_id = contents.id|]
+                    photos.content_id = contents.id|]
                 _ -> Error.throw $ DevError $ template "Неверный параметр {0} в функции orderBy" [paramName]
         orderBy ParamNo = return [sql||]
         orderBy p = Error.throw $ DevError $ template "Неверный шаблон параметра {0} в функции orderBy" [show p]
@@ -247,8 +226,6 @@ commentsQuery postId = selectCommentsQuery `whereAllM` (return <$> conditions) <
     conditions =  [
         template [sql|posts.id = {0}|] [q postId]
         ]
-
-
 
 -------------------------Pagination--------------------------------------------------------
 pagination :: (MError m, MCache m) => m SQL.Query
