@@ -1,4 +1,6 @@
-module Common.Color where 
+module Common.Color 
+    ( module Common.Color
+    ) where 
 --этот модуль должен импортироваться только модулем Log
 
 import System.Console.ANSI

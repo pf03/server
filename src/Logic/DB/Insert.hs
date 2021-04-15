@@ -69,7 +69,7 @@ tag :: MT m => m ()
 tag = do
     params <- Cache.getParams
     checkNotExist "Тег" "name" [sql|SELECT 1 FROM tags WHERE tags.name = {0}|]
-    insert Tag [sql|INSERT into tags (name)  values ({0})|] [p $ params ! "name"]
+    insert Tag [sql|INSERT into tags (name)  values ({0})|] <$$> [p $ params ! "name"]
 
 --сначала должна идти проверочная часть, потом часть с записью в бд
 tagToContent :: MT m => Action -> m ()
@@ -107,8 +107,8 @@ publish :: MT m => Int -> m ()
 publish pid = do
     params <- Cache.addIdParam "draft_id" pid
     checkExist "draft_id" [sql|SELECT 1 FROM drafts WHERE drafts.id = {0}|]
-    [(contentId, mpostId)] <- query_ $ template
-        [sql|SELECT content_id, post_id FROM drafts WHERE drafts.id = {0}|]
+    [(contentId, mpostId)] <- query_ <$> template
+        [sql|SELECT content_id, post_id FROM drafts WHERE drafts.id = {0}|] <$$>
         [p $ params ! "draft_id" ]
     case mpostId :: Maybe Int of
         Nothing -> do
@@ -122,7 +122,7 @@ publish pid = do
             delete Content [sql|DELETE FROM contents WHERE contents.id = {0} |] [q (oldContentId :: Int)]
             execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [q oldContentId]
             delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [q oldContentId]
-    delete Draft [sql|DELETE FROM drafts WHERE drafts.id = {0}|] [p $ params ! "draft_id"]
+    delete Draft [sql|DELETE FROM drafts WHERE drafts.id = {0}|] <$$> [p $ params ! "draft_id"]
 
 ----------------------------------Comment--------------------------------------
 comment :: MT m => Int -> m ()
@@ -230,12 +230,12 @@ addAuthAuthorIdParam :: MT m => m (ParamsMap Param)
 addAuthAuthorIdParam = do
     addAuthUserIdParam
     paramUserId <- Cache.getParam "user_id"
-    mauthorId <- fromOnly <<$>> listToMaybe  <$> query_ (template [sql|
+    mauthorId <- fromOnly <<$>> listToMaybe <$> (query_ . template [sql|
     SELECT authors.id FROM authors
         LEFT JOIN users
         ON authors.user_id = users.id
         WHERE users.id = {0}
-    |] [p paramUserId])
+    |] <$$> [p paramUserId])
     case mauthorId :: (Maybe Int) of
         Nothing       -> Error.throw $ AuthError "Данная функция доступна только авторам"
         Just 1        -> Error.throw $ AuthError "Невозможна аутентификация удаленного автора"

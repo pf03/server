@@ -3,33 +3,33 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 module Interface.Log
--- (
---     module Interface.Log
---     MLog (..),
---     sendT,
---     receiveT,
---     receiveDataT,
---     receiveConvertDataT,
---     errorT,
---     funcT,
---     colorTextT,
---     textT,
---     debugT,
---     dataT,
---     --prettyT,
---     --queryT,
---     convertDataT,
---     resetSettings,
---     error,
---     text,
---     ldata,
---     convertData,
---     defaultSettings,
---     defaultConfig,
---     file,
---     clearFile, off, on, logM
---     --Pretty(..) 
---     ) 
+(
+    module Interface.Log,
+    -- MLog (..),
+    -- sendT,
+    -- receiveT,
+    -- receiveDataT,
+    -- receiveConvertDataT,
+    -- errorT,
+    -- funcT,
+    -- colorTextT,
+    -- textT,
+    -- debugT,
+    -- dataT,
+    -- --prettyT,
+    -- --queryT,
+    -- convertDataT,
+    -- resetSettings,
+    -- error,
+    -- text,
+    -- ldata,
+    -- convertData,
+    -- defaultSettings,
+    -- defaultConfig,
+    -- file,
+    -- clearFile, off, on, logM
+    --Pretty(..) 
+    ) 
 where 
 import GHC.Generics hiding (S)
 import qualified Common.Color as Color

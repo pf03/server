@@ -11,7 +11,6 @@ module Logic.DB.Update
     ) where
 
 -- Our Modules
--- Our Modules
 import           Common.Misc                      
 import           Interface.Cache                  as Cache
 import           Interface.DB                     as DB
@@ -23,7 +22,6 @@ import           Logic.DB.Select                  (cond, p, val)
 import           Control.Monad.Identity           (when)
 import           Data.Map                         as M (fromList, (!))
 import qualified Data.Map                         as M (insert)
-import           Data.Maybe
 import           Data.Text                        (Text (..), pack)
 import           Database.PostgreSQL.Simple.SqlQQ (sql)
 import           Database.PostgreSQL.Simple.Types as SQL (Only (Only), Query)
@@ -34,7 +32,7 @@ user :: MT m => Int -> m ()
 user pid = do
     Cache.addIdParam "id" pid
     checkExist "id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
-    --логин нужен для проверки пароля
+    -- Логин нужен для проверки пароля
     [Only login] <- query_ $ template [sql|SELECT users.login FROM users WHERE users.id = {0}|] [q pid]
     params <- Cache.addStrParam "login" login
     DB.update User [sql|UPDATE users SET {0} WHERE id = {1}|] <$$>
@@ -63,7 +61,8 @@ tag :: MT m => Int -> m ()
 tag pid = do
     params <- Cache.addIdParam "id" pid
     checkExist "id" [sql|SELECT 1 FROM tags WHERE tags.id = {0}|]
-    DB.update Tag [sql|UPDATE tags SET name = {0} WHERE id = {1}|] [p $ params ! "name", q pid]
+    DB.update Tag [sql|UPDATE tags SET name = {0} WHERE id = {1}|] <$$> 
+        [p $ params ! "name", return $ q pid]
 
 tagToContent :: MT m => Action -> m ()
 tagToContent Check = withParam "tag_id" $ Insert.tagToContent Check
@@ -85,7 +84,7 @@ draft pid = do
     Logic.DB.Update.tagToContent Execute
     Logic.DB.Update.photos
 
---проверка существования вместе с авторизацией, для запросов DB.update и delete
+-- | Проверка существования вместе с авторизацией, для запросов DB.update и delete
 checkAuthExistDraft :: MT m => Int -> m (ParamsMap Param)
 checkAuthExistDraft pid = do
     query <- [sql|
@@ -136,7 +135,7 @@ checkAuthExistPost pid = do
     Cache.addIdParam "content_id" cid
 
 ----------------------------------Comment--------------------------------------
--- * В общем случае checkAuthExist возвращает три параметра, поэтому здесь небольшой костыль
+-- * В общем случае checkAuthExist возвращает три параметра
 checkAuthExistComment :: MT m => Int -> m Int --возвращаем userId
 checkAuthExistComment pid = do
     let query = template [sql| SELECT user_id, 0, 0 FROM comments WHERE id = {0}|] [q pid]
@@ -151,14 +150,14 @@ photos = withParam "photos" $ do
     Insert.photos
 
 ----------------------------------Common---------------------------------------
---упорядочить эти функции
 updates :: MError m => ParamsMap Param -> [BSName] -> m Query
 updates params names = DB.concat "," <$> mapMaybeM helper names where
     helper :: MError m => BSName -> m (Maybe Query)
     helper name = upd (q name) (params ! name)
     upd :: MError m => Query -> Param -> m (Maybe Query)
-    upd "pass" (ParamEq v) = return . Just $ template
-        [sql|pass = md5 (CONCAT_WS(' ', {0}, {1}))|] [p $ params ! "login", val v]
+    upd "pass" (ParamEq v) = do
+        login <- p $ params ! "login"
+        return . Just $ template [sql|pass = md5 (CONCAT_WS(' ', {0}, {1}))|] [login, val v]
     upd field (ParamEq v) = return . Just $ template [sql|{0} = {1}|] [field, val v]
     upd field ParamNo = return Nothing
     upd field ParamNull = return . Just $ template [sql|{0} = null|] [field]

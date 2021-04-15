@@ -39,10 +39,10 @@ instance FromJSON Token
 login :: MT m => m Token
 login = do
     params <- Cache.getParams
-    users <- DB.query_ $ template [sql|
+    users <- DB.query_ <$> template [sql|
         SELECT id, is_admin FROM users
         WHERE login = {0} and pass = md5 (CONCAT_WS(' ', {0}, {1}))
-    |] [p $ params ! "login", p $ params ! "pass"]
+    |] <$$> [p $ params ! "login", p $ params ! "pass"]
     case users  :: [(Int, Bool)] of
         [(userId, isAdmin)]   -> do
             Log.debugT users

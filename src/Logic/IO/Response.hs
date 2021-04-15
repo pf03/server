@@ -1,5 +1,3 @@
---{-# OPTIONS_GHC -Wno-deferred-type-errors #-}
---{-# OPTIONS_GHC -Wno-deferred-type-errors #-}
 module Logic.IO.Response where
 
 -- Our Modules
@@ -21,26 +19,18 @@ import qualified Logic.Pure.Params          as Params
 
 -- Other Modules
 import           Data.Aeson                 hiding (encode)
+import           Data.Aeson.Encode.Pretty   (encodePretty)
 import qualified Data.ByteString            as B
 import qualified Data.ByteString.Char8      as BC
+import qualified Data.ByteString.Lazy.Char8 as LC
+import           Data.Maybe                 (listToMaybe)
+import           Data.Typeable              (Typeable, typeOf)
 import           Network.HTTP.Types
-import           Network.HTTP.Types.Header  (hContentType)
+import qualified Network.HTTP.Types.URI     as HTTP
 import qualified Network.Wai                as Wai
 import           Network.Wai.Internal       as Wai
 import qualified System.Console.ANSI        as Color
---import qualified Data.ByteString.Lazy as L
-import           Control.Monad.Except
-import           Control.Monad.Trans.Except
-import           Data.Aeson.Encode.Pretty
-import qualified Data.ByteString.Lazy.Char8 as LC
-import           Data.List
-import           Data.Maybe
-import           Data.Typeable
-import qualified Network.HTTP.Types.URI     as HTTP
 
-
--- можно сделать дополнительно MRequest для монады, которая имеет доступ к запросу, либо сделать ее часть Cache,
--- сто нелогично, так как Cache меняется, а Request нет. И request нужен не везде, где нужен Cache.
 get :: MT m => Request -> m Response
 get req = do
     Log.setSettings Color.Blue  True "Response.get"
@@ -51,7 +41,6 @@ get req = do
 json :: Monad m => LC.ByteString -> m Response
 json = return . Wai.responseLBS status200 [(hContentType, "text/plain")]
 
---для некоторых типов ошибки нельзя выводить текст, например ошибка конфига
 errorHandler :: E -> Response
 errorHandler e = do
     let status = Error.getStatus e
@@ -60,42 +49,30 @@ errorHandler e = do
         else convertL . show $ e
     Wai.responseLBS status [(hContentType, "text/plain")] text
 
-
-
----------------------------------- бывший модуль DB---------------------------------------------------------------
 getJSON_ :: MT m => Request -> m LC.ByteString
 getJSON_ req = do
     Cache.resetChanged
     Log.setSettings Color.Blue True "Response.getJSONwithUpload"
     Log.funcT Log.Debug "..."
     let (rawPathInfo, pathInfo, qs) = ( Wai.rawPathInfo req, Wai.pathInfo req, Wai.queryString req)
-
     requestBody <- Upload.streamOne (getRequestBodyChunk req)
     Log.debugT requestBody
-    --эту функцию можно использовать для тестирования и эмуляции запросов
     let qsBody = parseQuery requestBody
-    --Log.debugT req
-    --logT $ Auth.auth req --нужна ли эта функция logT, она вызывает ошибку
-
     Auth.auth req
     auth <- Cache.getAuth
-
     api@(API apiType queryTypes) <- Log.logM $ API.router rawPathInfo pathInfo auth
-
     params <- if apiType `elem` [Auth, Delete, Insert, Update]
         then Error.catch (Log.logM $ Params.parseParams qsBody api) $
             \(RequestError e) -> Error.throw $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в теле запроса методом x-www-form-urlencoded" [e]
         else Error.catch (Log.logM $ Params.parseParams qs api) $
             \(RequestError e) -> Error.throw $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в строке запроса" [e]
     Cache.setParams params
-    getJSON api req
+    evalJSON api req
 
 --эта обертка для удобства тестирования--эту обертку перенести в Test
 getJSONTest :: MT m => BC.ByteString -> PathInfo -> HTTP.Query -> HTTP.Query -> RequestHeaders -> m LC.ByteString
 getJSONTest rawPathInfo pathInfo qs qsBody headers = do
     Cache.resetCache --это нужно только для тестов, в сервере и так трансформер возрождается заново при каждом запросе
-    --Log.setSettings Color.Blue True "Response.getJSONTest"
-    --Log.funcT Log.Debug "..."
     let req  = Wai.defaultRequest {requestHeaders = headers}
     Auth.auth req
     auth <- Cache.getAuth
@@ -106,15 +83,15 @@ getJSONTest rawPathInfo pathInfo qs qsBody headers = do
         else Error.catch (Log.logM $ Params.parseParams qs api) $
             \(RequestError e) -> Error.throw $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в строке запроса" [e]
     Cache.setParams params
-    getJSON api req
+    evalJSON api req
 
-getJSON :: MT m => API -> Request -> m LC.ByteString
-getJSON api req = case api of
+evalJSON :: MT m => API -> Request -> m LC.ByteString
+evalJSON api req = case api of
     API Auth [] -> encode Auth.login
 
     API Upload [Photo] -> encode $ Upload.photo req
 
-    --апи, которые возвращают количество измененных сущностей
+    -- API, которые возвращают количество измененных сущностей
     API Insert [User] -> encode Insert.user
     API Insert [Author] -> encode Insert.author
     API Insert [Category] -> encode Insert.category
@@ -138,7 +115,7 @@ getJSON api req = case api of
     API Delete [Draft, Id n] -> encode $ Delete.draft n
     API Delete [Comment, Id n] -> encode $ Delete.comment n
 
-    --апи, которые возвращают результат
+    -- API, которые возвращают результат
     API Select [User] -> encode Select.users
     API Select [Author] -> encode $ JSON.evalAuthors <$> Select.authors
     API Select [Category] -> encode getCategories
@@ -228,7 +205,6 @@ updateCategory pid = do
     JSON.checkCyclicCategory pid params allCategories
     Update.category pid
 
---эту логику перенести в select??
 getCategory :: MT m => Int -> m (Maybe JSON.Category)
 getCategory pid = do
     Log.setSettings Color.Blue True "Response.getCategory"

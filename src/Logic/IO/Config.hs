@@ -6,13 +6,14 @@ import           Interface.Error            as Error
 import           Interface.Log              as Log
 
 -- Other Modules
-import           Control.Exception
+import           Control.Exception          (IOException)
 import           Data.Aeson
 import qualified Data.ByteString.Lazy       as L
 import           Database.PostgreSQL.Simple
-import           GHC.Generics
-import           System.IO.Error
+import           GHC.Generics               (Generic)
+import           System.IO.Error            (isDoesNotExistError)
 
+-----------------------------Types---------------------------------------------
 data Config = Config {
     _warp :: ConfigWarp,
     _db   :: ConnectInfo,
@@ -40,7 +41,7 @@ instance FromJSON ConnectInfo
 instance ToJSON ConnectInfo
 type Port = Int
 
-
+-----------------------------Functions-----------------------------------------
 -- | Read config as both object and string
 readConfig :: MIOError m => m (Config, String)
 readConfig = do
