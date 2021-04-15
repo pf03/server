@@ -7,7 +7,7 @@ module Logic.Pure.JSON where
 import           Common.Identifiable
 import           Common.Misc
 import           Interface.Cache                 as Cache hiding (APIType(..))
-import           Interface.Error                 as Error
+import           Interface.Error                 as Error 
 import qualified Logic.DB.Row                    as Row
 import qualified Logic.DB.Select                 as Select
 
@@ -103,7 +103,7 @@ type Photo = Row.Photo
 --здесь лучше упорядочить функции!!!!!!!!!!!!!!!!
 
 evalCategories :: MError m => [Select.Category] -> [Select.Category] -> m [Category]
-evalCategories allCategories  = mapM (_evalCategory [] allCategories . Row.categoryId)
+evalCategories allCategories = mapM (_evalCategory [] allCategories . Row.categoryId)
 
 evalCategory :: MError m => [Select.Category] -> Select.Category -> m Category
 evalCategory  allCategories category = _evalCategory [] allCategories (Row.categoryId category)

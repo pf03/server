@@ -55,233 +55,201 @@ import qualified Data.Text as T
 import Database.PostgreSQL.Simple.Types
 
 -----------------------------Types---------------------------------------------
-data ConfigLog = ConfigLog{
+data LogConfig = LogConfig{
     colorEnable :: Enable,
     terminalEnable :: Enable,
     fileEnable :: Enable,
     minLevel :: Int  --уровень включения логов, в файле удобней указывать Int, а не LogLevel
 } deriving (Show, Generic)
 
-instance FromJSON ConfigLog
-instance ToJSON ConfigLog
+instance FromJSON LogConfig
+instance ToJSON LogConfig
 
-data LogLevel =  Debug | Data | Info | Warning | Error  deriving (Eq, Enum, Ord, Show)
+data LogLevel =  Debug | -- отладочные данные
+    Info    | --информация о работе приложения
+    Warn    | --предупреждения
+    Error   | --некритическая ошибка, которая может в том или ином виде отдаваться пользователю
+    Critical  --критическая ошибка, ведущая к завершению работы приложения
+    deriving (Eq, Enum, Ord, Show)
 type ColorScheme = Color
 type Enable = Bool
-type FuncName = String
-data LogSettings = LogSettings {colorScheme:: ColorScheme, logEnable :: Enable, funcName :: FuncName} deriving Show
+-- type FuncName = String
+data LogSettings = LogSettings {colorScheme :: ColorScheme, logEnable :: Enable} deriving Show
 
 -----------------------------Class---------------------------------------------
-class MonadIO m => MLog m where
+class Monad m => MLog m where
   getSettings :: m LogSettings
-  setSettings :: ColorScheme -> Enable -> FuncName -> m ()
-  getConfig :: m ConfigLog
+  setSettings :: ColorScheme -> Enable -> m ()
+  getConfig :: m LogConfig
+  message :: LogConfig -> LogSettings -> LogLevel -> String -> m ()
 
 off :: MLog m => m ()
 off = do
-    LogSettings cs le fn  <- Interface.Log.getSettings
-    Interface.Log.setSettings cs False fn
+    LogSettings cs le  <- getSettings
+    setSettings cs False
 
 on :: MLog m => m ()
 on = do
-    LogSettings cs le fn  <- Interface.Log.getSettings
-    Interface.Log.setSettings cs True fn
+    LogSettings cs le  <- getSettings
+    setSettings cs True
+
+setColorScheme :: MLog m => ColorScheme -> m ()
+setColorScheme newcs = do
+    LogSettings cs le  <- getSettings
+    setSettings newcs le
 
 logM :: (MLog m, Show a) => m a -> m a 
 logM m = do
     a <- m
-    Interface.Log.debugT a
+    debugM a
     return a 
 
---это для возможного переопределения класса show
--- class Show a => Pretty a where
---     show' :: a -> String 
---     --show' = show
+-- showQ = T.unpack . T.decodeUtf8 . fromQuery
 
--- --такое не работает
--- instance  Show a => Pretty a where
---     show' = show
+--message - общее
+-- debug для Show a, остальное для текста
 
--- instance  Pretty Query where
---     show' = T.unpack . T.decodeUtf8 . fromQuery
+-- messageM :: MLog m => LogLevel -> String -> m ()
+-- messageM = do
+--     (config, settings) <- getConfigSettings
+--     undefined
 
--- logg:: Pretty a => a -> IO()
--- logg a = putStrLn $ pretty a
+-- | Для отладочной информации сделано исключение - она может быть любого типа Show a, 
+-- а не только строкового
+debugM :: (MLog m, Show a) => a -> m ()
+debugM a = messageM Debug (show a)
 
-    --MonadIO m =>
--- showQ :: SQL.Query -> T()
--- showQ = putStrLnT . T.unpack . T.decodeUtf8 . fromQuery
+infoM :: MLog m => String -> m ()
+infoM = messageM Info
 
+infoCM :: MLog m => ColorScheme -> String -> m ()
+infoCM cs s = do
+    setColorScheme cs
+    infoM s
 
--- instance Show Query where
---     show = T.unpack . T.decodeUtf8 . fromQuery
+warnM :: MLog m => String -> m ()
+warnM = messageM Warn
 
+errorM :: MLog m => String -> m ()
+errorM = messageM Error
 
---подскажите, как переопределить экземпляр класса Show? Допустим я хочу для некоторых типов переопределить экземпляр класса Show,
--- а для остальных типов оставить как есть
--- instance Show Query where
---     show = T.unpack . T.decodeUtf8 . fromQuery
+criticalM :: MLog m => String -> m ()
+criticalM = messageM Critical
 
--- log:: Show a => a -> IO()
--- log a = putStrLn $ show a
-
-
-
-
-
-showQ = T.unpack . T.decodeUtf8 . fromQuery
-
-sendT :: MLog m => m ()
-sendT = do
-    fname <- getfnameT 
-    Interface.Log.textT Info $ template "Отправляем запрос {0}.................." [fname]
-
-receiveT :: MLog m => m ()
-receiveT = do 
-    fname <- getfnameT 
-    Interface.Log.textT Info $ template "Получили ответ {0}.................." [fname]
-
-receiveDataT :: (MLog m, Show a) => String -> a -> m ()
-receiveDataT dataName dataValue = do
-    fname <- getfnameT 
-    Interface.Log.textT Info $ template "Получили {1} в запросе {0}.................." [fname, dataName]
-    Interface.Log.dataT Data dataValue
-
-receiveConvertDataT :: (MLog m, Show a, ToJSON a) => String -> a -> m ()
-receiveConvertDataT dataName dataValue = do
-    fname <- getfnameT 
-    Interface.Log.textT Info $ template "Получили {1} в запросе {0}.................." [fname, dataName]
-    Interface.Log.convertDataT Data dataValue
-
-errorT :: (MLog m, Show e) => e -> m ()
-errorT error = do
-    (config, settings) <- Interface.Log.getConfigSettings
-    liftIO $ Interface.Log.error config settings error
-
---всего лишь добавляем название функции для удобства отладки
-funcT :: MLog m => LogLevel -> String -> m ()
-funcT level text = do
-    fname <- getfnameT 
-    textT level $ template "Функция {0}:" [fname]
-
-colorTextT :: MLog m => ColorScheme -> LogLevel -> String -> m ()
-colorTextT colorScheme level text = do
-    Interface.Log.setSettings colorScheme True ""
-    Interface.Log.textT level text
-
-debugT :: MLog m => (MLog m, Show a) => a -> m ()
-debugT = Interface.Log.dataT Debug
-
--- prettyT :: MLog m => (MLog m, Pretty a) => a -> m ()
--- prettyT dataValue = do 
---     (config, settings) <- Interface.Log.getConfigSettings
---     liftIO $ Interface.Log.pretty config settings dataValue
-
--- queryT :: MLog m => (MLog m) => Query -> m ()
--- queryT dataValue = do 
---     (config, settings) <- Interface.Log.getConfigSettings
---     liftIO $ Interface.Log.query config settings dataValue
-
-textT :: MLog m => LogLevel -> String -> m ()
-textT level text = do
-    (config, msettings) <- Interface.Log.getConfigSettings
-    liftIO $ Interface.Log.text config msettings level text
-
-dataT :: (MLog m, Show a) => LogLevel -> a -> m ()
-dataT level dataValue = do
-    (config, settings) <- Interface.Log.getConfigSettings
-    liftIO $ Interface.Log.ldata config settings level dataValue
-
-convertDataT :: (MLog m, Show a, ToJSON a) => LogLevel -> a -> m ()
-convertDataT level dataValue = do
+messageM :: MLog m => LogLevel -> String -> m()
+messageM level s = do
     (config, settings) <- getConfigSettings
-    liftIO $ Interface.Log.convertData config settings level dataValue
+    message config settings level s
 
-getfnameT :: MLog m => m String 
-getfnameT = funcName <$> Interface.Log.getSettings
+debug :: (MonadIO m, Show a) => LogConfig -> LogSettings -> a -> m ()
+debug lc ls a = messageIO lc ls Debug (show a)
 
-getConfigSettings :: MLog m => m (ConfigLog, LogSettings) 
+info :: MonadIO m => LogConfig -> LogSettings -> String -> m ()
+info lc ls = messageIO lc ls Info
+
+warn :: MonadIO m => LogConfig -> LogSettings -> String -> m ()
+warn lc ls = messageIO lc ls Warn
+
+error :: MonadIO m => LogConfig -> LogSettings -> String -> m ()
+error lc ls = messageIO lc ls Error
+
+critical :: MonadIO m => LogConfig -> LogSettings -> String -> m ()
+critical lc ls = messageIO lc ls Critical
+
+
+-- debugM :: (MLog m, Show a) => a -> m ()
+-- debugM = dataT Debug
+
+-- text :: MLog m => LogLevel -> String -> m ()
+-- textT level t = do
+--     (config, msettings) <- getConfigSettings
+--     liftIO $ text config msettings level t
+
+-- dataT :: (MLog m, Show a) => LogLevel -> a -> m ()
+-- dataT level dataValue = do
+--     (config, settings) <- getConfigSettings
+--     liftIO $ ldata config settings level dataValue
+
+-- convertDataT :: (MLog m, Show a, ToJSON a) => LogLevel -> a -> m ()
+-- convertDataT level dataValue = do
+--     (config, settings) <- getConfigSettings
+--     liftIO $ convertData config settings level dataValue
+
+
+getConfigSettings :: MLog m => m (LogConfig, LogSettings) 
 getConfigSettings = do
-    config <- Interface.Log.getConfig 
-    settings <- Interface.Log.getSettings
+    config <- getConfig 
+    settings <- getSettings
     return (config, settings)
 
-_setSettings :: MLog m => LogSettings -> m ()
-_setSettings (LogSettings s e n) = Interface.Log.setSettings s e n
-
 resetSettings :: MLog m => m ()
-resetSettings = Interface.Log._setSettings Interface.Log.defaultSettings
+resetSettings = do
+    let LogSettings cs e = defaultSettings
+    setSettings cs e
 
 
---более низкоуровневые функции, если нету доступа к трансформеру, например в runT
 --Текст идет с цветовой схемой
-error :: (MonadIO m, Show a) => ConfigLog -> LogSettings -> a -> m()
-error config settings error = do
-    Interface.Log.text config settings Error $ template "Получили ошибку в функции {0}!" [funcName settings]
-    Interface.Log.ldata config settings Error error
+-- error :: (MonadIO m, Show a) => ConfigLog -> LogSettings -> a -> m()
+-- error config settings error = do
+--     ldata config settings Error error
 
 
-text :: MonadIO m => ConfigLog -> LogSettings -> LogLevel -> String -> m ()
-text (ConfigLog color terminal file minLevel) (LogSettings colorScheme enable _ ) level text = do
+
+-- Реализация класса типов MLog по умолчанию для IO-монады. 
+-- В чистом коде, например для тестирования, можно заменить эту реализацию на другую, например основанную на writerT, 
+-- или на пустую реализацию return ()
+-- Info можно показывать в разных цветовых схемах, а для остальных уровней цвет соответствует уровню
+messageIO :: MonadIO m => LogConfig -> LogSettings -> LogLevel -> String -> m ()
+messageIO (LogConfig ecolor eterminal efile minLevel) (LogSettings colorScheme enable) level text = do
     if not $ level >= toEnum minLevel && enable then return () else do
-        when (color && terminal) $ Color.setSchemeT colorScheme
-        when terminal $ putStrLnT text
-        when file $ Interface.Log.file text
-        when (color && terminal) Color.resetColorSchemeT 
-
--- pretty :: (MonadIO m, Pretty a) => ConfigLog -> LogSettings -> a -> m ()
--- pretty cl ls dataValue = _ldata cl ls Debug (show' dataValue)
-
--- query :: (MonadIO m) => ConfigLog -> LogSettings -> Query -> m ()
--- query cl ls dataValue = _ldata cl ls Debug (showQ dataValue)
+        when (ecolor && eterminal ) $ do
+            if level == Info then Color.setSchemeT colorScheme
+                else Color.setColorT $ getColor level
+        when eterminal $ putStrLnT text
+        when efile $ file text
+        when (ecolor && eterminal) Color.resetColorSchemeT
 
 
 --Данные с цветом, зависяцим от LogLevel--logData не зависит от настроек цвета, только logText зависит
-ldata :: (MonadIO m,Show a) => ConfigLog -> LogSettings -> LogLevel -> a -> m ()
-ldata cl ls level dataValue = _ldata cl ls level (show dataValue)
+-- ldata :: (MonadIO m,Show a) => ConfigLog -> LogSettings -> LogLevel -> a -> m ()
+-- ldata cl ls level dataValue = _ldata cl ls level (show dataValue)
 
-_ldata :: (MonadIO m) => ConfigLog -> LogSettings -> LogLevel -> String -> m ()
-_ldata (ConfigLog color terminal file minLevel) (LogSettings colorScheme enable _ ) level str = do
-    if not $ level >= toEnum minLevel && enable then return () else do
-        when (color && terminal) $ Color.setColorT $ Interface.Log.getColor level
-        when terminal $ putStrLnT str
-        when file $ Interface.Log.file str
-        when (color && terminal) Color.resetColorSchemeT 
+-- _ldata :: (MonadIO m) => ConfigLog -> LogSettings -> LogLevel -> String -> m ()
+-- _ldata (ConfigLog color terminal file minLevel) (LogSettings colorScheme enable) level str = do
+--     if not $ level >= toEnum minLevel && enable then return () else do
+--         when (color && terminal) $ Color.setColorT $ getColor level
+--         when terminal $ putStrLnT str
+--         when file $ file str
+--         when (color && terminal) Color.resetColorSchemeT 
 
 
 -------------эти две функции объединить в одну----------------------------------------------------------------
-convertData :: (MonadIO m, ToJSON a, Show a) => ConfigLog -> LogSettings -> LogLevel -> a -> m ()
-convertData (ConfigLog color terminal file minLevel) (LogSettings colorScheme enable _ ) level dataValue = do
-    if not $ level >= toEnum minLevel && enable then return () else do
-        when (color && terminal) $ Color.setColorT $ getColor level
-        when terminal $ printT dataValue
-        --when file $ logFile $ show dataValue
-        when file $ Interface.Log.file dataValue
-        when (color && terminal) Color.resetColorSchemeT 
+-- convertData :: (MonadIO m, ToJSON a, Show a) => ConfigLog -> LogSettings -> LogLevel -> a -> m ()
+-- convertData (ConfigLog color terminal file minLevel) (LogSettings colorScheme enable) level dataValue = do
+--     if not $ level >= toEnum minLevel && enable then return () else do
+--         when (color && terminal) $ Color.setColorT $ getColor level
+--         when terminal $ printT dataValue
+--         --when file $ logFile $ show dataValue
+--         when file $ file dataValue
+--         when (color && terminal) Color.resetColorSchemeT 
 
 defaultSettings :: LogSettings
-defaultSettings = LogSettings Black True ""
+defaultSettings = LogSettings Black True
 
-defaultConfig :: ConfigLog
-defaultConfig = ConfigLog {colorEnable = False, terminalEnable = True, fileEnable = False, minLevel = 0}
+defaultConfig :: LogConfig
+defaultConfig = LogConfig {colorEnable = False, terminalEnable = True, fileEnable = False, minLevel = 0}
 
 file :: (MonadIO m, ToJSON a) => a -> m()
 file str = do 
-    liftIO $ B.appendFile "log.txt" $ convert . encode $ str --строгая версия
-    liftIO $ B.appendFile "log.txt" $ convert ("\n" :: String)  --строгая версия
+    liftIO $ B.appendFile "log.txt" $ convert . encode $ str 
+    liftIO $ B.appendFile "log.txt" $ convert ("\n" :: String) 
 
 clearFile :: IO()
 clearFile = B.writeFile "log.txt" $ convert ("" :: String)
 
 getColor :: LogLevel -> Color
-getColor  Data = Green
-getColor  Info = Blue
-getColor  Error = Red
-getColor  Warning = Yellow
-getColor  Debug = Magenta 
-
-
-
--- getfname :: LogSettings -> String 
--- -- getfname Nothing = "?"
--- getfname (LogSettings _  _ fn) = fn
+getColor  Debug = Green 
+getColor  Info = Blue --здесь можно использовать разные цветовые схемы для удобства отображения информации
+getColor  Warn = Magenta
+getColor  Error = Yellow
+getColor  Critical = Red 

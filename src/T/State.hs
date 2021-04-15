@@ -1,6 +1,4 @@
 {-# LANGUAGE FlexibleContexts #-}
--- {-# LANGUAGE TypeSynonymInstances #-}
--- {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DeriveGeneric    #-}
 module T.State where
 
@@ -28,8 +26,8 @@ type T = StateT S (ExceptT E IO)
 data S = S {
     configWarp   :: ConfigWarp,
     connectionDB :: Connection,
-    configLog    :: Log.ConfigLog,
-    logSettings  :: Log.LogSettings,
+    configLog    :: LogConfig,
+    logSettings  :: LogSettings,
     cache        :: Cache
 } deriving (Show, Generic)
 
@@ -37,10 +35,10 @@ data S = S {
 getLogSettings :: MonadState S m => m Log.LogSettings
 getLogSettings = gets logSettings
 
-setLogSettings :: MonadState S m => Log.ColorScheme -> Log.Enable -> Log.FuncName -> m ()
-setLogSettings cs e fn = modify $ \s -> s {logSettings = Log.LogSettings cs e fn}
+setLogSettings :: MonadState S m => Log.ColorScheme -> Log.Enable -> m ()
+setLogSettings cs e = modify $ \s -> s {logSettings = Log.LogSettings cs e}
 
-getLogConfig :: MonadState S m => m Log.ConfigLog
+getLogConfig :: MonadState S m => m LogConfig
 getLogConfig = gets configLog
 
 getWarpPort :: MonadState S m => m ConfigWarp

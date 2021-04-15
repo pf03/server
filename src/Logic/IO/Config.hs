@@ -17,7 +17,7 @@ import           System.IO.Error            (isDoesNotExistError)
 data Config = Config {
     _warp :: ConfigWarp,
     _db   :: ConnectInfo,
-    _log  :: Log.ConfigLog
+    _log  :: LogConfig
 } deriving (Show, Generic)
 
 newtype ConfigWarp = ConfigWarp{

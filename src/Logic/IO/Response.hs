@@ -33,8 +33,7 @@ import qualified System.Console.ANSI        as Color
 
 get :: MT m => Request -> m Response
 get req = do
-    Log.setSettings Color.Blue  True "Response.get"
-    Log.dataT Log.Debug req
+    Log.debugM req
     json <- getJSON_ req
     Logic.IO.Response.json json
 
@@ -52,11 +51,9 @@ errorHandler e = do
 getJSON_ :: MT m => Request -> m LC.ByteString
 getJSON_ req = do
     Cache.resetChanged
-    Log.setSettings Color.Blue True "Response.getJSONwithUpload"
-    Log.funcT Log.Debug "..."
     let (rawPathInfo, pathInfo, qs) = ( Wai.rawPathInfo req, Wai.pathInfo req, Wai.queryString req)
     requestBody <- Upload.streamOne (getRequestBodyChunk req)
-    Log.debugT requestBody
+    Log.debugM requestBody
     let qsBody = parseQuery requestBody
     Auth.auth req
     auth <- Cache.getAuth
@@ -143,55 +140,39 @@ showType = show . typeOf
 
 getPosts :: MT m => m [JSON.Post]
 getPosts = do
-    --эта строка первая, чтобы не перезаписывать настройки лога
     categories <- getAllCategories
-    Log.setSettings Color.Blue True "Response.getPosts"
-    Log.funcT Log.Debug "..."
     Cache.modifyParams $ JSON.evalParams categories
     selectPosts <- Select.posts
     JSON.evalPosts categories selectPosts
 
 getDrafts :: MT m => m [JSON.Draft]
 getDrafts = do
-    --эта строка первая, чтобы не перезаписывать настройки лога
     categories <- getAllCategories
-    Log.setSettings Color.Blue True "Response.getDrafts"
-    Log.funcT Log.Debug "..."
     Cache.modifyParams $ JSON.evalParams categories
     selectDrafts <- Select.drafts
     JSON.evalDrafts categories selectDrafts
 
 getPost :: MT m => Int -> m (Maybe JSON.Post)
 getPost pid = do
-    --эта строка первая, чтобы не перезаписывать настройки лога
     categories <- getAllCategories
-    Log.setSettings Color.Blue True "Response.getPost"
-    Log.funcT Log.Debug "..."
     selectPosts <- Select.post pid
     jsonPosts <- JSON.evalPosts categories selectPosts
-    return $ listToMaybe jsonPosts --проверить как это работает. evalUnitedPosts должно объединять все в один пост
+    return $ listToMaybe jsonPosts
 
 getDraft :: MT m => Int -> m (Maybe JSON.Draft)
 getDraft pid = do
-    --эта строка первая, чтобы не перезаписывать настройки лога
     categories <- getAllCategories
-    Log.setSettings Color.Blue True "Response.getDraft"
-    Log.funcT Log.Debug "..."
     selectDrafts <- Select.draft pid
     jsonDrafts <- JSON.evalDrafts categories selectDrafts
-    return $ listToMaybe jsonDrafts --проверить как это работает. evalUnitedDrafts должно объединять все в один пост
+    return $ listToMaybe jsonDrafts
 
 getAllCategories :: MT m => m [JSON.Category]
 getAllCategories = do
-    Log.setSettings Color.Blue True "Response.getAllCategories"
-    Log.funcT Log.Debug "..."
     allCategories <- Select.allCategories
     JSON.evalCategories allCategories allCategories
 
 getCategories :: MT m => m [JSON.Category]
 getCategories = do
-    Log.setSettings Color.Blue True "Response.getCategories"
-    Log.funcT Log.Debug "..."
     allCategories <- Select.allCategories
     categories <- Select.categories
     JSON.evalCategories allCategories categories
@@ -199,16 +180,12 @@ getCategories = do
 updateCategory :: MT m => Int -> m ()
 updateCategory pid = do
     params <- Cache.getParams
-    Log.setSettings Color.Blue True "Response.updateCategory"
-    Log.funcT Log.Debug "..."
     allCategories <- Select.allCategories
     JSON.checkCyclicCategory pid params allCategories
     Update.category pid
 
 getCategory :: MT m => Int -> m (Maybe JSON.Category)
 getCategory pid = do
-    Log.setSettings Color.Blue True "Response.getCategory"
-    Log.funcT Log.Debug "..."
     allCats <- Select.allCategories
     mcat <- Select.category pid
     sequenceA $ JSON.evalCategory allCats <$> mcat

@@ -45,7 +45,7 @@ login = do
     |] <$$> [p $ params ! "login", p $ params ! "pass"]
     case users  :: [(Int, Bool)] of
         [(userId, isAdmin)]   -> do
-            Log.debugT users
+            Log.debugM users
             when (userId == 1) $ Error.throw $ AuthError "Невозможно авторизоваться удаленным пользователем"
             let role = if isAdmin then "admin" else "user"
             date <- liftEIO getCurrentTime

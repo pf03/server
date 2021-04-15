@@ -43,6 +43,7 @@ instance Log.MLog T where
   getSettings = S.getLogSettings
   setSettings = S.setLogSettings
   getConfig = S.getLogConfig
+  message = messageIO
 
 instance MError T where
     -- throw = throwT
@@ -109,26 +110,26 @@ setEnvironment = runE Nothing $ do
 --тавтология с readConfig
 _runConfig :: (MIOError m) => m (Config, String)
 _runConfig = do
-    let ls = Log.LogSettings Color.Cyan True "runT"
+    let ls = Log.LogSettings Color.Cyan True
     ---------------------read config---------------------
     (config, configString) <- Error.catch readConfig $ \e -> do
         let dlc = Log.defaultConfig
-        Log.text dlc ls Log.Error "Ошибка чтения конфигурации при запуске трансформера: "
-        Log.error dlc ls e
+        Log.critical dlc ls "Ошибка чтения конфигурации при запуске трансформера: "
+        Log.critical dlc ls $ show e
         Error.throw e
     let lc = _log config
-    Log.text lc ls Log.Info "Конфиг успешно считан..."
+    Log.info lc ls "Конфиг успешно считан..."
     return (config, configString)
 
 _runConnection :: (MIOError m) => Config -> m Connection
 _runConnection config = do
-    let ls = Log.LogSettings Color.Cyan True "runT"
+    let ls = Log.LogSettings Color.Cyan True
     let lc = _log config
     connection <- Error.catch (DB.connectDB . _db $ config) $ \e -> do
-        Log.text lc ls Log.Error "Ошибка соединения с БД при запуске трансформера: "
-        Log.error lc ls e
+        Log.critical lc ls "Ошибка соединения с БД при запуске трансформера: "
+        Log.critical lc ls $ show e
         Error.throw e
-    Log.text lc ls Log.Info "БД успешно подключена..."
+    Log.info lc ls "БД успешно подключена..."
     let s = getS config connection
     let cl = configLog s
     return connection
@@ -136,21 +137,21 @@ _runConnection config = do
 _getValue :: (ToTransformer m) => Config -> Connection -> m a -> ExceptT E IO a
 _getValue config connection m = do
     let s = getS config connection
-    let ls = Log.LogSettings Color.Cyan True "runT"
+    let ls = Log.LogSettings Color.Cyan True
     let lc = _log config
     a <-  Error.catch (runStateT (toT m) s) $ \e -> do
-        Log.text lc ls Log.Error "Ошибка приложения: "
-        Log.error lc ls e
+        Log.error lc ls "Ошибка приложения: "
+        Log.error lc ls $ show e
         Error.throw e
     return $ fst a
 
 _showValue :: (MonadIO m, Show a) => Config -> a -> m ()
 _showValue config value = do
     let s = getS config
-    let ls = Log.LogSettings Color.Cyan True "runT"
+    let ls = Log.LogSettings Color.Cyan True
     let lc = _log config
-    Log.text lc ls Log.Info "Результат: "
-    Log.ldata lc ls Log.Data value
+    Log.info lc ls "Результат: "
+    Log.info lc ls $ show value
     return ()
 
 -----------------------------ExceptT E IO a------------------------------------
@@ -190,13 +191,13 @@ getS Config {_warp = configWarp, _db = _, _log = configLog} connection = S {
 -----------------------------LOG TEST------------------------------------------
 testLog :: IO()
 testLog = runT $ do
-    Log.dataT Log.Debug $ "Debug data value " ++ show [1..10]  :: T()
-    Log.dataT Log.Info $ "Info data value " ++ show [1..10]
-    Log.dataT Log.Error $ "Error data value " ++ show [1..10]
-    Log.dataT Log.Data $ "Data data value " ++ show [1..10]
-    Log.dataT Log.Warning  $ "Warning data value " ++ show [1..10]
-    Log.colorTextT Color.Blue Log.Debug $"Blue color scheme " ++ klichko
-    Log.colorTextT Color.Cyan Log.Debug $ "Cyan color scheme " ++ klichko
-    Log.colorTextT Color.Green Log.Debug $ "Green color scheme " ++ klichko
-    Log.colorTextT Color.Yellow Log.Debug $ "Yellow color scheme " ++ klichko
+    Log.debugM $ "Debug data value " ++ show [1..10]  :: T()
+    Log.infoM $ "Info data value " ++ show [1..10]
+    Log.errorM $ "Error data value " ++ show [1..10]
+    Log.warnM  $ "Data data value " ++ show [1..10]
+    Log.criticalM  $ "Warning data value " ++ show [1..10]
+    Log.infoCM Color.Blue $ "Blue color scheme " ++ klichko
+    Log.infoCM Color.Cyan $ "Cyan color scheme " ++ klichko
+    Log.infoCM Color.Green $ "Green color scheme " ++ klichko
+    Log.infoCM Color.Yellow $ "Yellow color scheme " ++ klichko
         where klichko = "Есть очень много по этому поводу точек зрения. Я четко придерживаюсь и четко понимаю, что те проявления, если вы уже так ребром ставите вопрос, что якобы мы"

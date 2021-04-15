@@ -23,12 +23,12 @@ read path = B.readFile path `Error.catchEIO` handler where
         | isDoesNotExistError e = IOError $ template  "Файл \"{0}\" не найден!" [path]
         | otherwise = IOError  $ template "Ошибка чтения файла \"{0}\"" [path]
 
-writeResponse :: (MLog m, ToJSON a) => a -> m ()
+writeResponse :: (MonadIO m, MLog m, ToJSON a) => a -> m ()
 writeResponse json = do
-    Log.colorTextT Color.Yellow Log.Warning "Запись ответа в файл в целях отладки..."
+    Log.warnM "Запись ответа в файл в целях отладки..."
     liftIO $ B.writeFile "response.json" $ convert . Aeson.encodePretty $ json
 
-writeResponseJSON :: MLog m => LC.ByteString -> m ()
+writeResponseJSON :: (MonadIO m, MLog m) => LC.ByteString -> m ()
 writeResponseJSON json = do
-    Log.colorTextT Color.Yellow Log.Warning "Запись ответа в файл в целях отладки..."
+    Log.warnM "Запись ответа в файл в целях отладки..."
     liftIO $ B.writeFile "response.json" $ convert json

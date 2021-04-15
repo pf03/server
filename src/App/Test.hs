@@ -559,7 +559,7 @@ test :: IO ()
 test = runT $ do
     Migrations.allForce  --сброс БД!!!
     forM_ cases $ uncurry listOfTestCasesByOne
-    Log.colorTextT Color.Blue Log.Debug  "Все запросы завершены..."
+    Log.infoCM Color.Blue "Все запросы завершены..."
 
 
 
@@ -568,16 +568,16 @@ test = runT $ do
 --перепрыгиваем через тесты
 listOfTestCasesByOne :: String -> [(PathInfo, Query)] -> T (Maybe Token, Maybe Int)
 listOfTestCasesByOne name qs = do
-    Log.colorTextT Color.Yellow Log.Debug  " Нажмите Enter для начала теста..."
+    Log.infoCM Color.Yellow  " Нажмите Enter для начала теста..."
     readLnT
     forMMem (zip [1,2..] qs) (Nothing, Nothing) $ \(mt, mn) (n, (pathInfo, query)) -> do
         Error.catch (do
 
             toT clearScreen
             --Log.debugT (mt, mn)
-            Log.colorTextT Color.Blue Log.Debug  $ template "Проверка {1}, тестовый случай {0}: " [show n, name]
-            Log.debugT (pathInfo, query)
-            Log.colorTextT Color.Cyan Log.Debug  $ template "Token: {0}" [show mt]
+            Log.infoCM Color.Blue  $ template "Проверка {1}, тестовый случай {0}: " [show n, name]
+            Log.debugM (pathInfo, query)
+            Log.infoCM Color.Cyan $ template "Token: {0}" [show mt]
 
             --query в тестах для простоты дублируется и в строке запроса и в теле запроса.
             headers <- case mt of
@@ -590,29 +590,29 @@ listOfTestCasesByOne name qs = do
                     Error.catch (do
                         str <- Response.getJSONTest (convert $ show pathInfo) pathInfo query query headers
                         tmp <- toT . (Just <$>) . typeError ParseError . eitherDecode $ str
-                        Log.colorTextT Color.Green Log.Debug $ template "Аутентификация успешно завершена, токен: {0} . Нажмите Enter для следующего теста, q + Enter для выхода или номер_теста + Enter..." [show tmp]
+                        Log.infoCM Color.Green $ template "Аутентификация успешно завершена, токен: {0} . Нажмите Enter для следующего теста, q + Enter для выхода или номер_теста + Enter..." [show tmp]
                         return tmp
                         )
 
                         (\e -> do
-                        Log.colorTextT Color.Yellow Log.Debug $ show e
+                        Log.infoCM Color.Yellow $ show e
                         return Nothing)
                 _ -> do
                     Log.on
                     Response.getJSONTest (convert $ show pathInfo) pathInfo query query headers
-                    Log.colorTextT Color.Green Log.Debug  "Запрос успешно завершен. Нажмите Enter для следующего теста, q + Enter для выхода или номер_теста + Enter..."
+                    Log.infoCM Color.Green "Запрос успешно завершен. Нажмите Enter для следующего теста, q + Enter для выхода или номер_теста + Enter..."
 
                     return mt
             newmn <- readCommand n mn
-            Log.debugT newmt
+            Log.debugM newmt
             return (newmt, newmn)
             ) $ \e -> do
                 case e of
                     IOError _ -> Error.throw e
                     _ -> do
-                        Log.colorTextT Color.Yellow Log.Debug  "Запрос НЕуспешно завершен."
-                        Log.colorTextT Color.Yellow Log.Debug $ show (e::E)
-                        Log.colorTextT Color.Yellow Log.Debug  "Нажмите Enter для следующего теста, q + Enter для выхода или номер_теста + Enter..."
+                        Log.infoCM Color.Yellow "Запрос НЕуспешно завершен."
+                        Log.infoCM Color.Yellow $ show (e::E)
+                        Log.infoCM Color.Yellow "Нажмите Enter для следующего теста, q + Enter для выхода или номер_теста + Enter..."
                         newmn <- readCommand n mn
                         return (mt, newmn)
 

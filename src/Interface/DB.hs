@@ -34,24 +34,24 @@ connectDB connectInfo = connect connectInfo `Error.catchEIO` handler where
 query_ :: (MDB m,  Show r, FromRow r) => Query -> m [r]
 query_ q = do
     conn <- Interface.DB.getConnection
-    Log.debugT q
+    Log.debugM q
     liftEIO $ SQL.query_ conn q --LiftIO использовать нельзя, т.к теряется обработка ошибок
 
 -- query_ :: (Show r, FromRow r) => Query -> T [r]
 -- query_ q = do
 --     conn <- S.getConnection
---     Log.debugT q
+--     Log.debugM q
 --     toT $ SQL.query_ conn q
 
 query :: (MDB m, Show r, ToRow q, FromRow r) => Query -> q -> m[r]
 query query q = do
-    Log.debugT query
+    Log.debugM query
     conn <- Interface.DB.getConnection
     liftEIO $ SQL.query conn query q
 
 executeMany :: (MDB m, ToRow q) => Query -> [q] -> m Int64
 executeMany q list = do
-    Log.debugT q
+    Log.debugM q
     conn <- Interface.DB.getConnection
     liftEIO $ SQL.executeMany conn q list
 
@@ -59,14 +59,14 @@ executeMany q list = do
 execute_ :: MDB m => Query -> [Query] -> m Int64
 execute_ q qs = do
     let query = template q qs
-    Log.debugT query
+    Log.debugM query
     conn <- Interface.DB.getConnection
     liftEIO $ SQL.execute_ conn query
 
 _execute :: MT m => QueryType -> APIType -> Query -> [Query] ->  m ()
 _execute queryType apiType q qs   = do
     let query = template q qs
-    Log.debugT query
+    Log.debugM query
     conn <- Interface.DB.getConnection
     rows <- liftEIO $ SQL.execute_ conn query
     Cache.addChanged queryType apiType rows
@@ -99,7 +99,7 @@ delete = _execute Delete
 execute__ :: MDB m => Query -> [Query] -> m ()
 execute__ q qs = do
     n <- Interface.DB.execute_ q qs
-    Log.textT Log.Debug $ template "Выполнен запрос, изменено {0} строк" [show n] --и это, т .е результат выполнения
+    Log.infoM $ template "Выполнен запрос, изменено {0} строк" [show n] --и это, т .е результат выполнения
     --return()
 
 whereAll :: Query -> [Query] -> Query
