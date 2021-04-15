@@ -43,7 +43,7 @@ instance Log.MLog T where
   getSettings = S.getLogSettings
   setSettings = S.setLogSettings
   getConfig = S.getLogConfig
-  message = messageIO
+  message = Log.messageIO
 
 instance MError T where
     -- throw = throwT
