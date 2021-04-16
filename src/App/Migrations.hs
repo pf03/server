@@ -23,6 +23,10 @@ import           Database.PostgreSQL.Simple.Types
 import qualified System.Console.ANSI              as Color (Color (..))
 
 
+
+
+
+
 --использовать этот список
 --list :: M.Map String (T())
 list :: MDB m => [(String, m ())]
@@ -33,13 +37,29 @@ list = --M.fromList
         ("0002 Переименование news в posts", renameNewsToPosts)
     ]
 
+list1 :: [(FilePath, String)]
+list1 = [
+    (,) "0000_base.sql"
+        "Создание таблиц базы данных",
+    (,) "0001_insert_data.sql"
+        "Заполнение таблиц данными",
+    (,) "0002_hash_passwords.sql"
+        "Хеширование паролей",
+    (,) "0003_rename_news_to_posts.sql"
+        "Переименование news в posts"
+    ]
 
 --Если этот модуль не будет запускать трансформер, то можно переместить его в слой логики Logic.DB
-run :: IO()
+run :: IO ()
 run = runT (App.Migrations.all :: T())
 
+init :: IO ()
+init = runT (App.Migrations.base :: T())
+
+data Migration = All | Init
+
 --сделать возможность выбора номера миграции
-all :: MDB m => m()
+all :: MDB m => m ()
 all = do
     --сделать лог, который не пишется в файл логов, а только в консоль (сообщение пользователю)
     Log.setSettings Color.Yellow True
@@ -71,11 +91,17 @@ wrapper (name, func) = do
 pathMigrations :: FilePath
 pathMigrations = "migrations/0000_base.sql"
 
+-- Выполнить скрипт из файла
+executeFile :: MDB m => FilePath -> m ()
+executeFile path = do
+    queryBS <- File.read path
+    let query = Query queryBS
+    DB.execute__ query []
+
 --DB initialization from sql file
 base :: MDB m => m ()
 base = do
     queryBS <- File.read pathMigrations
-    --Log.dataT Log.Warning queryBS
     let query = Query queryBS
     DB.execute__ query []
 
@@ -95,7 +121,17 @@ hashPasswords = do
         ALTER TABLE users
             ALTER COLUMN pass TYPE VARCHAR (32)
     |] []
+    
+    --доработать!!!
+    let s = [sql|
+        UPDATE users
+        SET pass = md5 (CONCAT_WS(' ', login, pass))
+        FROM (VALUES (?, ?)) as upd(id, lp)
+        |]
+
     Log.infoM "Урезана длина строки пароля до 32 символов..."
+
+
 
 --это тоже можно запихнуть в файл
 renameNewsToPosts :: MDB m => m ()

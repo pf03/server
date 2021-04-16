@@ -12,6 +12,7 @@ import qualified Data.ByteString.Lazy       as L
 import           Database.PostgreSQL.Simple
 import           GHC.Generics               (Generic)
 import           System.IO.Error            (isDoesNotExistError)
+import Network.Wai.Handler.Warp as Warp ( Port )
 
 -----------------------------Types---------------------------------------------
 data Config = Config {
@@ -39,7 +40,6 @@ instance FromJSON ConfigWarp
 instance ToJSON ConfigWarp
 instance FromJSON ConnectInfo
 instance ToJSON ConnectInfo
-type Port = Int
 
 -----------------------------Functions-----------------------------------------
 -- | Read config as both object and string

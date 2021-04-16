@@ -185,17 +185,14 @@ getS Config {_warp = configWarp, _db = _, _log = configLog} connection = S {
     cache = Cache{changed = mempty, auth = AuthNo, params = mempty}
 }
 
-
-
-
 -----------------------------LOG TEST------------------------------------------
 testLog :: IO()
 testLog = runT $ do
     Log.debugM $ "Debug data value " ++ show [1..10]  :: T()
     Log.infoM $ "Info data value " ++ show [1..10]
+    Log.warnM  $ "warnM data value " ++ show [1..10]
     Log.errorM $ "Error data value " ++ show [1..10]
-    Log.warnM  $ "Data data value " ++ show [1..10]
-    Log.criticalM  $ "Warning data value " ++ show [1..10]
+    Log.criticalM  $ "criticalM data value " ++ show [1..10]
     Log.infoCM Color.Blue $ "Blue color scheme " ++ klichko
     Log.infoCM Color.Cyan $ "Cyan color scheme " ++ klichko
     Log.infoCM Color.Green $ "Green color scheme " ++ klichko

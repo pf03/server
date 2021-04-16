@@ -14,10 +14,12 @@ import           Database.PostgreSQL.Simple.SqlQQ
 import           Network.HTTP.Types               (status200)
 import           Network.HTTP.Types.Header        (hContentType)
 import           Network.Wai                      (Application, responseLBS)
-import           Network.Wai.Handler.Warp         as Warp (run)
+import           Network.Wai.Handler.Warp         as Warp
 import           Network.Wai.Internal
 import           System.Environment
-
+import           System.Exit
+import Control.Concurrent
+import Control.Monad
 
 --с брузера почему то отправляется по два запроса при каждом обновлении страницы.
 --через postman один
@@ -28,8 +30,8 @@ run = do
         Nothing -> return ()
         Just config -> do
             let port = warpPort . _warp $ config
-            putStrLn $ "Listening on port " ++ show port
-            Warp.run port app
+            putStrLn $ template "Слушаем порт {0}. Для выхода введите q" [show port]
+            Warp.runSettings (settings port) app
 
 app :: Application
 app req f = do
@@ -51,3 +53,23 @@ emptyBody n str = do
             putStrLn $ template "Успешно прочитано {0} чаcтей тела запроса" [show n]
         else do
             emptyBody (n+1) str
+
+
+--ошибка при остановке сервера
+settings :: Port -> Settings
+settings port = setPort port . 
+    setInstallShutdownHandler shutdownHandler . 
+    setGracefulShutdownTimeout (Just 1) $ 
+    defaultSettings
+  where
+    shutdownHandler closeSocket = do
+        stop
+        closeSocket
+
+stop :: IO ()
+stop = do
+    command <- getLine
+    putStrLn command
+    if command == "q" 
+        then return () --exitSuccess 
+        else stop
