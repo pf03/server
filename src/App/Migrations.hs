@@ -21,11 +21,9 @@ import qualified Data.Map                         as M
 import           Database.PostgreSQL.Simple.SqlQQ
 import           Database.PostgreSQL.Simple.Types
 import qualified System.Console.ANSI              as Color (Color (..))
-
-
-
-
-
+import Logic.DB.Select as Select
+import Logic.DB.Row as Row
+import Interface.Error as Error
 
 --использовать этот список
 --list :: M.Map String (T())
@@ -37,6 +35,17 @@ list = --M.fromList
         ("0002 Переименование news в posts", renameNewsToPosts)
     ]
 
+pathMigrations :: FilePath
+pathMigrations = "migrations"
+
+pathMigration :: String -> FilePath
+pathMigration name = template "{0}/{1}" [pathMigrations, name]
+
+
+
+-- https://hackage.haskell.org/package/directory-1.3.6.1/docs/System-Directory.html
+-- System.Directory
+-- информацию о списке миграций можно считать прямо с папки. 
 list1 :: [(FilePath, String)]
 list1 = [
     (,) "0000_base.sql"
@@ -49,14 +58,36 @@ list1 = [
         "Переименование news в posts"
     ]
 
+
+
 --Если этот модуль не будет запускать трансформер, то можно переместить его в слой логики Logic.DB
-run :: IO ()
-run = runT (App.Migrations.all :: T())
+-- run :: IO ()
+-- run = runT (App.Migrations.all :: T())
 
 init :: IO ()
 init = runT (App.Migrations.base :: T())
 
-data Migration = All | Init
+-- data Migration = All | Init
+
+--forMMem (zip [1,2..] qs) (Nothing, Nothing) $ \(mt, mn) (n, (pathInfo, query)) -> do
+
+run :: MDB m => m ()
+run = do
+    versions <- Select.allMigrations
+    -- forMMem (zip versions list1) False $ \enable (v, (fp, s)) -> do
+    --     when enable
+
+
+    undefined
+
+checkMigrations :: (MError m, MLog m) => [Select.Migration] -> [String] -> m [String]
+checkMigrations migrations names = do
+    zipWithM_ helper migrations names --проверка соответствия имен миграций
+    return $ drop (length migrations) names
+    where
+        helper migration name = if migrationName migration == name 
+            then Log.infoM $ template "Миграция {0} уже применена..." [name]
+            else Error.throw $ DBError $ template "Имя миграции в БД: {0} не соответствует имени файла: {1}" [migrationName migration, name]
 
 --сделать возможность выбора номера миграции
 all :: MDB m => m ()
@@ -88,8 +119,7 @@ wrapper (name, func) = do
     func
     Log.infoCM Color.Green "Миграция окончена успешно"
 
-pathMigrations :: FilePath
-pathMigrations = "migrations/0000_base.sql"
+
 
 -- Выполнить скрипт из файла
 executeFile :: MDB m => FilePath -> m ()

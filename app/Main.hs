@@ -28,14 +28,14 @@ main = do
     --return ()
     args <- getArgs
     print args
-    case args of 
-        [] -> Server.run
-        ["db-init"] -> Migrations.init
-        ["migrations"] -> Migrations.run
-        _ -> do
-            putStrLn "Неверные опции командной строки!"
-            putStrLn "Возможные опции:"
-            putStrLn "Запуск без аргументов    - запуск сервера"
-            putStrLn "db-init                  - инициализация всех таблиц базы данных с нуля"
-            putStrLn "migrations               - применение миграций к локальной базе данных без потери данных"
+    -- case args of 
+    --     [] -> Server.run
+    --     ["db-init"] -> Migrations.init
+    --     ["migrations"] -> Migrations.run
+    --     _ -> do
+    --         putStrLn "Неверные опции командной строки!"
+    --         putStrLn "Возможные опции:"
+    --         putStrLn "Запуск без аргументов    - запуск сервера"
+    --         putStrLn "db-init                  - инициализация всех таблиц базы данных с нуля"
+    --         putStrLn "migrations               - применение миграций к локальной базе данных без потери данных"
             

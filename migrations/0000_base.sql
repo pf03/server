@@ -1,6 +1,7 @@
-CREATE TABLE versions (
+CREATE TABLE migrations (
 	id SERIAL PRIMARY KEY,
 	name VARCHAR (255) not null
+    description VARCHAR (1000)  not null
 )
 
 CREATE TABLE users (

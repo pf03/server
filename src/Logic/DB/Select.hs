@@ -1,6 +1,7 @@
 {-# LANGUAGE TypeOperators #-}
 module Logic.DB.Select 
-    ( User, user, users
+    ( Migration, allMigrations
+    , User, user, users
     , Author, author, authors 
     , Category, category, categories, allCategories 
     , Tag, tag, tags
@@ -22,6 +23,15 @@ import           Data.Map                         as M ((!))
 import           Data.Maybe
 import           Database.PostgreSQL.Simple.SqlQQ (sql)
 import           Database.PostgreSQL.Simple.Types as SQL
+
+-----------------------------Migration----------------------------------------------
+type Migration =  Row.Migration
+
+allMigrations :: MDB m => m [Migration]
+allMigrations = DB.query_ selectMigrationsQuery
+
+selectMigrationsQuery :: Query
+selectMigrationsQuery = [sql|SELECT * FROM migrations|]
 
 -----------------------------User----------------------------------------------
 type User =  Row.User

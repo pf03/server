@@ -237,6 +237,9 @@ forMap mp f = M.mapWithKey (\k _ -> f k) mp
 forWithKey :: p -> M.Map k a -> (k -> a -> b) -> M.Map k b
 forWithKey f = flip M.mapWithKey
 
+forMMem :: (Foldable t, Monad m) => t a -> b -> (b -> a -> m b) -> m b
+forMMem cont init f = foldM f init cont
+
 
 
 

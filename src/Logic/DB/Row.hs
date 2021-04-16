@@ -15,6 +15,14 @@ import           Database.PostgreSQL.Simple.FromRow
 import           Database.PostgreSQL.Simple.Time
 import           GHC.Generics
 
+data Migration = Migration {
+    migrationId :: Int,
+    migrationName :: String,
+    migrationDescription :: String
+    } deriving (Show, Generic, FromRow)
+instance Identifiable Migration where
+    getId = migrationId
+
 data User = User {
     userId :: Int, --snake case for table name
     userFirstName :: String,
@@ -113,6 +121,8 @@ data Comment = Comment {
 instance ToJSON Comment
 instance Identifiable Comment where
     getId = commentId
+
+
 
 instance FromRow (Maybe Tag) where
     fromRow = do

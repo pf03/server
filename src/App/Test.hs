@@ -626,5 +626,4 @@ listOfTestCasesByOne name qs = do
                 Right newn -> return (Just newn)
                 _          -> return Nothing
 
-forMMem :: (Foldable t, Monad m) => t a -> b -> (b -> a -> m b) -> m b
-forMMem cont init f = foldM f init cont
+
