@@ -41,6 +41,9 @@ setLogSettings cs e = modify $ \s -> s {logSettings = Log.LogSettings cs e}
 getLogConfig :: MonadState S m => m LogConfig
 getLogConfig = gets configLog
 
+setLogConfig :: MonadState S m => LogConfig -> m ()
+setLogConfig lc = modify $ \s -> s {configLog = lc}
+
 getWarpPort :: MonadState S m => m ConfigWarp
 getWarpPort = gets configWarp
 

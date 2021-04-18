@@ -39,11 +39,14 @@ type Enable = Bool
 -- type FuncName = String
 data LogSettings = LogSettings {colorScheme :: ColorScheme, logEnable :: Enable} deriving Show
 
+
+--объединить Config и Settings в одно
 -----------------------------Class---------------------------------------------
 class Monad m => MLog m where
   getSettings :: m LogSettings
   setSettings :: ColorScheme -> Enable -> m ()
   getConfig :: m LogConfig
+  setConfig :: LogConfig -> m ()
   message :: LogConfig -> LogSettings -> LogLevel -> String -> m ()
 
 -----------------------------MLog----------------------------------------------
@@ -78,6 +81,12 @@ logM m = do
     a <- m
     debugM a
     return a
+
+-- *Эту функцию рекомендуется использовать только при отладке, иначе можно лишиться нужных логов
+setLevel :: MLog m => LogLevel -> m ()  
+setLevel newMinLevel = do
+    config <- getConfig
+    setConfig $ config {minLevel = fromEnum newMinLevel}
 
 -- | Для отладочной информации сделано исключение - она может быть любого типа Show a,
 -- а не только строкового
@@ -135,7 +144,6 @@ messageIO (LogConfig ecolor eterminal efile minLevel) (LogSettings colorScheme e
         when eterminal $ putStrLnT logText
         when efile $ file logText
         when (ecolor && eterminal) Color.resetColorSchemeT
-
         where
             logText :: String
             logText = map toUpper (show level) <> " " <> text

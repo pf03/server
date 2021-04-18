@@ -99,7 +99,7 @@ delete = _execute Delete
 execute__ :: MDB m => Query -> [Query] -> m ()
 execute__ q qs = do
     n <- Interface.DB.execute_ q qs
-    Log.infoM $ template "Выполнен запрос, изменено {0} строк" [show n] --и это, т .е результат выполнения
+    Log.debugM $ template "Выполнен запрос, изменено {0} строк" [show n] --и это, т .е результат выполнения
     --return()
 
 whereAll :: Query -> [Query] -> Query
