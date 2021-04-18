@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 24b03ea821072206665c2a318d572e1ebd56b7a19953d6c4f5233041d9a34f38
+-- hash: d219dbe51e7a8177f13cffb8dd021be1006ed5231e3e030e26fcb3c3d59a7d51
 
 name:           server
 version:        0.1.0.0
@@ -27,7 +27,7 @@ source-repository head
 
 library
   exposed-modules:
-      App.Migrations
+      App.Main
       App.Server
       App.Test
       Common.Color
@@ -40,6 +40,7 @@ library
       Logic.DB.Auth
       Logic.DB.Delete
       Logic.DB.Insert
+      Logic.DB.Migrations
       Logic.DB.Row
       Logic.DB.Select
       Logic.DB.Update

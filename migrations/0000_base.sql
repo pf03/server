@@ -1,7 +1,6 @@
 CREATE TABLE migrations (
 	id SERIAL PRIMARY KEY,
 	name VARCHAR (255) not null
-    -- description VARCHAR (1000)  not null
 );
 
 CREATE TABLE users (
@@ -53,7 +52,6 @@ CREATE TABLE drafts (
     news_id INTEGER
 );
 
---many to many
 CREATE TABLE tags_to_contents(
     id SERIAL PRIMARY KEY,
     content_id INT  not null,
