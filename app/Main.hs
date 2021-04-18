@@ -1,6 +1,6 @@
 module Main where
 
-import qualified App.Main as Main
+import qualified App.Main as App
 
 main :: IO()
-main = Main.main
+main = App.main

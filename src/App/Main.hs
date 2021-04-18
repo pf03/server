@@ -47,13 +47,13 @@ main = do
             putStrLn "db-drop                     - удаление всех таблиц БД"
 
 dbdrop :: IO ()
-dbdrop = runT (Migrations.dbdrop :: T())
+dbdrop = runT Migrations.dbdrop
 
 migrations :: IO ()
-migrations = runT (Migrations.run :: T())
+migrations = runT Migrations.run 
 
 dbinit :: IO ()
-dbinit = runT (Migrations.dbinit :: T())
+dbinit = runT Migrations.dbinit 
 
 server :: IO ()
 server = Server.run

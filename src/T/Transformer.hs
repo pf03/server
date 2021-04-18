@@ -1,4 +1,3 @@
---{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -11,29 +10,21 @@ import           Interface.DB                     as DB
 import           Interface.Error                  as Error
 import           Interface.Log                    as Log
 import           T.State                          as S
-import           T.ToTransformer
 import           Logic.IO.Config            as Config
 
 -- Other Modules
 import           Control.Applicative              ((<|>))
 import           Control.Monad.Except
-import           Control.Monad.Reader
 import           Control.Monad.State.Lazy
 import           Control.Monad.Trans.Except
-import           Data.Aeson
-import qualified Data.Aeson.Encode.Pretty         as Aeson
-import qualified Data.ByteString                  as B
-import qualified Data.ByteString.Char8            as BC
-import qualified Data.ByteString.Lazy             as L
-import qualified Data.ByteString.Lazy.Char8       as LC
-import           Data.Maybe
+-- import qualified Data.Aeson.Encode.Pretty         as Aeson
+-- import qualified Data.ByteString                  as B
+-- import qualified Data.ByteString.Char8            as BC
+-- import qualified Data.ByteString.Lazy             as L
+-- import qualified Data.ByteString.Lazy.Char8       as LC
 import           Database.PostgreSQL.Simple
-import           Database.PostgreSQL.Simple.SqlQQ
-import           Network.Wai                      (Application, responseLBS)
-import           Network.Wai.Handler.Warp         (run)
 import qualified System.Console.ANSI              as Color
 import           System.Environment
-import           System.IO.Error                  (isDoesNotExistError)
 
 -- | Данный модуль реализует класс типов MT (и остальные классы) с помощью трансформера T
 
@@ -50,7 +41,8 @@ instance MError T where
     -- catch = catchT where
 
     throw :: E -> T a
-    throw e  = toT (throwE e::Except E a)
+    --throw e  = toT (throwE e :: Except E a)
+    throw e  = lift $ throwE e
 
     catch :: T a -> (E -> T a) -> T a
     catch ta f  = StateT $ \s -> catchE (runStateT ta s) $ \e -> runStateT (f e) s
@@ -70,7 +62,7 @@ instance MT T
 
 
 -- | Run and show result of transformer
-showT :: (ToTransformer m, Show a) => m a -> IO ()
+showT :: Show a => T a -> IO ()
 showT m = runE_ $ do
     (config, _) <- _runConfig
     connection <- _runConnection config
@@ -78,7 +70,7 @@ showT m = runE_ $ do
     _showValue config value
 
 -- | Run transformer without showing
-runT :: ToTransformer m => m a -> IO ()
+runT :: T a -> IO ()
 runT m = runE_ $ do
     (config, _) <- _runConfig
     connection <- _runConnection config
@@ -87,7 +79,7 @@ runT m = runE_ $ do
 
 -- | Evaluate value of transformer with default value in error case
 -- * ConfigString red from Environment
-evalT :: (ToTransformer m) => m a -> a -> String -> IO a
+evalT :: T a -> a -> String -> IO a
 evalT m def configString = runE def $ do
     config <- eDecode  $ read configString
     connection <- _runConnection config
@@ -95,7 +87,7 @@ evalT m def configString = runE def $ do
 
 -- | Evaluate value of transformer with default value in error case
 -- * ConfigString red from Environment
-evalTwithHandler :: (ToTransformer m) => m a -> (E -> a) -> String -> IO a
+evalTwithHandler :: T a -> (E -> a) -> String -> IO a
 evalTwithHandler m handler configString = runEwithHandler handler $ do
     config <- eDecode  $ read configString
     connection <- _runConnection config
@@ -136,12 +128,12 @@ _runConnection config = do
     let cl = configLog s
     return connection
 
-_getValue :: (ToTransformer m) => Config -> Connection -> m a -> ExceptT E IO a
+_getValue :: Config -> Connection -> T a -> ExceptT E IO a
 _getValue config connection m = do
     let s = getS config connection
     let ls = Log.LogSettings Color.Cyan True
     let lc = _log config
-    a <-  Error.catch (runStateT (toT m) s) $ \e -> do
+    a <-  Error.catch (runStateT m s) $ \e -> do
         Log.error lc ls "Ошибка приложения: "
         Log.error lc ls $ show e
         Error.throw e

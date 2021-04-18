@@ -1,19 +1,20 @@
 module App.Test where
 
 -- Our Modules
-import qualified App.Migrations             as Migrations
+import qualified Logic.DB.Migrations             as Migrations
 import           Common.Misc
 import           Interface.Error            as Error
 import           Interface.Log              as Log
+import Interface.DB as DB ( MT )
 import           Logic.DB.Auth              as Auth
 import qualified Logic.IO.Response          as Response
-import           T.State
-import           T.ToTransformer
+-- import           T.State
+-- import           T.ToTransformer
 import           T.Transformer
 
 -- Other Modules
 import           Control.Monad
-import           Control.Monad.Trans.Except
+-- import           Control.Monad.Trans.Except
 import           Data.Aeson
 import qualified Data.ByteString            as B
 import qualified Data.ByteString.Lazy.Char8 as LC
@@ -566,14 +567,14 @@ test = runT $ do
 --новая версия с сохранением токена!!
 --нужен рефакторинг! отдельная ветка для логина, и отдельная для другого запроса
 --перепрыгиваем через тесты
-listOfTestCasesByOne :: String -> [(PathInfo, Query)] -> T (Maybe Token, Maybe Int)
+listOfTestCasesByOne :: MT m => String -> [(PathInfo, Query)] -> m (Maybe Token, Maybe Int)
 listOfTestCasesByOne name qs = do
     Log.infoCM Color.Yellow  " Нажмите Enter для начала теста..."
     readLnT
     forMMem (zip [1,2..] qs) (Nothing, Nothing) $ \(mt, mn) (n, (pathInfo, query)) -> do
         Error.catch (do
 
-            toT clearScreen
+            liftEIO clearScreen
             --Log.debugT (mt, mn)
             Log.infoCM Color.Blue  $ template "Проверка {1}, тестовый случай {0}: " [show n, name]
             Log.debugM (pathInfo, query)
@@ -589,7 +590,10 @@ listOfTestCasesByOne name qs = do
                     --str <- Error.catch (DB.getJSONTest (convert $ show pathInfo) pathInfo query query headers) (\e -> return "")
                     Error.catch (do
                         str <- Response.getJSONTest (convert $ show pathInfo) pathInfo query query headers
-                        tmp <- toT . (Just <$>) . typeError ParseError . eitherDecode $ str
+                        --tmp <- toT . (Just <$>) . typeError ParseError . eitherDecode $ str
+                        tmp <- Just <$> Error.catchEither (eitherDecode str) ParseError
+
+
                         Log.infoCM Color.Green $ template "Аутентификация успешно завершена, токен: {0} . Нажмите Enter для следующего теста, q + Enter для выхода или номер_теста + Enter..." [show tmp]
                         return tmp
                         )
@@ -618,7 +622,7 @@ listOfTestCasesByOne name qs = do
 
 
     where
-        readCommand :: Int -> Maybe Int -> T (Maybe Int)
+        readCommand :: MIOError m => Int -> Maybe Int -> m (Maybe Int)
         readCommand n mn = if Just n < mn  then return mn else do
             answ <- readLnT
             when (answ == "q") $ Error.throw $ IOError "Выход из теста по требованию пользователя"

@@ -8,12 +8,13 @@ import           Common.Misc
 --Other Modules
 import           Control.Monad
 import           Control.Monad.IO.Class (MonadIO (..))
-import           Data.Aeson             (encode)
+import           Data.Aeson             (encode, Value (String))
 import           Data.Aeson.Types       (FromJSON, ToJSON)
 import qualified Data.ByteString        as B
 import           GHC.Generics           (Generic)
 import           Prelude                hiding (error)
 import           System.Console.ANSI
+import Data.Char ( toUpper )
 
 -----------------------------Types---------------------------------------------
 data LogConfig = LogConfig{
@@ -32,6 +33,7 @@ data LogLevel =  Debug | -- отладочные данные
     Error   | -- некритическая ошибка, которая может в том или ином виде отдаваться пользователю
     Critical  -- критическая ошибка, ведущая к завершению работы приложения
     deriving (Eq, Enum, Ord, Show)
+
 type ColorScheme = Color
 type Enable = Bool
 -- type FuncName = String
@@ -130,9 +132,13 @@ messageIO (LogConfig ecolor eterminal efile minLevel) (LogSettings colorScheme e
         when (ecolor && eterminal ) $ do
             if level == Info then Color.setSchemeT colorScheme
                 else Color.setColorT $ getColor level
-        when eterminal $ putStrLnT text
-        when efile $ file text
+        when eterminal $ putStrLnT logText
+        when efile $ file logText
         when (ecolor && eterminal) Color.resetColorSchemeT
+
+        where
+            logText :: String
+            logText = map toUpper (show level) <> " " <> text
 
 -----------------------------Simple functions----------------------------------
 defaultSettings :: LogSettings
