@@ -15,10 +15,11 @@ import           Database.PostgreSQL.Simple.FromRow
 import           Database.PostgreSQL.Simple.Time
 import           GHC.Generics
 
+type FileName = String
 data Migration = Migration {
     migrationId :: Int,
-    migrationName :: String,
-    migrationDescription :: String
+    migrationName :: FileName
+    -- migrationDescription :: String
     } deriving (Show, Generic, FromRow)
 instance Identifiable Migration where
     getId = migrationId

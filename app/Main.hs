@@ -2,6 +2,8 @@ module Main where
 import qualified App.Server as Server
 import qualified App.Migrations as Migrations
 import System.Environment
+import T.Transformer
+import T.State
 
 -- Логика работы сервера разбита на следующие слои (представлены в соответствующих папках в src):
 -- 1. Common    - общие функции;
@@ -22,20 +24,29 @@ import System.Environment
 -- Запуск без аргументов    - запуск сервера
 -- db-init                  - инициализация всех таблиц базы данных с нуля
 -- migrations               - применение миграций к локальной базе данных без потери данных
+-- db-drop                     - удаление всех таблиц БД
 
 main :: IO()
 main = do
     --return ()
     args <- getArgs
     print args
-    -- case args of 
-    --     [] -> Server.run
-    --     ["db-init"] -> Migrations.init
-    --     ["migrations"] -> Migrations.run
-    --     _ -> do
-    --         putStrLn "Неверные опции командной строки!"
-    --         putStrLn "Возможные опции:"
-    --         putStrLn "Запуск без аргументов    - запуск сервера"
-    --         putStrLn "db-init                  - инициализация всех таблиц базы данных с нуля"
-    --         putStrLn "migrations               - применение миграций к локальной базе данных без потери данных"
-            
+    -- runT $ (Migrations.dbdrop :: T())
+    -- runT $ (Migrations.run :: T())
+    -- runT $ (Migrations.dbinit :: T())
+    case args of 
+        [] -> Server.run
+        ["db-init"] -> runT $ (Migrations.dbinit :: T())
+        ["migrations"] -> runT $ (Migrations.run :: T())
+        ["db-drop"] -> runT $ (Migrations.dbdrop :: T())
+        _ -> do
+            putStrLn "Неверные опции командной строки!"
+            putStrLn "Возможные опции:"
+            putStrLn "Запуск без аргументов       - запуск сервера"
+            putStrLn "db-init                     - инициализация всех таблиц базы данных с нуля"
+            putStrLn "migrations                  - применение миграций к локальной базе данных без потери данных"
+            putStrLn "db-drop                     - удаление всех таблиц БД"
+
+-- dbdrop = runT $ (Migrations.dbdrop :: T())
+-- run = runT $ (Migrations.run :: T())
+-- dbinit = runT $ (Migrations.dbinit :: T())

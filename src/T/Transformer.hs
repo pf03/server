@@ -67,6 +67,8 @@ instance MDB T where
 instance MT T
 
 -----------------------------EXTERNAL------------------------------------------
+
+
 -- | Run and show result of transformer
 showT :: (ToTransformer m, Show a) => m a -> IO ()
 showT m = runE_ $ do

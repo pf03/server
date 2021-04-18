@@ -557,7 +557,7 @@ cases = [
 --отслеживать выходной json можно в файле response.json (vscode обновляет автоматически)
 test :: IO ()
 test = runT $ do
-    Migrations.allForce  --сброс БД!!!
+    Migrations.dbrestartForce  --сброс БД!!!
     forM_ cases $ uncurry listOfTestCasesByOne
     Log.infoCM Color.Blue "Все запросы завершены..."
 

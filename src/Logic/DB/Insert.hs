@@ -1,5 +1,6 @@
 module Logic.DB.Insert
-    (user
+    ( migration
+    , user
     , author
     , category
     , tag
@@ -25,6 +26,11 @@ import           Data.Maybe                       (listToMaybe)
 import           Database.PostgreSQL.Simple.SqlQQ (sql)
 import           Database.PostgreSQL.Simple.Types as SQL (Only (..), Query)
 
+----------------------------------Migration------------------------------------
+
+migration :: MDB m => String -> m ()
+migration name = do
+    execute__ [sql|INSERT into migrations (name) values ('{0}')|] [q name]
 
 ----------------------------------User-----------------------------------------
 user :: MT m => m ()
