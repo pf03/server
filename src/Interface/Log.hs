@@ -37,7 +37,7 @@ data LogLevel =  Debug | -- отладочные данные
 type ColorScheme = Color
 type Enable = Bool
 -- type FuncName = String
-data LogSettings = LogSettings {colorScheme :: ColorScheme, logEnable :: Enable} deriving Show
+data LogSettings = LogSettings {colorScheme :: ColorScheme, debugMode :: Enable} deriving Show
 
 
 --объединить Config и Settings в одно
@@ -46,17 +46,17 @@ class Monad m => MLog m where
   getSettings :: m LogSettings
   setSettings :: ColorScheme -> Enable -> m ()
   getConfig :: m LogConfig
-  setConfig :: LogConfig -> m ()
+--   setConfig :: LogConfig -> m ()
   message :: LogConfig -> LogSettings -> LogLevel -> String -> m ()
 
 -----------------------------MLog----------------------------------------------
-off :: MLog m => m ()
-off = do
+debugOff :: MLog m => m ()
+debugOff = do
     LogSettings cs le  <- getSettings
     setSettings cs False
 
-on :: MLog m => m ()
-on = do
+debugOn :: MLog m => m ()
+debugOn = do
     LogSettings cs le  <- getSettings
     setSettings cs True
 
@@ -83,10 +83,10 @@ logM m = do
     return a
 
 -- *Эту функцию рекомендуется использовать только при отладке, иначе можно лишиться нужных логов
-setLevel :: MLog m => LogLevel -> m ()  
-setLevel newMinLevel = do
-    config <- getConfig
-    setConfig $ config {minLevel = fromEnum newMinLevel}
+-- setLevel :: MLog m => LogLevel -> m ()  
+-- setLevel newMinLevel = do
+--     config <- getConfig
+--     setConfig $ config {minLevel = fromEnum newMinLevel}
 
 -- | Для отладочной информации сделано исключение - она может быть любого типа Show a,
 -- а не только строкового
@@ -136,8 +136,8 @@ critical lc ls = messageIO lc ls Critical
 -- например основанную на writerT, или на пустую реализацию return ()
 -- Info можно показывать в разных цветовых схемах, а для остальных уровней цвет соответствует уровню
 messageIO :: MonadIO m => LogConfig -> LogSettings -> LogLevel -> String -> m ()
-messageIO (LogConfig ecolor eterminal efile minLevel) (LogSettings colorScheme enable) level text = do
-    if not $ level >= toEnum minLevel && enable then return () else do
+messageIO (LogConfig ecolor eterminal efile minLevel) (LogSettings colorScheme debugMode) level text = do
+    if level < toEnum minLevel && not debugMode then return () else do
         when (ecolor && eterminal ) $ do
             if level == Info then Color.setSchemeT colorScheme
                 else Color.setColorT $ getColor level

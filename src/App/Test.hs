@@ -558,9 +558,9 @@ cases = [
 --отслеживать выходной json можно в файле response.json (vscode обновляет автоматически)
 test :: IO ()
 test = runT $ do
-    Log.setLevel Info
+    Log.debugOff
     Migrations.dbrestartForce  --сброс БД!!!
-    Log.setLevel Debug
+    Log.debugOn
     forM_ cases $ uncurry listOfTestCasesByOne
     Log.infoCM Color.Blue "Все запросы завершены..."
 
@@ -588,28 +588,24 @@ listOfTestCasesByOne name qs = do
                 Just (Token t) -> return [("Authorization", convert t)]
             newmt <- case pathInfo of
                 ["login"] -> do
-                    
+                    Log.debugOff
                     --str <- Error.catch (DB.getJSONTest (convert $ show pathInfo) pathInfo query query headers) (\e -> return "")
                     Error.catch (do
-                        Log.off
                         str <- Response.getJSONTest (convert $ show pathInfo) pathInfo query query headers
                         --tmp <- toT . (Just <$>) . typeError ParseError . eitherDecode $ str
                         tmp <- Just <$> Error.catchEither (eitherDecode str) ParseError
-
-                        Log.on
+                        Log.debugOn
                         Log.infoCM Color.Green $ template "Аутентификация успешно завершена, токен: {0} . Нажмите Enter для следующего теста, q + Enter для выхода или номер_теста + Enter..." [show tmp]
                         return tmp
                         )
-
                         (\e -> do
-                        Log.on
+                        Log.debugOn
                         Log.infoCM Color.Yellow $ show e
                         return Nothing)
                 _ -> do
-                    Log.on
                     Response.getJSONTest (convert $ show pathInfo) pathInfo query query headers
                     Log.infoCM Color.Green "Запрос успешно завершен. Нажмите Enter для следующего теста, q + Enter для выхода или номер_теста + Enter..."
-
+                    
                     return mt
             newmn <- readCommand n mn
             Log.debugM newmt
