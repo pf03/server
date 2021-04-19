@@ -59,9 +59,9 @@ getJSON_ req = do
     auth <- Cache.getAuth
     api@(API apiType queryTypes) <- Log.logM $ API.router rawPathInfo pathInfo auth
     params <- if apiType `elem` [Auth, Delete, Insert, Update]
-        then Error.catch (Log.logM $ Params.parseParams qsBody api) $
+        then Error.catch (Log.logM $ Params.parseParams api qsBody) $
             \(RequestError e) -> Error.throw $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в теле запроса методом x-www-form-urlencoded" [e]
-        else Error.catch (Log.logM $ Params.parseParams qs api) $
+        else Error.catch (Log.logM $ Params.parseParams api qs) $
             \(RequestError e) -> Error.throw $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в строке запроса" [e]
     Cache.setParams params
     evalJSON api req
@@ -75,9 +75,9 @@ getJSONTest rawPathInfo pathInfo qs qsBody headers = do
     auth <- Cache.getAuth
     api@(API apiType queryTypes) <- Log.logM $ API.router rawPathInfo pathInfo auth
     params <- if apiType `elem` [Auth, Delete, Insert, Update]
-        then Error.catch (Log.logM $ Params.parseParams qsBody api) $
+        then Error.catch (Log.logM $ Params.parseParams api qsBody) $
             \(RequestError e) -> Error.throw $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в теле запроса методом x-www-form-urlencoded" [e]
-        else Error.catch (Log.logM $ Params.parseParams qs api) $
+        else Error.catch (Log.logM $ Params.parseParams api qs) $
             \(RequestError e) -> Error.throw $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в строке запроса" [e]
     Cache.setParams params
     evalJSON api req

@@ -1,4 +1,4 @@
-module Lib where
+module App.Lib where
 import Test.Hspec
 --import Test.QuickCheck
 import Control.Exception (evaluate)
@@ -15,6 +15,9 @@ allShouldBe cases result = eachShouldBe cases (replicate (length cases) result)
 --EACH of cases SHOULD BE eqaul to each of results
 eachShouldBe :: (HasCallStack, Show a, Eq a) => [a] -> [a] -> Expectation
 eachShouldBe cases results = bimapM_ shouldBe cases results
+
+allShouldSatisfy ::  (HasCallStack, Show a) => [a] -> (a -> Bool) -> Expectation
+allShouldSatisfy cases f = bimapM_ shouldSatisfy cases (replicate (length cases) f)
 
 ----------------------------------State cases-------------------------------------------------
 
@@ -56,5 +59,7 @@ bimapM_ _ _ _ = error "list args of bimapM_ must have equal lengths"
 -- isSuccess ma = case ma of 
 --     Left _ -> False 
 --     _      -> True
+
+
 
 

@@ -175,15 +175,15 @@ concatParams = concat . M.mapWithKey possibleParams
 
 --------------------------------------------PARSE PARAMS WITH ERRORS HANDLING------------------------------------------------------------------
 
-parseParams :: MError m => Query -> API -> m ParamsMap
-parseParams qs api = do
+parseParams :: MError m => API -> Query -> m ParamsMap
+parseParams  api qs = do
     let paramDescs = possibleParamDescs api
     let names = M.keys paramDescs
-    checkParams qs api paramDescs
+    checkParams api qs paramDescs
     forMapWithKeyM paramDescs $ parseParam qs
 
-checkParams :: MError m => Query -> API -> M.Map BSName ParamDesc -> m ()
-checkParams qs api paramDesc  = do
+checkParams :: MError m => API -> Query -> M.Map BSName ParamDesc -> m ()
+checkParams api qs paramDesc  = do
     --Update должен иметь хотя бы один параметр, иначе не имеет смысла
     case api of
         API Update xs -> do
@@ -263,14 +263,14 @@ readParamDate mtuple = case mtuple of
     Just (Like, param, bs) -> Error.throw . RequestError $ template "Шаблон param__like допустим только для строковых параметров: {0}" [show param]
     _ -> readParam Date "Date" mtuple
 
---почему здесь Like? проверить в тестах!!
 readParamSort :: MError m => [BSName] -> Maybe (Templ, BSKey, BSValue) -> m Param
 readParamSort list mtuple= do
     case mtuple of
-        Just (Like, param, bs)  -> if bs `elem` list
+        Just (Eq, param, bs)  -> if bs `elem` list
             then readParam Str "String" mtuple
             else Error.throw . RequestError $ template "Параметр {0} должен быть элементом списка {1}" [show param, show list]
-        _ -> readParam Str "String" mtuple
+        Just (_, param, bs) -> Error.throw . RequestError $ template "Для параметров сортировки допустим только шаблон eq: {0}" [show param]
+        Nothing -> readParam Str "String" mtuple
 
 readParamFileName :: MError m => [BSName] -> Maybe (Templ, BSKey, BSValue) -> m Param
 readParamFileName list mtuple = case mtuple of
@@ -284,11 +284,6 @@ readParamFileName list mtuple = case mtuple of
     helper bs format | B.length bs < 2 + B.length format = False
     helper bs format | takeEnd (1 + B.length format) bs  == "." <> format = True where takeEnd n xs = B.drop (B.length xs - n) xs
     helper bs format = False
-
-
-
-
-
 
 readParam :: (MError m, Read a) => (a -> Val) -> String -> Maybe (Templ, BSKey, BSValue)  -> m Param
 readParam cons consStr mtuple = do
@@ -310,7 +305,6 @@ readParam cons consStr mtuple = do
 
 ----------------------------------DECODING----------------------------------------------------------------------------------------------------
 
---по сути вся эта городуха нужна только для корректных сообщений об ошибках
 ereadMap :: (MError m, Read a) => String -> BS -> BS -> m a
 ereadMap t bs param = case t of
     "Int" -> eread bs $ template "{0}целым числом" [must]
