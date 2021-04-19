@@ -193,11 +193,11 @@ checkNotExist description name templ = do
 
 
 
-row :: MError m => ParamsMap Param -> [BSName] -> m Query
+row :: MError m => ParamsMap -> [BSName] -> m Query
 row params names = list <$> mapM (\name -> cell (params ! name)) names
 
 -- * Количество строк определяется по первому параметру, который должен быть ParamAll
-rows :: ParamsMap Param -> [BSName] -> Query
+rows :: ParamsMap -> [BSName] -> Query
 rows params names = res where
     (ParamAll first) = params ! head names
     len = length first
@@ -214,7 +214,7 @@ emptyParam _             = False
 
 
 -- | Обобщенный ряд
-rowEither :: MError m => ParamsMap Param -> [Either BSName Query] -> m Query
+rowEither :: MError m => ParamsMap -> [Either BSName Query] -> m Query
 rowEither params nqs = list <$> mapM helper nqs where
     helper :: MError m => Either BSName Query -> m Query
     helper nq = case nq of
@@ -232,7 +232,7 @@ cellByNumber (ParamAll list) n = val (list !! n)
 cellByNumber ParamNo _         = [sql|null|]
 
 -- * Aдмин может CОЗДАВАТЬ только свои публикации
-addAuthAuthorIdParam :: MT m => m (ParamsMap Param)
+addAuthAuthorIdParam :: MT m => m ParamsMap
 addAuthAuthorIdParam = do
     addAuthUserIdParam
     paramUserId <- Cache.getParam "user_id"
@@ -248,7 +248,7 @@ addAuthAuthorIdParam = do
         Just authorId -> Cache.addIdParam "author_id" authorId
 
 -- * Админ может СОЗДАВАТЬ только свои публикации (комментарии)
-addAuthUserIdParam :: (MError m, MCache m) => m (ParamsMap Param)
+addAuthUserIdParam :: (MError m, MCache m) => m ParamsMap
 addAuthUserIdParam = do
     auth <- Cache.getAuth
     case auth of

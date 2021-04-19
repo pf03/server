@@ -20,7 +20,7 @@ import           GHC.Generics
 data Cache = Cache {
     changed :: Changed,
     auth    :: Auth,
-    params  :: ParamsMap Param
+    params  :: ParamsMap
 } deriving (Show, Generic)
 
 --Changed--
@@ -31,7 +31,8 @@ instance ToJSON Changed
 data Auth = AuthNo | AuthUser Int | AuthAdmin Int deriving (Show, Eq)
 
 --Params--
-type ParamsMap = M.Map BSName
+--type ParamsMap = M.Map BSName
+type ParamsMap = M.Map BSName Param
 
 data Param = ParamEq {paramEq :: Val}
     | ParamIn [Val]
@@ -97,13 +98,13 @@ getChanged = getsCache changed
 resetChanged :: MCache m => m ()
 resetChanged = modifyCache $ \st -> st {changed = mempty}
 
-setParams :: MCache m => ParamsMap Param -> m ()
+setParams :: MCache m => ParamsMap -> m ()
 setParams params = modifyCache $ \s-> s{params = params}
 
-getParams :: MCache m => m (ParamsMap Param)
+getParams :: MCache m => m (ParamsMap)
 getParams = getsCache params
 
-modifyParams :: MCache m => (ParamsMap Param -> ParamsMap Param) -> m (ParamsMap Param)
+modifyParams :: MCache m => (ParamsMap -> ParamsMap) -> m ParamsMap
 modifyParams f = do
     params <- getParams
     setParams $ f params
@@ -113,10 +114,10 @@ getParam :: MCache m => BSName -> m Param
 getParam name = getsCache (\st -> params st ! name)
 
 --добавить user_id, author_id и т. д.
-addIdParam :: MCache m => BSName -> Int -> m (ParamsMap Param)
+addIdParam :: MCache m => BSName -> Int -> m ParamsMap
 addIdParam name pid = modifyParams $ M.insert name (ParamEq (Int pid))
 
-addStrParam :: MCache m => BSName -> String -> m (ParamsMap Param)
+addStrParam :: MCache m => BSName -> String -> m ParamsMap
 addStrParam name str = modifyParams $ M.insert name (ParamEq (Str str))
 
 resetCache :: MCache m => m ()

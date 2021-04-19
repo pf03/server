@@ -52,7 +52,7 @@ templates = [(Eq ,""), (In, "__in"), (All, "__all"), (Lt, "__lt"), (Gt, "__gt"),
 
 
 --возможно перенести в роутер???
-possibleParamDescs :: API -> ParamsMap ParamDesc
+possibleParamDescs :: API -> M.Map BSName ParamDesc
 possibleParamDescs (API queryType apiType) = M.fromList list where
     param a b c d = (a, ParamDesc b c d False)
     paramNull a b c d = (a, ParamDesc b c d True)
@@ -170,19 +170,19 @@ possibleParamDescs (API queryType apiType) = M.fromList list where
 possibleParams :: BSName -> ParamDesc -> [BSKey]
 possibleParams bsname (ParamDesc templs _ _ _) = for templs $ \templ -> bsname <> jlookup templ templates
 
-concatParams :: ParamsMap ParamDesc -> [BSKey]
+concatParams :: M.Map BSName ParamDesc -> [BSKey]
 concatParams = concat . M.mapWithKey possibleParams
 
 --------------------------------------------PARSE PARAMS WITH ERRORS HANDLING------------------------------------------------------------------
 
-parseParams :: MError m => Query -> API -> m (ParamsMap Param)
+parseParams :: MError m => Query -> API -> m ParamsMap
 parseParams qs api = do
     let paramDescs = possibleParamDescs api
     let names = M.keys paramDescs
     checkParams qs api paramDescs
     forMapWithKeyM paramDescs $ parseParam qs
 
-checkParams :: MError m => Query -> API -> ParamsMap ParamDesc -> m ()
+checkParams :: MError m => Query -> API -> M.Map BSName ParamDesc -> m ()
 checkParams qs api paramDesc  = do
     --Update должен иметь хотя бы один параметр, иначе не имеет смысла
     case api of

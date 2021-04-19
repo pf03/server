@@ -1,4 +1,4 @@
-module App.Test where
+module App.Emulate where
 
 -- Our Modules
 import qualified Logic.DB.Migrations             as Migrations
@@ -8,38 +8,19 @@ import           Interface.Log              as Log
 import Interface.DB as DB ( MT )
 import           Logic.DB.Auth              as Auth
 import qualified Logic.IO.Response          as Response
--- import           T.State
--- import           T.ToTransformer
 import           T.Transformer
 
 -- Other Modules
 import           Control.Monad
--- import           Control.Monad.Trans.Except
 import           Data.Aeson
-import qualified Data.ByteString            as B
-import qualified Data.ByteString.Lazy.Char8 as LC
 import           Network.HTTP.Types.URI     as HTTP
 import           System.Console.ANSI
 import qualified System.Console.ANSI        as Color
 import           Text.Read
 
---Избавиться от модуля ToTransformer!!
-
 -- ЭТОТ МОДУЛЬ НЕ ДЛЯ РЕВЬЮ, А ДЛЯ ОТЛАДКИ
+-- Эмуляция последовательных запросов к серверу с разной авторизацией
 
---some test cases for debug (ручная проверка)
-
---создать список всех возможных запросов с опциональными парамерами, и применить их.
---После чего создать другой список запросов, которые отменяют предыдущие
---возможно сделать это в режиме тестирования
---так убьем двух зайцев - и тестирование, и ревью, как для себя так и по тз
---тесты базируются на изначальном состоянии бд
---тестирование не только запроса, но и роутера
---проверка значений на уникальность, например тегов
-
---НАДО ПЕРЕНОСИТЬ ЭТО В HPEC!!
-
---можно сначала отправить по одному параметру, а потом все сразу (они все необязательные)
 selectPostCases :: (String, [(PathInfo, Query)])
 selectPostCases = ("selectPost", zip pathInfos queries) where
     pathInfos = repeat ["posts"]
@@ -56,7 +37,6 @@ selectPostCases = ("selectPost", zip pathInfos queries) where
             ("contains__like", Just "haskell")
         ]
 
---неверный user_id
 insertAuthorCases :: (String, [(PathInfo, Query)])
 insertAuthorCases = ("insertAuthor", zip pathInfos queries) where
     pathInfos = repeat ["authors", "create"]
@@ -360,7 +340,6 @@ deletePostCases = ("deletePost", tuples) where
             (,) ["posts"] []
         ]
 
---дату нужно брать текущую, а не присланную пользователем!!!
 commentsCases :: (String, [(PathInfo, Query)])
 commentsCases = ("selectComment", tuples) where
     tuples = [
@@ -393,10 +372,6 @@ commentsCases = ("selectComment", tuples) where
         ]
 
 --жизненный цикл новости
---проверить отдельно в БД, не остаются ли лишние contents, не привязанные к drafts или news
---отдельное апи для загрузки фотографии? Фотографию можно привязать по ид или по имени?? или загрузить новую?
---прогнать одни и те же тесты с разнми логинами и без такового!
-
 publishCases :: (String, [(PathInfo, Query)])
 publishCases = ("publish", tuples) where
     tuples = [
@@ -510,8 +485,7 @@ publishCases = ("publish", tuples) where
         (,) ["posts", "3", "delete"] []
         ]
 
---каждый тест проходится с одним из логинов: , , . Тест с админом отдельно (все функции должны быть доступны)
-
+--Каждый тест проходит с каждым из логинов
 logins :: [Query]
 logins = [
         -- [("login", Just "fake"),("pass", Just "fake")],  --не авторизован
@@ -521,9 +495,6 @@ logins = [
         [("login", Just "psergey"),("pass", Just "psergeypass")],  --пушкин (автор)
         [("login", Just "admin"),("pass", Just "123456")]  --админ
     ]
-
--- publishCaseswithAuth :: (String, [(PathInfo, Query)])
--- publishCaseswithAuth = (,) (fst publishCases) $ concat $ for (snd publishCases) $ \c -> concat $ for logins $ \login -> [(["login"], login), c]
 
 casesWithAuth :: (String, [(PathInfo, Query)]) -> (String, [(PathInfo, Query)])
 casesWithAuth cases = (,) (fst cases) $ concat $ for (snd cases) $ \c -> concat $ for logins $ \login -> [(["login"], login), c]
@@ -547,28 +518,19 @@ cases = [
     ("fake", [])
     ]
 
--- casesById :: [(String, [PathInfo])]
--- casesById = [
---     ("deleteAuthor", deleteAuthorQueries)
---     ]
-
 
 
 -- --ВНИМАНИЕ!!! Данная функция для корректного тестирования сбрасывает БД до изначального состояния!
 --отслеживать выходной json можно в файле response.json (vscode обновляет автоматически)
-test :: IO ()
-test = runT $ do
+emul :: IO ()
+emul = runT $ do
     Log.debugOff
     Migrations.dbrestartForce  --сброс БД!!!
     Log.debugOn
     forM_ cases $ uncurry listOfTestCasesByOne
     Log.infoCM Color.Blue "Все запросы завершены..."
 
-
-
---новая версия с сохранением токена!!
 --нужен рефакторинг! отдельная ветка для логина, и отдельная для другого запроса
---перепрыгиваем через тесты
 listOfTestCasesByOne :: MT m => String -> [(PathInfo, Query)] -> m (Maybe Token, Maybe Int)
 listOfTestCasesByOne name qs = do
     Log.infoCM Color.Yellow  " Нажмите Enter для начала теста..."

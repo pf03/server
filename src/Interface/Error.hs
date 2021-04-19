@@ -1,5 +1,3 @@
---importPriority = 70
-
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -8,7 +6,7 @@ module Interface.Error where
 import qualified Control.Exception as E
 --import Control.Exception as Exception hiding (throw, catch)
 import Control.Monad.Except
-import Control.Monad.Trans.Except
+import Control.Monad.Trans.Except ( catchE, throwE, except )
 import Network.HTTP.Types
 import Database.PostgreSQL.Simple
 import qualified Data.Text.Encoding as T
@@ -43,6 +41,9 @@ getStatus (AuthError s) = unauthorized401
 getStatus (DevError s) = internalServerError500
 getStatus (SomeError s) = internalServerError500
     
+
+errorDefault :: E 
+errorDefault = SomeError "Ошибка по умолчанию"
 
 authErrorDefault :: E 
 authErrorDefault = AuthError "Данная функция требует авторизации"
@@ -131,7 +132,36 @@ liftEIO m = do
     otherhandler :: E.SomeException -> IO (EE a)
     otherhandler e = return . Left . SomeError . show $ e
 
--------------------------------------------ExceptT E IO------------------------------
+-------------------------------------------Except E----------------------------
+-- overlapping instances
+-- instance MonadFail (Except E) where
+--     fail s = throwE $ DevError s
+
+-- instance MError (Except E) where
+--     throw = throwE 
+--     catch = catchE
+
+-------------------------------------------Either E----------------------------
+
+--overlapping instances
+instance MonadFail (Either E) where
+    fail s = Left $ DevError s
+
+instance MError (Either E) where
+    throw = Left 
+    catch ma f = case ma of 
+            Left e -> f e
+            Right a -> Right a
+
+-------------------------------------------Maybe-------------------------------
+instance MError Maybe where
+    throw e = Nothing
+    catch ma f = case ma of 
+            Nothing -> f errorDefault
+            Just a -> Just a
+
+
+-------------------------------------------ExceptT E IO------------------------
 instance MError (ExceptT E IO) where
     throw = throwE 
     catch = catchE

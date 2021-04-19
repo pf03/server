@@ -85,7 +85,7 @@ draft pid = do
     Logic.DB.Update.photos
 
 -- | Проверка существования вместе с авторизацией, для запросов DB.update и delete
-checkAuthExistDraft :: MT m => Int -> m (ParamsMap Param)
+checkAuthExistDraft :: MT m => Int -> m ParamsMap
 checkAuthExistDraft pid = do
     query <- [sql|
         SELECT users.id, authors.id, contents.id FROM drafts
@@ -120,7 +120,7 @@ post pid = do
 -- * Аутентификация удаленным пользователем не пройдет. Удаленный автор привязан к удаленному
 -- пользователю. Таким образом посты с удаленными авторами и пользователями сможет редактировать
 -- только админ
-checkAuthExistPost :: MT m => Int -> m (ParamsMap Param)
+checkAuthExistPost :: MT m => Int -> m ParamsMap
 checkAuthExistPost pid = do
     query <- [sql|
         SELECT users.id, authors.id, contents.id FROM posts
@@ -150,7 +150,7 @@ photos = withParam "photos" $ do
     Insert.photos
 
 ----------------------------------Common---------------------------------------
-updates :: MError m => ParamsMap Param -> [BSName] -> m Query
+updates :: MError m => ParamsMap -> [BSName] -> m Query
 updates params names = DB.concat "," <$> mapMaybeM helper names where
     helper :: MError m => BSName -> m (Maybe Query)
     helper name = upd (q name) (params ! name)

@@ -127,7 +127,7 @@ _evalCategory  childs rcs categoryId = do
 
 --не учтен вариант корневой категории в params
 --категория не должна быть своим же родителем
-checkCyclicCategory :: MError m => Int -> ParamsMap Param -> [Select.Category] -> m ()
+checkCyclicCategory :: MError m => Int -> ParamsMap -> [Select.Category] -> m ()
 checkCyclicCategory categoryId params rcs = do
     case params M.! "parent_id" of
         ParamNo -> return () --не меняем parent_id
@@ -294,7 +294,7 @@ setPostContent post content = post {postContent = content}
 --возможно чистый код заменить везде на код с обработкой ошибочных паттернов!!!
 
 --тут можно упростить, если использовать map вместо списка
-evalParams :: [Category] -> ParamsMap Param-> ParamsMap Param
+evalParams :: [Category] -> ParamsMap -> ParamsMap
 evalParams categories = M.adjust (`getChildCategories` categories) "category"
 
 getChildCategories :: Param -> [Category] -> Param

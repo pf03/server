@@ -46,7 +46,7 @@ users = DB.query_ =<< usersQuery =<< Cache.getParams
 selectUsersQuery :: Query
 selectUsersQuery = [sql|SELECT * FROM users|]
 
-usersQuery ::  (MError m, MCache m) => ParamsMap Param -> m Query
+usersQuery ::  (MError m, MCache m) => ParamsMap -> m Query
 usersQuery params = return selectUsersQuery <<+>> pagination
 
 -----------------------------Author--------------------------------------------
