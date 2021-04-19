@@ -1,5 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
-
+{-# LANGUAGE FlexibleInstances #-}
+-- {-# LANGUAGE FlexibleContexts #-}
+-- {-# LANGUAGE UndecidableInstances #-}
 module Interface.Cache where
 
 --import Types
@@ -12,6 +14,8 @@ import           Data.Map                        as M ((!))
 import qualified Data.Map                        as M
 import           Database.PostgreSQL.Simple.Time
 import           GHC.Generics
+-- import Control.Monad.State.Class
+import Control.Monad.Trans.State.Lazy
 
 -- | Данный модуль реализует класс типов MCache для работы с состоянием в чистом коде.
 -- А также соответствующие типы и функции для работы с Cache
@@ -59,6 +63,18 @@ data APIType = Post | User | Author | Category | Tag | Draft | Comment | Photo |
 class Monad m => MCache m where
     getCache :: m Cache
     setCache :: Cache -> m ()
+
+--StateT S (ExceptT E IO)
+
+-- This makes type inference for inner bindings fragile
+-- instance (MonadState Cache m, Monad m) => MCache m  where
+--     getCache = get
+--     setCache = put
+
+-- instance Monad m => MCache (StateT Cache m)  where
+--     getCache = get
+--     setCache = put
+
 
 getsCache :: MCache m => (Cache -> a) -> m a
 getsCache f = f <$> getCache

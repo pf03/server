@@ -8,7 +8,11 @@ import           Network.HTTP.Types.URI     as HTTP
 import Interface.Cache
 import Data.Either
 import Interface.Error as Error
+import           Common.Misc
+import qualified Logic.Pure.API as API
+import qualified Data.ByteString as B
 
+-- Сделать рефакторинг
 -- ! переместил тесты в папку src для более удобной отладки, потом обратно перемещу в test
 
 --import App.Emulate  --перенести потом тестовые случаи куда-нибудь в отдельный модуль папки test
@@ -26,37 +30,56 @@ test = hspec testParseParams
 parseParams :: API -> Query -> Either E ParamsMap
 parseParams = Params.parseParams
 
+router :: B.ByteString -> PathInfo -> Auth -> Either E API
+router = API.router
+
 testParseParams :: Spec
 testParseParams = do
     describe "Logic.parseParams" $ do 
         it "throws request error" $ do
-            nothingCase `shouldSatisfy` isQueryError
-            insertAuthorWrongCases `allShouldSatisfy` isQueryError
-            selectPostWrongCases `allShouldSatisfy` isQueryError
-            noParamsWrongCase `shouldSatisfy` isQueryError
-            withParamWrongCase `shouldSatisfy` isQueryError
+            nothingCase `shouldSatisfy` isRequestError
+            insertAuthorWrongCases `allShouldSatisfy` isRequestError
+            selectPostWrongCases `allShouldSatisfy` isRequestError
+            noParamsWrongCase `shouldSatisfy` isRequestError
+            withParamWrongCase `shouldSatisfy` isRequestError
         it "returns result" $ do
             selectPostRightCases `allShouldSatisfy` isRight
             noParamsRightCase `shouldSatisfy` isRight
             withParamRightCase `shouldSatisfy` isRight
-
-        
-
-
-isQueryError :: Either E a -> Bool 
-isQueryError ma = case ma of 
+    describe "API.router" $ do 
+        it "throws request error" $ do
+            (router "path" <$> wrongRouterCases <*> return AuthNo) `allShouldSatisfy` isRequestError
+            (router "path" <$> wrongRouterCases <*> return (AuthUser 3)) `allShouldSatisfy` isRequestError
+            (router "path" <$> wrongRouterCases <*> return (AuthAdmin 1)) `allShouldSatisfy` isRequestError
+            (router "path" <$> forAdminRouterCases <*> return AuthNo) `allShouldSatisfy` isRequestError
+            (router "path" <$> forAdminRouterCases <*> return (AuthUser 3)) `allShouldSatisfy` isRequestError  
+        it "throws auth error" $ do
+            (router "path" <$> forUserRouterCases <*> return AuthNo) `allShouldSatisfy` isAuthError
+        it "returns result" $ do
+            (router "path" <$> forAllRouterCases <*> return AuthNo) `allShouldSatisfy` isRight
+            (router "path" <$> forAllRouterCases <*> return (AuthUser 3)) `allShouldSatisfy` isRight
+            (router "path" <$> forAllRouterCases <*> return (AuthAdmin 1)) `allShouldSatisfy` isRight
+            (router "path" <$> forUserRouterCases <*> return (AuthUser 3)) `allShouldSatisfy` isRight
+            (router "path" <$> forUserRouterCases <*> return (AuthAdmin 1)) `allShouldSatisfy` isRight
+            (router "path" <$> forAdminRouterCases <*> return (AuthAdmin 1)) `allShouldSatisfy` isRight
+            
+isRequestError :: Either E a -> Bool 
+isRequestError ma = case ma of 
     Left (RequestError _ ) -> True 
+    _ -> False
+
+isAuthError :: Either E a -> Bool 
+isAuthError ma = case ma of 
+    Left (AuthError _ ) -> True 
     _ -> False
 
 --Ошибка веб-запроса: Не указано значение обязательного параметра "description"
 nothingCase :: Either E ParamsMap 
 nothingCase = parseParams (API Insert [Author]) [("user_id", Just "1"), ("description", Nothing)]
 
+showTest = showCases (router "path" <$> wrongRouterCases <*> return AuthNo)
 
-
-showTest = showCases selectPostRightCases
-
-showCases :: [Either E ParamsMap] -> IO ()
+showCases :: Show a => [Either E a] -> IO ()
 showCases = mapM_ $ \c -> do
     case c of 
         Left e -> print e
@@ -169,3 +192,58 @@ withParamWrongCase = parseParams (API Update [Draft]) []
 
 withParamRightCase :: Either E ParamsMap 
 withParamRightCase = parseParams (API Update [Draft]) [("category_id", Just "1")]
+
+-----------------------------API.router----------------------------------------
+
+-- ccc :: [Either E API]
+-- ccc = API.router "path" <$> wrongRouterCases <*> return AuthNo 
+
+wrongRouterCases :: [PathInfo]
+wrongRouterCases = [
+    ["foo"],
+    ["login", "2"],
+    ["posts", "foo", "comments", "create"],
+    ["drafts", "3", "create"],
+    ["categories", "delete"]
+    ]
+
+forAllRouterCases :: [PathInfo]
+forAllRouterCases = [
+    ["login"],
+    ["photos", "upload"],
+    ["users", "create"],
+    ["categories", "42"],
+    ["tags", "42"],
+    ["posts", "42"],
+    ["drafts", "42"]
+    ]
+
+forUserRouterCases :: [PathInfo]
+forUserRouterCases = [
+    ["drafts", "create"],
+    ["posts", "55", "comments", "create"],
+    ["user", "edit"],
+    ["drafts", "55", "edit"],
+    ["posts", "666", "edit"],
+    ["drafts", "42", "delete"],
+    ["posts", "256", "delete"],
+    ["comments", "256", "delete"],
+    ["user"]
+    ]
+
+forAdminRouterCases ::  [PathInfo]
+forAdminRouterCases = [
+    ["authors", "create"],
+    ["categories", "create"],
+    ["tags", "create"],
+    ["drafts", "5", "publish"],
+    ["users", "5", "edit"],
+    ["authors", "7", "edit"],
+    ["categories", "99", "edit"],
+    ["tags", "55", "edit"],
+    ["users", "55", "delete"],
+    ["authors", "654", "delete"],
+    ["tags", "42", "delete"],
+    ["users"],
+    ["authors", "256"]
+    ]

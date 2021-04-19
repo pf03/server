@@ -83,8 +83,16 @@ withInt p text f = do
 
 -- * Ошибка 401 - API-функция, которая требует авторизации
 withUserE :: MError m => Auth -> m API -> m API
-withUserE AuthNo _ = Error.throw Error.authErrorDefault
-withUserE _ eapi   = eapi
+--неверное решение, не учитывает вариант, когда m API уже включает ошибку
+-- withUserE AuthNo _ = Error.throw Error.authErrorDefault
+-- withUserE _ eapi   = eapi
+withUserE auth mapi = do
+    api <- mapi
+    case auth of
+        AuthNo -> Error.throw Error.authErrorDefault
+        _      -> return api
+
+
 
 withUser :: MError m => Auth -> API -> m API
 withUser AuthNo _ = Error.throw Error.authErrorDefault
