@@ -100,7 +100,7 @@ tag pid = do
 -----------------------------Public functions----------------------------------
 checkNotExist :: MDB m => Int -> String -> String -> Query -> m ()
 checkNotExist pid name1 name2 templ = do
-    results <- DB.query_ $ template templ [q pid]
+    results <- DB.query $ template templ [q pid]
     case results :: [(Int, String)] of
         [] -> return ()
         _ -> Error.throw $ DBError  (template "Невозможно удалить {0}, так как к нему привязаны следующие {1}:\n{2}" 

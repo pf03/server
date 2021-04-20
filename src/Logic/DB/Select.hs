@@ -28,7 +28,7 @@ import           Database.PostgreSQL.Simple.Types as SQL
 type Migration =  Row.Migration
 
 allMigrations :: MDB m => m [Migration]
-allMigrations = DB.query_ selectMigrationsQuery
+allMigrations = DB.query selectMigrationsQuery
 
 selectMigrationsQuery :: Query
 selectMigrationsQuery = [sql|SELECT * FROM migrations|]
@@ -37,11 +37,11 @@ selectMigrationsQuery = [sql|SELECT * FROM migrations|]
 type User =  Row.User
 
 user :: MDB m => Int -> m (Maybe User)
-user pid = listToMaybe <$> DB.query_ query where
+user pid = listToMaybe <$> DB.query query where
     query =  selectUsersQuery <+> template [sql|WHERE users.id = {0}|] [q pid]
 
 users :: MT m => m [User]
-users = DB.query_ =<< usersQuery =<< Cache.getParams
+users = DB.query =<< usersQuery =<< Cache.getParams
 
 selectUsersQuery :: Query
 selectUsersQuery = [sql|SELECT * FROM users|]
@@ -53,11 +53,11 @@ usersQuery params = return selectUsersQuery <<+>> pagination
 type Author = Row.Author :. Row.User
 
 author :: MDB m => Int -> m (Maybe Author)
-author pid = listToMaybe <$> DB.query_ query where
+author pid = listToMaybe <$> DB.query query where
     query =  selectAuthorsQuery <+> template [sql|WHERE authors.id = {0}|] [q pid]
 
 authors :: MT m => m [Author]
-authors = DB.query_ =<< authorsQuery
+authors = DB.query =<< authorsQuery
 
 selectAuthorsQuery :: SQL.Query
 selectAuthorsQuery = [sql|SELECT * FROM authors
@@ -71,15 +71,15 @@ authorsQuery = return selectAuthorsQuery <<+>> pagination
 type Category = Row.Category
 
 category::  MDB m => Int -> m (Maybe Category)
-category pid = listToMaybe <$> DB.query_ query where
+category pid = listToMaybe <$> DB.query query where
     query = selectCategoriesQuery <+> template [sql|WHERE categories.id = {0}|] [q pid]
 
 categories :: MT m => m [Category]
-categories = DB.query_ =<< categoriesQuery
+categories = DB.query =<< categoriesQuery
 
 -- * Все категории без пагинации нужны для вычисления родительских категорий
 allCategories :: MDB m => m [Category]
-allCategories = DB.query_ selectCategoriesQuery
+allCategories = DB.query selectCategoriesQuery
 
 selectCategoriesQuery ::  Query
 selectCategoriesQuery = [sql|SELECT * FROM categories|]
@@ -99,7 +99,7 @@ draft pid = do
         cond [sql|users.id|] paramUserId
         ]
     let query =  selectDraftsQuery `whereAll` conditions;
-    DB.query_ query
+    DB.query query
 
 drafts :: MT m => m [Draft]
 drafts = do
@@ -107,7 +107,7 @@ drafts = do
     paramUserId <- authUserIdParam
     let conditions = [cond [sql|users.id|] paramUserId]
     query <- selectDraftsQuery `whereAllM` conditions <<+>> pagination;
-    DB.query_ query
+    DB.query query
 
 selectDraftsQuery ::  Query
 selectDraftsQuery = [sql|
@@ -124,11 +124,11 @@ selectDraftsQuery = [sql|
 type Post = Row.Post :. Content
 
 post::  MDB m => Int -> m [Post]
-post pid = DB.query_ query where
+post pid = DB.query query where
     query = selectPostsQuery <+> template [sql|WHERE posts.id = {0}|] [q pid]
 
 posts :: MT m => m [Post]
-posts = DB.query_ =<< postsQuery
+posts = DB.query =<< postsQuery
 
 selectPostsQuery ::  Query
 selectPostsQuery = [sql|
@@ -202,11 +202,11 @@ postsQuery = do
 -----------------------------Tag-----------------------------------------------
 type Tag = Row.Tag
 tag::  MDB m => Int -> m (Maybe Tag)
-tag pid = listToMaybe <$> DB.query_ query where
+tag pid = listToMaybe <$> DB.query query where
     query = selectTagsQuery <+> template [sql|WHERE tags.id = {0}|] [q pid]
 
 tags :: MT m => m [Tag]
-tags = DB.query_ =<< tagsQuery
+tags = DB.query =<< tagsQuery
 
 selectTagsQuery ::  Query
 selectTagsQuery = [sql|SELECT * FROM tags|]
@@ -219,7 +219,7 @@ tagsQuery  = return selectTagsQuery <<+>> pagination
 type Comment =  Row.Comment :. Row.Post :. Row.User
 
 comments :: MT m => Int -> m [Comment]
-comments postId = DB.query_ =<< commentsQuery postId
+comments postId = DB.query =<< commentsQuery postId
 
 selectCommentsQuery ::  Query
 selectCommentsQuery = [sql|

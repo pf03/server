@@ -48,6 +48,9 @@ errorDefault = SomeError "Ошибка по умолчанию"
 authErrorDefault :: E 
 authErrorDefault = AuthError "Данная функция требует авторизации"
 
+dbErrorDefault :: E
+dbErrorDefault = DBError "Произошла ошибка базы данных. Обратитесь к администратору"
+
 authErrorWrong :: E
 authErrorWrong = AuthError "Неверная авторизация"
 

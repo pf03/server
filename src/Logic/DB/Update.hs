@@ -33,7 +33,7 @@ user pid = do
     Cache.addIdParam "id" pid
     checkExist "id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
     -- Логин нужен для проверки пароля
-    [Only login] <- query_ $ template [sql|SELECT users.login FROM users WHERE users.id = {0}|] [q pid]
+    [Only login] <- DB.query $ template [sql|SELECT users.login FROM users WHERE users.id = {0}|] [q pid]
     params <- Cache.addStrParam "login" login
     DB.update User [sql|UPDATE users SET {0} WHERE id = {1}|] <$$>
         [updates params ["first_name", "last_name", "avatar", "pass"], return $ q pid]
@@ -107,7 +107,7 @@ post pid = do
         Error.throw $ DBError "Невозможно создать черновик от удаленного автора (автора по умолчанию) id = 1"
     checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
     Insert.tagToContent Check
-    [Only cid] <- query_ . template
+    [Only cid] <- DB.query . template
         [sql|INSERT into contents (author_id, name, creation_date, category_id, text, photo) values {0} RETURNING id|] <$$>
         [rowEither params [Left "author_id", Left "name", Right [sql|current_date|], Left "category_id", Left "text", Left "photo"]]
     Cache.addChanged Insert Content 1
@@ -165,7 +165,7 @@ updates params names = DB.concat "," <$> mapMaybeM helper names where
 
 checkAuthExist :: MT m => Int -> BSName -> Query ->  m (Int, Int, Int)
 checkAuthExist pid name query = do
-    exist <- DB.query_ query
+    exist <- DB.query query
     case exist of
         [] -> Error.throw $ DBError  (template "Указан несуществующий параметр {0}: {1}" [show name, show pid])
         [(uid, aid, cid)] -> do

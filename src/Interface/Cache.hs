@@ -1,11 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
--- {-# LANGUAGE FlexibleContexts #-}
--- {-# LANGUAGE UndecidableInstances #-}
 module Interface.Cache where
 
---import Types
---import qualified Data.Map.Internal as M
 import           Data.Aeson
 import           Data.ByteString.Char8           as BC (ByteString)
 import           Data.Char
@@ -14,8 +10,6 @@ import           Data.Map                        as M ((!))
 import qualified Data.Map                        as M
 import           Database.PostgreSQL.Simple.Time
 import           GHC.Generics
--- import Control.Monad.State.Class
-import Control.Monad.Trans.State.Lazy
 
 -- | Данный модуль реализует класс типов MCache для работы с состоянием в чистом коде.
 -- А также соответствующие типы и функции для работы с Cache
@@ -35,7 +29,6 @@ instance ToJSON Changed
 data Auth = AuthNo | AuthUser Int | AuthAdmin Int deriving (Show, Eq)
 
 --Params--
---type ParamsMap = M.Map BSName
 type ParamsMap = M.Map BSName Param
 
 data Param = ParamEq {paramEq :: Val}
@@ -64,18 +57,6 @@ class Monad m => MCache m where
     getCache :: m Cache
     setCache :: Cache -> m ()
 
---StateT S (ExceptT E IO)
-
--- This makes type inference for inner bindings fragile
--- instance (MonadState Cache m, Monad m) => MCache m  where
---     getCache = get
---     setCache = put
-
--- instance Monad m => MCache (StateT Cache m)  where
---     getCache = get
---     setCache = put
-
-
 getsCache :: MCache m => (Cache -> a) -> m a
 getsCache f = f <$> getCache
 
@@ -101,12 +82,18 @@ addChanged qt at n = do
             "category" -> "categories"
             _          -> str <> "s"
         lower (x:xs) = toLower x : xs
+        lower [] = []
 
     queryType :: QueryType -> String
     queryType Insert = "created"
     queryType Update = "edited"
     queryType Delete = "deleted"
     queryType Upload = "uploaded"
+    -- * Следующие паттерны не используются, и заполнены только из-за предупреждений компилятора
+    queryType Select = "selected"
+    queryType SelectById = "selected"
+    queryType Auth = "authorized"
+
 
 getChanged :: MCache m => m Changed
 getChanged = getsCache changed
@@ -115,15 +102,15 @@ resetChanged :: MCache m => m ()
 resetChanged = modifyCache $ \st -> st {changed = mempty}
 
 setParams :: MCache m => ParamsMap -> m ()
-setParams params = modifyCache $ \s-> s{params = params}
+setParams p = modifyCache $ \s-> s{params = p}
 
-getParams :: MCache m => m (ParamsMap)
+getParams :: MCache m => m ParamsMap
 getParams = getsCache params
 
 modifyParams :: MCache m => (ParamsMap -> ParamsMap) -> m ParamsMap
 modifyParams f = do
-    params <- getParams
-    setParams $ f params
+    p <- getParams
+    setParams $ f p
     getParams
 
 getParam :: MCache m => BSName -> m Param
@@ -143,7 +130,7 @@ getAuth :: MCache m => m Auth
 getAuth = getsCache auth
 
 setAuth :: MCache m => Auth -> m ()
-setAuth auth = modifyCache $ \s-> s{auth = auth}
+setAuth a = modifyCache $ \s-> s{auth = a}
 
 instance Semigroup Changed where
     (<>) = mappend

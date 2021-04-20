@@ -1,26 +1,19 @@
 module Interface.DB --(Query.query_,)
 where
 import           Common.Misc
-import           Control.Monad.IO.Class
-import qualified Data.ByteString                  as B
 import           Data.Int
-import qualified Data.Text                        as T
-import qualified Data.Text.Encoding               as T
-import           Database.PostgreSQL.Simple       as SQL
+import Database.PostgreSQL.Simple hiding (query_, execute_, execute)
+import qualified Database.PostgreSQL.Simple       as SQL (query_, execute_)
 import           Database.PostgreSQL.Simple.SqlQQ
-import           Database.PostgreSQL.Simple.Types hiding (Show (..))
+import           Database.PostgreSQL.Simple.Types --hiding (Show (..))
 import           Interface.Cache                  as Cache
 import           Interface.Error                  as Error
 import           Interface.Log                    as Log
 
---это для postgreSQL, но можно абстрагироваться еще сильнее по типу connection
--- class Monad m => MDB m where
---     getConnection :: m Connection  --setConnection не нужно, соединение устанавливается еще до формирования монады
-
---DB по умолчанию уже использует интерфейс лога и обработки ошибок
+-----------------------------Class---------------------------------------------
 class (Log.MLog m, MIOError m) => MDB m where
     getConnection :: m Connection
---полный трансформер
+
 class (MDB m, MCache m) => MT m
 
 connectDB :: MIOError m => ConnectInfo -> m Connection
@@ -28,61 +21,66 @@ connectDB connectInfo = connect connectInfo `Error.catchEIO` handler where
     handler :: SqlError -> E
     handler e = DBError "Ошибка соединения с базой данных!"
 
---Ошибки в этом модуле не должны отдаваться пользователю, а записываться в лог. Пользователю должен отдаваться стандартный текст!!!
---Для единоообразия во все запросы можно встроить template
 
-query_ :: (MDB m,  Show r, FromRow r) => Query -> m [r]
-query_ q = do
-    conn <- Interface.DB.getConnection
-    Log.debugM q
-    liftEIO $ SQL.query_ conn q --LiftIO использовать нельзя, т.к теряется обработка ошибок
-
--- query_ :: (Show r, FromRow r) => Query -> T [r]
--- query_ q = do
---     conn <- S.getConnection
+-----------------------------Query functions-----------------------------------
+-- | Логгирование запроса и сообщения об ошибке. Как правило, здесь запросы должны быть корректные, 
+-- все запросы проверяются на уровне логики. Однако в случае ошибки, логгируется подробная информация об ошибке,
+-- а пользователю отдается стандартный текст. В идеале пользователю можно отдать пользователю код ошибки 
+-- или порядковый номер, но это выходит за рамки учебного задания.
+-- logError :: MDB m => Query -> (Query -> m a) -> m a
+-- logError q f = do
+    
 --     Log.debugM q
---     toT $ SQL.query_ conn q
+--     Error.catch (f q) $ \e -> do
+--         Log.errorM "Произошла ошибка в запросе:"
+--         Log.errorM $ show q
+--         Log.errorM $ show e
+--         Error.throw dbErrorDefault
 
-query :: (MDB m, Show r, ToRow q, FromRow r) => Query -> q -> m[r]
-query query q = do
-    Log.debugM query
-    conn <- Interface.DB.getConnection
-    liftEIO $ SQL.query conn query q
-
-executeMany :: (MDB m, ToRow q) => Query -> [q] -> m Int64
-executeMany q list = do
+-- | Запрос, возвращающий значение
+-- LiftIO использовать нельзя, т.к теряется обработка ошибок
+query :: (MDB m,  Show r, FromRow r) => Query -> m [r]
+query q = do
     Log.debugM q
-    conn <- Interface.DB.getConnection
-    liftEIO $ SQL.executeMany conn q list
+    conn <- getConnection
+    Error.catch (liftEIO $ SQL.query_ conn q ) $ \e -> do
+        Log.errorM "Произошла ошибка в запросе:"
+        Log.errorM $ show q
+        Log.errorM $ show e
+        Error.throw dbErrorDefault
+    
 
---без автоматической записи изменений
-execute_ :: MDB m => Query -> [Query] -> m Int64
+-- | Запрос, возвращающий количество изменений, без автоматической записи количества изменных сущностей
+execute :: MDB m => Query -> [Query] -> m Int64
+execute q0 qs = do 
+    let q = template q0 qs
+    conn <- getConnection
+    Error.catch (liftEIO $ SQL.execute_ conn q) $ \e -> do
+        Log.errorM "Произошла ошибка в запросе:"
+        Log.errorM $ show q
+        Log.errorM $ show e
+        Error.throw dbErrorDefault
+    
+
+-- | Запрос без автоматической записи количества изменных сущностей
+execute_ :: MDB m => Query -> [Query] -> m ()
 execute_ q qs = do
-    let query = template q qs
-    Log.debugM query
-    conn <- Interface.DB.getConnection
-    liftEIO $ SQL.execute_ conn query
+    
+    n <- execute q qs
+    Log.debugM $ template "Выполнен запрос, изменено {0} строк" [show n] --и это, т .е результат выполнения
 
+-- | Вспомогательная функция для автоматической записи количества изменный сущностей
 _execute :: MT m => QueryType -> APIType -> Query -> [Query] ->  m ()
 _execute queryType apiType q qs   = do
     let query = template q qs
     Log.debugM query
-    conn <- Interface.DB.getConnection
+    conn <- getConnection
     rows <- liftEIO $ SQL.execute_ conn query
     Cache.addChanged queryType apiType rows
-    --S.getChanged
 
--- _executeM :: QueryType -> APIType -> Query -> [T Query] ->  T ()
--- _executeM queryType apiType q mqs = _execute queryType apiType q <$$> mqs
-
-
---новая версия включает в себя template и автоматическую запись в State количество модифицированных строк
+-- | Запросы с автоматической записью измененных сущностей
 insert  :: MT m => APIType -> Query -> [Query] ->  m ()
 insert = _execute Insert
-
--- insertM  :: APIType -> Query -> [T Query] ->  T ()
--- insertM = _executeM Insert
-
 
 update  :: MT m => APIType -> Query -> [Query] ->  m ()
 update = _execute Update
@@ -90,18 +88,7 @@ update = _execute Update
 delete  :: MT m => APIType -> Query -> [Query] ->  m ()
 delete = _execute Delete
 
--- execute__ :: Query -> T ()
--- execute__ q = do
---     n <- Query.execute_ q []
---     Log.textT Log.Debug $ template "Выполнен запрос, изменено {0} строк" [show n] --и это, т .е результат выполнения
---     return()
-
-execute__ :: MDB m => Query -> [Query] -> m ()
-execute__ q qs = do
-    n <- Interface.DB.execute_ q qs
-    Log.debugM $ template "Выполнен запрос, изменено {0} строк" [show n] --и это, т .е результат выполнения
-    --return()
-
+-----------------------------Templates-----------------------------------------
 whereAll :: Query -> [Query] -> Query
 whereAll q conditions = Interface.DB.concat2 Interface.DB.where_ q $ Interface.DB.all conditions
 
@@ -129,26 +116,18 @@ and :: Query
 and = [sql|AND|]
 
 space :: Query
--- space = [sql| |]
 space = " "
-
-
-
---showQ1 = show . T.unpack . T.decodeUtf8 . fromQuery
 
 where_ :: Query
 where_ = [sql|WHERE|]
 
-(<+>) :: SQL.Query -> SQL.Query -> SQL.Query
---(<+>) = concat2 space --cyclic dpendency
+(<+>) :: Query -> Query -> Query
 (<+>) q1 q2|q1 == mempty = q2
 (<+>) q1 q2|q2 == mempty  = q1
 (<+>) q1 q2 = q1 <> space <> q2
 
-(<<+>>) :: MError m => m SQL.Query -> m SQL.Query -> m SQL.Query
+(<<+>>) :: MError m => m Query -> m Query -> m Query
 (<<+>>) mq1 mq2 = (<+>) <$> mq1 <*> mq2
-
---select * from users where first_name in ('Anna', 'Boris', 'Carla')
 
 inList :: Convert a => Query -> [a] -> Query
 inList field [] = "FALSE"
@@ -169,31 +148,5 @@ brackets q = template [sql|({0})|] [q]
 list :: [Query] -> Query
 list qs = template [sql|({0})|] [Interface.DB.concat "," qs]
 
---emp = Interface.DB.query_ [sql|SELECT posts.id FROM posts WHERE FALSE|] ::T [Only Int]  --or TRUE
-
---не очень нравится
--- (<->) :: Convert a => a -> [Query] -> [Query]
--- (<->) value list = (q value) : list
--- infixr 1 <->
-
--- (<-->) :: Convert a, Convert b => a -> b -> [Query]
--- (<-->) value1 value2 = [q value1, q value2]
--- infixr 2 <-->
-
--- que :: Query
--- que = template [sql|{2}.id BETWEEN {0} AND {1}|] $ (page-1)*20+1 <-> page*20 <--> tname  where
---     page= 7::Int;
---     tname ="table"::String
-
-test1 :: Query
-test1 = "id=1"
-test2 :: Query
-test2 = "tag=2"
-
-q :: Convert a => a -> SQL.Query
+q :: Convert a => a -> Query
 q = Query . convert
-
-
-
--- where_sdsd :: Query
--- where_sdsd = Query "dfgdf"

@@ -44,7 +44,7 @@ errorHandler :: E -> Response
 errorHandler e = do
     let status = Error.getStatus e
     let text = if status == internalServerError500
-        then convertL ("Внутренняя ошибка сервера" :: String) --проверить (вообще есть ли такие ошибки? как правило сервер просто не запускается в таких случаях)
+        then convertL ("Внутренняя ошибка сервера" :: String)
         else convertL . show $ e
     Wai.responseLBS status [(hContentType, "text/plain")] text
 

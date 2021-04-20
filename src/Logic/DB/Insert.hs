@@ -30,7 +30,7 @@ import           Database.PostgreSQL.Simple.Types as SQL (Only (..), Query)
 
 migration :: MDB m => String -> m ()
 migration name = do
-    execute__ [sql|INSERT into migrations (name) values ('{0}')|] [q name]
+    DB.execute_ [sql|INSERT into migrations (name) values ('{0}')|] [q name]
 
 ----------------------------------User-----------------------------------------
 user :: MT m => m ()
@@ -87,7 +87,7 @@ tagToContent Check = do
 tagToContent Execute = do
     params <- Cache.getParams
     unless (emptyParam $ params ! "tag_id") $ do
-        execute__ [sql|INSERT into tags_to_contents (tag_id, content_id) values {0}|]
+        DB.execute_ [sql|INSERT into tags_to_contents (tag_id, content_id) values {0}|]
             [rows params ["tag_id", "content_id"]]
 
 ----------------------------------Draft----------------------------------------
@@ -98,7 +98,7 @@ draft = do
         "Невозможно создать черновик от удаленного автора (автора по умолчанию) id = 1"
     checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
     tagToContent Check
-    [Only cid] <- (query_ . template
+    [Only cid] <- (DB.query . template
         [sql|INSERT into contents (author_id, name, creation_date, category_id, text, photo) values {0} RETURNING id|]) <$$>
         [rowEither params [Left "author_id", Left "name", Right [sql|current_date|], Left "category_id", Left "text", Left "photo"]]
     Cache.addChanged Insert Content 1
@@ -113,7 +113,7 @@ publish :: MT m => Int -> m ()
 publish pid = do
     params <- Cache.addIdParam "draft_id" pid
     checkExist "draft_id" [sql|SELECT 1 FROM drafts WHERE drafts.id = {0}|]
-    [(contentId, mpostId)] <- query_ <$> template
+    [(contentId, mpostId)] <- DB.query <$> template
         [sql|SELECT content_id, post_id FROM drafts WHERE drafts.id = {0}|] <$$>
         [p $ params ! "draft_id" ]
     case mpostId :: Maybe Int of
@@ -121,7 +121,7 @@ publish pid = do
             insert Post [sql|INSERT into posts (content_id) values ({0})|]
                 [q (contentId :: Int)] --новость публикуется в первый раз
         Just postId -> do
-            [Only oldContentId] <- DB.query_ $ template [sql|SELECT content_id FROM posts WHERE posts.id = {0}|]
+            [Only oldContentId] <- DB.query $ template [sql|SELECT content_id FROM posts WHERE posts.id = {0}|]
                 [q postId]
             update Post [sql|UPDATE posts SET content_id = {0} WHERE posts.id = {1}|] [q contentId, q postId]
             --контент привязан или к черновику или к посту, поэтому нигде больше не используется
@@ -159,7 +159,7 @@ checkExist name templ = do
         helper name ParamNo templ = return ()
         helper name ParamNull templ = return ()
         helper name param@(ParamEq (Int pid)) templ = do
-            exist <- DB.query_ $ template templ [q pid]
+            exist <- DB.query $ template templ [q pid]
             case exist :: [Only Int] of
                 [] -> Error.throw $ DBError $ template
                     "Указан несуществующий параметр {0}: {1}" [show name, show pid]
@@ -168,7 +168,7 @@ checkExist name templ = do
 -- | Проверка на существование ВСЕХ сущностей из списка
 checkExistAll :: MT m => BSName -> [Int] -> Query -> m ()
 checkExistAll name all templ = do
-    exist <- fromOnly <<$>> DB.query_ templ
+    exist <- fromOnly <<$>> DB.query templ
     when (length exist /= length all) $ do
         let notExist = filter (`notElem` exist) all
         Error.throw $ DBError $ template "Параметры {0} из списка {1} не существуют"
@@ -181,7 +181,7 @@ checkNotExist description name templ = do
     helper name param templ where
         helper name ParamNo templ = return ()
         helper name param@(ParamEq v) templ = do
-            exist <- query_ $ template templ [val v]
+            exist <- DB.query $ template templ [val v]
             case exist :: [Only Int] of
                 [] -> return ()
                 _ -> Error.throw $ DBError  (template "{2} с таким {0} = {1} уже существует"
@@ -236,7 +236,7 @@ addAuthAuthorIdParam :: MT m => m ParamsMap
 addAuthAuthorIdParam = do
     addAuthUserIdParam
     paramUserId <- Cache.getParam "user_id"
-    mauthorId <- fromOnly <<$>> listToMaybe <$> (query_ . template [sql|
+    mauthorId <- fromOnly <<$>> listToMaybe <$> (DB.query . template [sql|
     SELECT authors.id FROM authors
         LEFT JOIN users
         ON authors.user_id = users.id
