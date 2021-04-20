@@ -37,24 +37,24 @@ selectMigrationsQuery = [sql|SELECT * FROM migrations|]
 type User =  Row.User
 
 user :: MDB m => Int -> m (Maybe User)
-user pid = listToMaybe <$> DB.query query where
-    query =  selectUsersQuery <+> template [sql|WHERE users.id = {0}|] [q pid]
+user pid = listToMaybe <$> DB.query qu where
+    qu =  selectUsersQuery <+> template [sql|WHERE users.id = {0}|] [q pid]
 
 users :: MT m => m [User]
-users = DB.query =<< usersQuery =<< Cache.getParams
+users = DB.query =<< usersQuery
 
 selectUsersQuery :: Query
 selectUsersQuery = [sql|SELECT * FROM users|]
 
-usersQuery ::  (MError m, MCache m) => ParamsMap -> m Query
-usersQuery params = return selectUsersQuery <<+>> pagination
+usersQuery ::  (MError m, MCache m) => m Query
+usersQuery = return selectUsersQuery <<+>> pagination
 
 -----------------------------Author--------------------------------------------
 type Author = Row.Author :. Row.User
 
 author :: MDB m => Int -> m (Maybe Author)
-author pid = listToMaybe <$> DB.query query where
-    query =  selectAuthorsQuery <+> template [sql|WHERE authors.id = {0}|] [q pid]
+author pid = listToMaybe <$> DB.query qu where
+    qu =  selectAuthorsQuery <+> template [sql|WHERE authors.id = {0}|] [q pid]
 
 authors :: MT m => m [Author]
 authors = DB.query =<< authorsQuery
@@ -71,8 +71,8 @@ authorsQuery = return selectAuthorsQuery <<+>> pagination
 type Category = Row.Category
 
 category::  MDB m => Int -> m (Maybe Category)
-category pid = listToMaybe <$> DB.query query where
-    query = selectCategoriesQuery <+> template [sql|WHERE categories.id = {0}|] [q pid]
+category pid = listToMaybe <$> DB.query qu where
+    qu = selectCategoriesQuery <+> template [sql|WHERE categories.id = {0}|] [q pid]
 
 categories :: MT m => m [Category]
 categories = DB.query =<< categoriesQuery
@@ -98,16 +98,15 @@ draft pid = do
         cond [sql|drafts.id|] $ ParamEq (Int pid),
         cond [sql|users.id|] paramUserId
         ]
-    let query =  selectDraftsQuery `whereAll` conditions;
-    DB.query query
+    let qu =  selectDraftsQuery `whereAll` conditions;
+    DB.query qu
 
 drafts :: MT m => m [Draft]
 drafts = do
-    params <- Cache.getParams
     paramUserId <- authUserIdParam
     let conditions = [cond [sql|users.id|] paramUserId]
-    query <- selectDraftsQuery `whereAllM` conditions <<+>> pagination;
-    DB.query query
+    qu <- selectDraftsQuery `whereAllM` conditions <<+>> pagination;
+    DB.query qu
 
 selectDraftsQuery ::  Query
 selectDraftsQuery = [sql|
@@ -124,8 +123,8 @@ selectDraftsQuery = [sql|
 type Post = Row.Post :. Content
 
 post::  MDB m => Int -> m [Post]
-post pid = DB.query query where
-    query = selectPostsQuery <+> template [sql|WHERE posts.id = {0}|] [q pid]
+post pid = DB.query qu where
+    qu = selectPostsQuery <+> template [sql|WHERE posts.id = {0}|] [q pid]
 
 posts :: MT m => m [Post]
 posts = DB.query =<< postsQuery
@@ -143,18 +142,18 @@ selectPostsQuery = [sql|
 
 postsQuery :: (MError m, MCache m) => m SQL.Query
 postsQuery = do
-    params <- Cache.getParams
-    let p name = params ! name
+    pars <- Cache.getParams
+    let par name = pars ! name
     let conditions =  [
-            postIdsSubquery [sql|tags_to_contents.tag_id|] (p "tag_id"),
-            containsCond (p "contains"),
-            cond [sql|contents.category_id|] $ p "category_id",
-            cond [sql|contents.creation_date|] $ p "created_at",
-            cond [sql|contents.name|] $ p "name",
-            cond [sql|CONCAT_WS(' ', users.last_name, users.first_name)|] $ p "author_name",
-            cond [sql|contents.text|] $ p "text"
+            postIdsSubquery [sql|tags_to_contents.tag_id|] (par "tag_id"),
+            containsCond (par "contains"),
+            cond [sql|contents.category_id|] $ par "category_id",
+            cond [sql|contents.creation_date|] $ par "created_at",
+            cond [sql|contents.name|] $ par "name",
+            cond [sql|CONCAT_WS(' ', users.last_name, users.first_name)|] $ par "author_name",
+            cond [sql|contents.text|] $ par "text"
             ]
-    selectPostsQuery `whereAllM` conditions  <<+>> orderBy (p "order_by") <<+>> pagination
+    selectPostsQuery `whereAllM` conditions  <<+>> orderBy (par "order_by") <<+>> pagination
 
         where
         postIdsSubquery :: MError m => Query -> Param -> m Query
@@ -165,8 +164,8 @@ postsQuery = do
             ([sql|SELECT posts.id FROM posts|] `whereAllM` [existTagSubquery field param] )
 
         containsCond :: MError m => Param -> m Query
-        containsCond param = DB.brackets . DB.any <$> list where
-            list = sequenceA [
+        containsCond param = DB.brackets . DB.any <$> subConditions where
+            subConditions = sequenceA [
                 cond [sql|contents.name|] param,
                 cond [sql|CONCAT_WS(' ', users.last_name, users.first_name)|] param,
                 cond [sql|contents.name|] param,
@@ -197,13 +196,13 @@ postsQuery = do
                     photos.content_id = contents.id|]
                 _               -> Error.throw $ DevError $ template "Неверный параметр {0} в функции orderBy" [paramName]
         orderBy ParamNo = return [sql||]
-        orderBy p = Error.throw $ DevError $ template "Неверный шаблон параметра {0} в функции orderBy" [show p]
+        orderBy par = Error.throw $ DevError $ template "Неверный шаблон параметра {0} в функции orderBy" [show par]
 
 -----------------------------Tag-----------------------------------------------
 type Tag = Row.Tag
 tag::  MDB m => Int -> m (Maybe Tag)
-tag pid = listToMaybe <$> DB.query query where
-    query = selectTagsQuery <+> template [sql|WHERE tags.id = {0}|] [q pid]
+tag pid = listToMaybe <$> DB.query qu where
+    qu = selectTagsQuery <+> template [sql|WHERE tags.id = {0}|] [q pid]
 
 tags :: MT m => m [Tag]
 tags = DB.query =<< tagsQuery
@@ -257,7 +256,7 @@ val (Date a) = template [sql|'{0}'|] [q a]
 cond :: MError m => Query -> Param -> m Query
 cond field param = case param of
     ParamEq v           -> return $ template [sql|{0} = {1}|] [field, val v]
-    ParamIn list        -> return $ field `inList` map val list
+    ParamIn vs          -> return $ field `inList` map val vs
     ParamLt v           -> return $ template [sql|{0} < {1}|] [field, val v]
     ParamGt v           -> return $ template [sql|{0} > {1}|] [field, val v]
     ParamBt (v1,v2)     -> return $ template [sql|{0} BETWEEN {1} AND {2}|] [field, val v1, val v2]
@@ -270,8 +269,8 @@ cond field param = case param of
 -- * Админ может ЧИТАТЬ все публикации
 authUserIdParam :: (MError m, MCache m) => m Param
 authUserIdParam = do
-    auth <- Cache.getAuth
-    case auth of
+    a <- Cache.getAuth
+    case a of
         AuthAdmin _     -> return ParamNo
         AuthUser userId -> return $ ParamEq (Int userId)
         _               -> Error.throw Error.authErrorDefault

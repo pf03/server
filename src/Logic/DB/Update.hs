@@ -12,7 +12,7 @@ module Logic.DB.Update
 
 -- Our Modules
 import           Common.Misc                      
-import           Interface.Cache                  as Cache
+import           Interface.Cache                  as Cache hiding (params)
 import           Interface.DB                     as DB
 import           Interface.Error                  as Error
 import           Logic.DB.Insert                  as Insert (checkExist, photos, rowEither, tagToContent)
@@ -20,9 +20,7 @@ import           Logic.DB.Select                  (cond, p, val)
 
 -- Other Modules
 import           Control.Monad.Identity           (when)
-import           Data.Map                         as M (fromList, (!))
-import qualified Data.Map                         as M (insert)
-import           Data.Text                        (Text (..), pack)
+import           Data.Map                         as M ((!))
 import           Database.PostgreSQL.Simple.SqlQQ (sql)
 import           Database.PostgreSQL.Simple.Types as SQL (Only (Only), Query)
 
@@ -30,7 +28,7 @@ import           Database.PostgreSQL.Simple.Types as SQL (Only (Only), Query)
 ----------------------------------User-----------------------------------------
 user :: MT m => Int -> m ()
 user pid = do
-    Cache.addIdParam "id" pid
+    _ <- Cache.addIdParam "id" pid
     checkExist "id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
     -- Логин нужен для проверки пароля
     [Only login] <- DB.query $ template [sql|SELECT users.login FROM users WHERE users.id = {0}|] [q pid]
@@ -74,7 +72,7 @@ tagToContent Execute = withParam "tag_id" $ do
 ----------------------------------Draft----------------------------------------
 draft :: MT m => Int-> m ()
 draft pid = do
-    checkAuthExistDraft pid
+    _ <- checkAuthExistDraft pid
     params <- Cache.getParams
     checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
     Logic.DB.Update.tagToContent Check
@@ -87,16 +85,16 @@ draft pid = do
 -- | Проверка существования вместе с авторизацией, для запросов DB.update и delete
 checkAuthExistDraft :: MT m => Int -> m ParamsMap
 checkAuthExistDraft pid = do
-    query <- [sql|
+    qu <- [sql|
         SELECT users.id, authors.id, contents.id FROM drafts
         LEFT JOIN contents ON contents.id = drafts.content_id
         LEFT JOIN authors ON authors.id = contents.author_id
         LEFT JOIN users ON users.id = authors.user_id
     |] `whereAllM` [cond [sql|drafts.id|] $ ParamEq (Int pid)]
-    (uid, aid, cid) <- checkAuthExist pid "draft_id" query
-    Cache.addIdParam "id" pid
-    Cache.addIdParam "user_id" uid
-    Cache.addIdParam "author_id" aid
+    (uid, aid, cid) <- checkAuthExist pid "draft_id" qu
+    Cache.addIdParam_ "id" pid
+    Cache.addIdParam_ "user_id" uid
+    Cache.addIdParam_ "author_id" aid
     Cache.addIdParam "content_id" cid
 
 ----------------------------------Post-----------------------------------------
@@ -113,7 +111,7 @@ post pid = do
     Cache.addChanged Insert Content 1
     DB.insert Draft [sql|INSERT into drafts (content_id, post_id) values ({0}, {1})|]
         [q cid, q pid]
-    Cache.addIdParam "content_id" cid --перезаписываем
+    Cache.addIdParam_ "content_id" cid --перезаписываем
     Insert.tagToContent Execute
     Insert.photos
 
@@ -122,24 +120,24 @@ post pid = do
 -- только админ
 checkAuthExistPost :: MT m => Int -> m ParamsMap
 checkAuthExistPost pid = do
-    query <- [sql|
+    qu <- [sql|
         SELECT users.id, authors.id, contents.id FROM posts
         LEFT JOIN contents ON contents.id = posts.content_id
         LEFT JOIN authors ON authors.id = contents.author_id
         LEFT JOIN users ON users.id = authors.user_id
     |] `whereAllM` [cond [sql|posts.id|] $ ParamEq (Int pid)]
-    (uid, aid, cid) <- checkAuthExist pid "post_id" query
-    Cache.addIdParam "id" pid
-    Cache.addIdParam "user_id" uid
-    Cache.addIdParam "author_id" aid
+    (uid, aid, cid) <- checkAuthExist pid "post_id" qu
+    Cache.addIdParam_ "id" pid
+    Cache.addIdParam_ "user_id" uid
+    Cache.addIdParam_ "author_id" aid
     Cache.addIdParam "content_id" cid
 
 ----------------------------------Comment--------------------------------------
 -- * В общем случае checkAuthExist возвращает три параметра
 checkAuthExistComment :: MT m => Int -> m Int --возвращаем userId
 checkAuthExistComment pid = do
-    let query = template [sql| SELECT user_id, 0, 0 FROM comments WHERE id = {0}|] [q pid]
-    (\(a,b,c) -> a) <$> checkAuthExist pid "comment_id" query
+    let qu = template [sql| SELECT user_id, 0, 0 FROM comments WHERE id = {0}|] [q pid]
+    (\(a, _, _) -> a) <$> checkAuthExist pid "comment_id" qu
 
 
 ----------------------------------Photo----------------------------------------
@@ -159,18 +157,18 @@ updates params names = DB.concat "," <$> mapMaybeM helper names where
         login <- p $ params ! "login"
         return . Just $ template [sql|pass = md5 (CONCAT_WS(' ', {0}, {1}))|] [login, val v]
     upd field (ParamEq v) = return . Just $ template [sql|{0} = {1}|] [field, val v]
-    upd field ParamNo = return Nothing
+    upd _ ParamNo = return Nothing
     upd field ParamNull = return . Just $ template [sql|{0} = null|] [field]
-    upd field param = Error.throw $ DevError $ template "Неверный шаблон {0} в функции updates" [show param]
+    upd _ param = Error.throw $ DevError $ template "Неверный шаблон {0} в функции updates" [show param]
 
 checkAuthExist :: MT m => Int -> BSName -> Query ->  m (Int, Int, Int)
-checkAuthExist pid name query = do
-    exist <- DB.query query
+checkAuthExist pid name qu = do
+    exist <- DB.query qu
     case exist of
         [] -> Error.throw $ DBError  (template "Указан несуществующий параметр {0}: {1}" [show name, show pid])
         [(uid, aid, cid)] -> do
-            auth <- Cache.getAuth
-            case auth of
+            a <- Cache.getAuth
+            case a of
                 AuthNo                            -> Error.throw authErrorDefault
                 AuthAdmin _                       -> return (uid, aid, cid) --админ может РЕДАКТИРОВАТЬ все публикации (модерация)
                 AuthUser authuid | uid == authuid -> return (uid, aid, cid) --юзер может РЕДАКТИРОВАТЬ только своё

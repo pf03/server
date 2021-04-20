@@ -15,12 +15,12 @@ import           Logic.DB.Select                  (p)
 
 -- Other Modules
 import           Control.Monad.Identity           (when)
-import           Crypto.Hash.MD5                  (hash)
+import qualified Crypto.Hash.MD5 as MD5               (hash)
 import           Data.Aeson                       (FromJSON, ToJSON)
 import qualified Data.ByteString                  as B
 import qualified Data.ByteString.Char8            as BC
 import           Data.List.Split                  (splitOn)
-import           Data.Map                         as M (fromList, (!))
+import           Data.Map                         as M ((!))
 import           Data.Time                        
 import           Data.Time.Format.ISO8601         (iso8601Show)
 import           Data.Word                        (Word8)
@@ -38,11 +38,11 @@ instance FromJSON Token
 -----------------------------Public functions----------------------------------
 login :: MT m => m Token
 login = do
-    params <- Cache.getParams
+    pars <- Cache.getParams
     users <- DB.query <$> template [sql|
         SELECT id, is_admin FROM users
         WHERE login = {0} and pass = md5 (CONCAT_WS(' ', {0}, {1}))
-    |] <$$> [p $ params ! "login", p $ params ! "pass"]
+    |] <$$> [p $ pars ! "login", p $ pars ! "pass"]
     case users  :: [(Int, Bool)] of
         [(userId, isAdmin)]   -> do
             Log.debugM users
@@ -65,14 +65,14 @@ auth req  = do
 
 -----------------------------Private functions---------------------------------
 checkAuth :: (MError m, MCache m) => UTCTime -> Token -> m ()
-checkAuth date token  = do
-    (userId, role, day, hash) <- parseToken token
+checkAuth date tok  = do
+    (userId, role, day, hash) <- parseToken tok
     let curDay = iso8601Show . utctDay $ date
     if day == curDay then do
         correctToken <- genToken date userId role
-        if correctToken == token && role == "user"
+        if correctToken == tok && role == "user"
             then Cache.setAuth $ AuthUser userId
-            else if correctToken == token && role == "admin"
+            else if correctToken == tok && role == "admin"
                 then Cache.setAuth $ AuthAdmin userId
                 else Error.throw $ AuthError "Неверный токен!"
     else Error.throw $ AuthError "Неверная дата токена!"
@@ -92,7 +92,7 @@ genToken  date userId role = do
     let secret = "mySecretWord"
     let day = iso8601Show . utctDay $ date
     let str = template "{0}_{1}_{2}_{3}" [convert userId, convert role, convert day, secret]
-    return $ Token $ template "{0}_{1}_{2}_{3}" [show userId, role, day, toHex . hash $ str]
+    return $ Token $ template "{0}_{1}_{2}_{3}" [show userId, role, day, toHex . MD5.hash $ str]
 
 toHex :: BC.ByteString -> String
 toHex bs = foldr helper "" (B.unpack bs) where

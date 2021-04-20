@@ -1,41 +1,41 @@
-module App.Spec where
+-- Our Modules
+import qualified Logic.Pure.API as API
+import qualified Logic.Pure.Params as Params
+import Interface.Cache
+import Lib (allShouldSatisfy)
+import           Common.Misc
+import Interface.Error as Error
 
+-- Other Modules
 import Test.Hspec
 import Test.QuickCheck
-import qualified Logic.Pure.Params as Params
-import App.Lib
 import           Network.HTTP.Types.URI     as HTTP
-import Interface.Cache
 import Data.Either
-import Interface.Error as Error
-import           Common.Misc
-import qualified Logic.Pure.API as API
 import qualified Data.ByteString as B
 
--- Сделать рефакторинг
--- ! переместил тесты в папку src для более удобной отладки, потом обратно перемещу в test
+-- | Тестирование чистых функций производится в монаде Either E - простейшем представителе класса MError
+main :: IO ()
+main = do 
+    hspec testParseParams
+    hspec testRouter
 
---import App.Emulate  --перенести потом тестовые случаи куда-нибудь в отдельный модуль папки test
---и модуль Emulate тоже в test
+-- Predicats
+isRequestError :: Either E a -> Bool 
+isRequestError ma = case ma of 
+    Left (RequestError _ ) -> True 
+    _ -> False
 
--- main :: IO ()
--- main = hspec testParseParams
+isAuthError :: Either E a -> Bool 
+isAuthError ma = case ma of 
+    Left (AuthError _ ) -> True 
+    _ -> False
 
-test :: IO ()
-test = hspec testParseParams
-
-
------------------------------parseParams--------------------------------------------
-
+-----------------------------Params.parseParams--------------------------------------------
 parseParams :: API -> Query -> Either E ParamsMap
 parseParams = Params.parseParams
 
-router :: B.ByteString -> PathInfo -> Auth -> Either E API
-router = API.router
-
 testParseParams :: Spec
-testParseParams = do
-    describe "Logic.parseParams" $ do 
+testParseParams = describe "Logic.parseParams" $ do 
         it "throws request error" $ do
             nothingCase `shouldSatisfy` isRequestError
             insertAuthorWrongCases `allShouldSatisfy` isRequestError
@@ -46,32 +46,6 @@ testParseParams = do
             selectPostRightCases `allShouldSatisfy` isRight
             noParamsRightCase `shouldSatisfy` isRight
             withParamRightCase `shouldSatisfy` isRight
-    describe "API.router" $ do 
-        it "throws request error" $ do
-            (router "path" <$> wrongRouterCases <*> return AuthNo) `allShouldSatisfy` isRequestError
-            (router "path" <$> wrongRouterCases <*> return (AuthUser 3)) `allShouldSatisfy` isRequestError
-            (router "path" <$> wrongRouterCases <*> return (AuthAdmin 1)) `allShouldSatisfy` isRequestError
-            (router "path" <$> forAdminRouterCases <*> return AuthNo) `allShouldSatisfy` isRequestError
-            (router "path" <$> forAdminRouterCases <*> return (AuthUser 3)) `allShouldSatisfy` isRequestError  
-        it "throws auth error" $ do
-            (router "path" <$> forUserRouterCases <*> return AuthNo) `allShouldSatisfy` isAuthError
-        it "returns result" $ do
-            (router "path" <$> forAllRouterCases <*> return AuthNo) `allShouldSatisfy` isRight
-            (router "path" <$> forAllRouterCases <*> return (AuthUser 3)) `allShouldSatisfy` isRight
-            (router "path" <$> forAllRouterCases <*> return (AuthAdmin 1)) `allShouldSatisfy` isRight
-            (router "path" <$> forUserRouterCases <*> return (AuthUser 3)) `allShouldSatisfy` isRight
-            (router "path" <$> forUserRouterCases <*> return (AuthAdmin 1)) `allShouldSatisfy` isRight
-            (router "path" <$> forAdminRouterCases <*> return (AuthAdmin 1)) `allShouldSatisfy` isRight
-            
-isRequestError :: Either E a -> Bool 
-isRequestError ma = case ma of 
-    Left (RequestError _ ) -> True 
-    _ -> False
-
-isAuthError :: Either E a -> Bool 
-isAuthError ma = case ma of 
-    Left (AuthError _ ) -> True 
-    _ -> False
 
 --Ошибка веб-запроса: Не указано значение обязательного параметра "description"
 nothingCase :: Either E ParamsMap 
@@ -195,8 +169,26 @@ withParamRightCase = parseParams (API Update [Draft]) [("category_id", Just "1")
 
 -----------------------------API.router----------------------------------------
 
--- ccc :: [Either E API]
--- ccc = API.router "path" <$> wrongRouterCases <*> return AuthNo 
+testRouter :: Spec
+testRouter = describe "API.router" $ do 
+        it "throws request error" $ do
+            (router "path" <$> wrongRouterCases <*> return AuthNo) `allShouldSatisfy` isRequestError
+            (router "path" <$> wrongRouterCases <*> return (AuthUser 3)) `allShouldSatisfy` isRequestError
+            (router "path" <$> wrongRouterCases <*> return (AuthAdmin 1)) `allShouldSatisfy` isRequestError
+            (router "path" <$> forAdminRouterCases <*> return AuthNo) `allShouldSatisfy` isRequestError
+            (router "path" <$> forAdminRouterCases <*> return (AuthUser 3)) `allShouldSatisfy` isRequestError  
+        it "throws auth error" $ do
+            (router "path" <$> forUserRouterCases <*> return AuthNo) `allShouldSatisfy` isAuthError
+        it "returns result" $ do
+            (router "path" <$> forAllRouterCases <*> return AuthNo) `allShouldSatisfy` isRight
+            (router "path" <$> forAllRouterCases <*> return (AuthUser 3)) `allShouldSatisfy` isRight
+            (router "path" <$> forAllRouterCases <*> return (AuthAdmin 1)) `allShouldSatisfy` isRight
+            (router "path" <$> forUserRouterCases <*> return (AuthUser 3)) `allShouldSatisfy` isRight
+            (router "path" <$> forUserRouterCases <*> return (AuthAdmin 1)) `allShouldSatisfy` isRight
+            (router "path" <$> forAdminRouterCases <*> return (AuthAdmin 1)) `allShouldSatisfy` isRight
+
+router :: B.ByteString -> PathInfo -> Auth -> Either E API
+router = API.router
 
 wrongRouterCases :: [PathInfo]
 wrongRouterCases = [

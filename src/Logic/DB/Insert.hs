@@ -15,10 +15,10 @@ module Logic.DB.Insert
 
 -- Our Modules
 import           Common.Misc
-import           Interface.Cache                  as Cache
+import           Interface.Cache                  as Cache hiding (Cache (..))
 import           Interface.DB                     as DB
 import           Interface.Error                  as Error
-import           Logic.DB.Select                  (authUserIdParam, cond, p, val)
+import           Logic.DB.Select                  (cond, p, val)
 -- Other Modules
 import           Control.Monad.Identity           (unless, when)
 import           Data.Map                         ((!))
@@ -81,13 +81,13 @@ tag = do
 tagToContent :: MT m => Action -> m ()
 tagToContent Check = do
     params <- Cache.getParams
-    let tagIds = valInt <$> (\(ParamAll list) -> list) (params ! "tag_id") -- :: [Val]
+    let tagIds = valInt <$> (\(ParamAll vs) -> vs) (params ! "tag_id") -- :: [Val]
     c <- cond [sql|id|] $ ParamIn (Int <$> tagIds)
     checkExistAll "tag_id" tagIds $ [sql|SELECT id FROM tags|] `whereAll` [c]
 tagToContent Execute = do
     params <- Cache.getParams
     unless (emptyParam $ params ! "tag_id") $ do
-        DB.execute_ [sql|INSERT into tags_to_contents (tag_id, content_id) values {0}|]
+        DB.execute_ [sql|INSERT into tags_to_contents (tag_id, content_id) values {0}|] <$$>
             [rows params ["tag_id", "content_id"]]
 
 ----------------------------------Draft----------------------------------------
@@ -102,7 +102,7 @@ draft = do
         [sql|INSERT into contents (author_id, name, creation_date, category_id, text, photo) values {0} RETURNING id|]) <$$>
         [rowEither params [Left "author_id", Left "name", Right [sql|current_date|], Left "category_id", Left "text", Left "photo"]]
     Cache.addChanged Insert Content 1
-    Cache.addIdParam "content_id" cid
+    _ <- Cache.addIdParam "content_id" cid
     tagToContent Execute
     photos
     insert Draft [sql|INSERT into drafts (content_id) values ({0})|] <$$>
@@ -133,7 +133,7 @@ publish pid = do
 ----------------------------------Comment--------------------------------------
 comment :: MT m => Int -> m ()
 comment postId = do
-    addAuthUserIdParam
+    _ <- addAuthUserIdParam
     params <- Cache.addIdParam "post_id" postId
     when (params ! "user_id" == ParamEq (Int 1)) $ Error.throw $ DBError
         "Невозможно создать комментарий от удаленного пользователя (пользователя по умолчанию) id = 1"
@@ -147,30 +147,32 @@ photos :: MT m => m ()
 photos = do
     params <- Cache.getParams
     unless (emptyParam $ params ! "photos") $ do
-        insert Photo [sql|INSERT into photos (photo, content_id) values {0}|]
+        insert Photo [sql|INSERT into photos (photo, content_id) values {0}|] <$$>
             [rows params ["photos", "content_id"]]
 
 ----------------------------------Common---------------------------------------
 -- * В шаблон подставляется внутренний pid, если параметр обязательный, то ParamNo никогда не выскочит
 checkExist :: MT m => BSName -> Query -> m ()
 checkExist name templ = do
-    param <- Cache.getParam name
-    helper name param templ where
-        helper name ParamNo templ = return ()
-        helper name ParamNull templ = return ()
-        helper name param@(ParamEq (Int pid)) templ = do
+    par <- Cache.getParam name
+    helper par where
+        helper ParamNo = return ()
+        helper ParamNull = return ()
+        helper (ParamEq (Int pid)) = do
             exist <- DB.query $ template templ [q pid]
             case exist :: [Only Int] of
                 [] -> Error.throw $ DBError $ template
                     "Указан несуществующий параметр {0}: {1}" [show name, show pid]
                 _ -> return ()
+        helper par = Error.throw $ DevError $ template
+            "Неверный шаблон в функции checkExist: {0}" [show par]
 
 -- | Проверка на существование ВСЕХ сущностей из списка
 checkExistAll :: MT m => BSName -> [Int] -> Query -> m ()
-checkExistAll name all templ = do
+checkExistAll name ids templ = do
     exist <- fromOnly <<$>> DB.query templ
-    when (length exist /= length all) $ do
-        let notExist = filter (`notElem` exist) all
+    when (length exist /= length ids) $ do
+        let notExist = filter (`notElem` exist) ids
         Error.throw $ DBError $ template "Параметры {0} из списка {1} не существуют"
             [show name, show notExist]
 
@@ -178,14 +180,16 @@ checkExistAll name all templ = do
 checkNotExist :: MT m => String -> BSName -> Query -> m()
 checkNotExist description name templ = do
     param <- Cache.getParam name
-    helper name param templ where
-        helper name ParamNo templ = return ()
-        helper name param@(ParamEq v) templ = do
+    helper param where
+        helper ParamNo = return ()
+        helper (ParamEq v) = do
             exist <- DB.query $ template templ [val v]
             case exist :: [Only Int] of
                 [] -> return ()
                 _ -> Error.throw $ DBError  (template "{2} с таким {0} = {1} уже существует"
                     [show name, toString v, description])
+        helper par = Error.throw $ 
+            DevError $ template "Неверный шаблон параметра {0} в функции Insert.checkNotExist" [show par]
         toString :: Val -> String
         toString (Int n)  = show n
         toString (Str s)  = show s
@@ -197,14 +201,14 @@ row :: MError m => ParamsMap -> [BSName] -> m Query
 row params names = list <$> mapM (\name -> cell (params ! name)) names
 
 -- * Количество строк определяется по первому параметру, который должен быть ParamAll
-rows :: ParamsMap -> [BSName] -> Query
+rows :: MError m => ParamsMap -> [BSName] -> m Query
 rows params names = res where
     (ParamAll first) = params ! head names
     len = length first
-    listOfRows = map helper [0..len-1]
-    helper :: Int -> Query
-    helper n = list $ map (\name -> cellByNumber (params ! name) n) names
-    res = DB.concat [sql|,|] listOfRows
+    listOfRows = mapM helper [0..len-1]
+    helper :: MError m => Int -> m Query
+    helper n = list <$> mapM (\name -> cellByNumber (params ! name) n) names
+    res = DB.concat [sql|,|] <$> listOfRows
 
 emptyParam:: Param -> Bool
 emptyParam ParamNo       = True
@@ -219,22 +223,23 @@ rowEither params nqs = list <$> mapM helper nqs where
     helper :: MError m => Either BSName Query -> m Query
     helper nq = case nq of
         Left name -> cell (params ! name)
-        Right q   -> return q
+        Right qu   -> return qu
 
 cell :: MError m => Param -> m Query
 cell (ParamEq v) = return $ val v
 cell ParamNo     = return [sql|null|]
-cell p           = Error.throw $ DevError $ template "Неверный шаблон параметра {0} в функции cell" [show p]
+cell par         = Error.throw $ DevError $ template "Неверный шаблон параметра {0} в функции cell" [show par]
 
-cellByNumber :: Param -> Int -> Query
-cellByNumber (ParamEq v) _     = val v
-cellByNumber (ParamAll list) n = val (list !! n)
-cellByNumber ParamNo _         = [sql|null|]
+cellByNumber :: MError m => Param -> Int -> m Query
+cellByNumber (ParamEq v) _     = return $ val v
+cellByNumber (ParamAll vs) n = return $ val (vs !! n)
+cellByNumber ParamNo _         = return [sql|null|]
+cellByNumber par _ = Error.throw $ DevError $ template "Неверный шаблон параметра {0} в функции cell" [show par]
 
 -- * Aдмин может CОЗДАВАТЬ только свои публикации
 addAuthAuthorIdParam :: MT m => m ParamsMap
 addAuthAuthorIdParam = do
-    addAuthUserIdParam
+    _ <-addAuthUserIdParam
     paramUserId <- Cache.getParam "user_id"
     mauthorId <- fromOnly <<$>> listToMaybe <$> (DB.query . template [sql|
     SELECT authors.id FROM authors

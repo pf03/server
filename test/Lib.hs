@@ -1,4 +1,4 @@
-module App.Lib where
+module Lib where
 import Test.Hspec
 --import Test.QuickCheck
 import Control.Exception (evaluate)
@@ -6,8 +6,7 @@ import Control.Monad.State.Lazy
 import Interface.Error as Error
 import Data.Either
 
-----------------------------------Mutiple cases-------------------------------------------------
-
+-----------------------------Mutiple cases-------------------------------------
 --ALL of cases SHOULD BE eqaul to one result
 allShouldBe :: (HasCallStack, Show a, Eq a) => [a] -> a -> Expectation
 allShouldBe cases result = eachShouldBe cases (replicate (length cases) result)
@@ -16,13 +15,13 @@ allShouldBe cases result = eachShouldBe cases (replicate (length cases) result)
 eachShouldBe :: (HasCallStack, Show a, Eq a) => [a] -> [a] -> Expectation
 eachShouldBe cases results = bimapM_ shouldBe cases results
 
+--ALL of cases SHOULD SATISFY to one predicat
 allShouldSatisfy ::  (HasCallStack, Show a) => [a] -> (a -> Bool) -> Expectation
 allShouldSatisfy cases f = bimapM_ shouldSatisfy cases (replicate (length cases) f)
 
-----------------------------------State cases-------------------------------------------------
-
---can't use bimapM_ in this functions, because they do not consider State effect
---ALL EVAL STATES of cases SHOULD BE eqaul to one result WITH INITIAL STATE
+-----------------------------State cases---------------------------------------
+-- Can't use bimapM_ in this functions, because they do not consider State effect
+-- ALL EVAL STATES of cases SHOULD BE eqaul to one result WITH INITIAL STATE
 allEvalStatesShouldBe :: (HasCallStack, Show a, Eq a) => [State s a] -> (a, s) -> Expectation
 allEvalStatesShouldBe states (result, initialState) = eachEvalStateShouldBe states (replicate (length states) result, initialState)
 
@@ -41,24 +40,14 @@ evalStateShouldBe state (result, initialState) = eachEvalStateShouldBe [state] (
 
 withInitialState = (,)
 
---this is not equal to base Data.Bifoldable.bimapM_
+-- This is not equal to base Data.Bifoldable.bimapM_
 bimapM_ :: Monad m => (a -> b -> m c) -> [a] -> [b] -> m ()
 bimapM_ f [] [] = return ()
 bimapM_ f (x:xs) (y:ys) = do
   f x y
   bimapM_ f xs ys
-bimapM_ _ _ _ = error "list args of bimapM_ must have equal lengths"
-
-
------------------------------Error cases---------------------------------------
--- evalShouldSuccess :: (HasCallStack, Show a) => Either E a -> Expectation
--- evalShouldSuccess ma = ma `shouldSatisfy` isRight
-
-
--- isSuccess :: Either E a -> Bool
--- isSuccess ma = case ma of 
---     Left _ -> False 
---     _      -> True
+bimapM_ f _ _ = return ()
+--bimapM_ _ _ _ = error "list args of bimapM_ must have equal lengths"
 
 
 

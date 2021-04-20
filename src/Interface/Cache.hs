@@ -120,6 +120,11 @@ getParam name = getsCache (\st -> params st ! name)
 addIdParam :: MCache m => BSName -> Int -> m ParamsMap
 addIdParam name pid = modifyParams $ M.insert name (ParamEq (Int pid))
 
+addIdParam_ :: MCache m => BSName -> Int -> m ()
+addIdParam_ name pid = do 
+    _ <- addIdParam name pid
+    return ()
+
 addStrParam :: MCache m => BSName -> String -> m ParamsMap
 addStrParam name str = modifyParams $ M.insert name (ParamEq (Str str))
 
