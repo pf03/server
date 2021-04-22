@@ -7,21 +7,18 @@ import           Interface.Error                 as Error
 
 -- Other Modules
 import           Control.Monad.Except
-import           Control.Monad.Identity
-import           Control.Monad.Trans.Except
 import qualified Data.ByteString                 as B
-import           Data.ByteString.Char8           as BC (ByteString, unpack)
+import           Data.ByteString.Char8           as BC (ByteString)
 import           Data.List
 import qualified Data.Map                        as M
-import           Data.Maybe
 import qualified Data.Text                       as T
 import qualified Data.Text.Encoding              as T
-import           Database.PostgreSQL.Simple.Time
 import           Network.HTTP.Types.URI
 import           Text.Read
 
 
 -----------------------------Types---------------------------------------------
+-- Eq - отсутствие суффикса
 data Templ = Eq | In | All | Lt | Gt | Bt | Like  deriving (Show, Eq)
 
 data ParamType = ParamTypePage
@@ -45,8 +42,6 @@ type BSTempl = BS   --"__lt"
 
 -----------------------------GLOBAL CONSTANTS, used in other functions-----------------------------------------------------
 
---Any означает отсутствие параметра
---Eq отсутствие суффикса
 templates :: [(Templ, BSTempl)]
 templates = [(Eq ,""), (In, "__in"), (All, "__all"), (Lt, "__lt"), (Gt, "__gt"), (Bt, "__bt"), (Like, "__like")]
 

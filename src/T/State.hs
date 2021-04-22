@@ -11,10 +11,6 @@ import           Logic.IO.Config            as Config
 -- Other Modules
 import           Control.Monad.Except
 import           Control.Monad.State.Lazy
-import           Data.Char
-import           Data.Int
-import           Data.Map                   as M ((!))
-import qualified Data.Map                   as M
 import           Database.PostgreSQL.Simple
 import           GHC.Generics               hiding (S)
 

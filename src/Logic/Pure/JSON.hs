@@ -289,16 +289,17 @@ setContentTags content tags = content {contentTags = tags}
 setPostContent :: Post -> Content -> Post
 setPostContent post content = post {postContent = content}
 
--------Data manipaltion-------------------
---здесь используется тип Category, который уже проверен на цикличность и корректность в evalCategory
---возможно чистый код заменить везде на код с обработкой ошибочных паттернов!!!
+-----------------------------Data manipultion----------------------------------
+--здесь используется тип JSON.Category, который уже проверен на цикличность и корректность в evalCategory
 
---тут можно упростить, если использовать map вместо списка
-evalParams :: [Category] -> ParamsMap -> ParamsMap
-evalParams categories = M.adjust (`getChildCategories` categories) "category"
+evalParams :: MError m => [Category] -> ParamsMap -> m ParamsMap
+evalParams categories = adjustM (`getChildCategories` categories) "category"
+    --par <- getChildCategories (params M.! "category") categories
+    --return $ M.insert "category" par params
 
-getChildCategories :: Param -> [Category] -> Param
-getChildCategories (ParamIn vals) cs  = if length filtered == length cs then ParamNo else ParamIn . map (Int . getId) $ filtered where
+getChildCategories :: MError m => Param -> [Category] -> m Param
+getChildCategories (ParamIn vals) cs  = if length filtered == length cs 
+        then return ParamNo else return . ParamIn . map (Int . getId) $ filtered where
     cids = map (\(Int cid) -> cid) vals
     filtered = filter (helper cids) cs
     helper :: [Int] -> Category ->  Bool
@@ -306,13 +307,21 @@ getChildCategories (ParamIn vals) cs  = if length filtered == length cs then Par
         case parent c of
             Nothing -> False
             Just p  -> helper cids p
-getChildCategories ParamNo cs = ParamNo
-getChildCategories param cs = error $ template "Некоректный параметр {0}" [show param]
+getChildCategories ParamNo cs = return ParamNo
+--getChildCategories param cs = error $ template "Некоректный параметр {0}" [show param]
+getChildCategories param cs = Error.throw $ 
+    DevError $ template "Неверный шаблон параметра {0} в функции JSON.getChildCategories" [show param]
 
 --универсальная функция для объединения строк
 unite :: (Identifiable a) => (a -> a -> a) -> [a] -> [a]
 unite f = foldl helper [] where
     helper acc a = updateInsertById (f a) a acc
+
+adjustM :: Monad m => Ord k => (a -> m a) -> k -> M.Map k a -> m (M.Map k a)
+adjustM kl k m = do
+    let olda = m M.! k
+    newa <- kl olda
+    return $ M.insert k newa m 
 
 
 

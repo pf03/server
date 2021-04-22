@@ -1,6 +1,5 @@
 module Logic.Pure.API where
 
-
 -- Our Modules
 import           Common.Misc
 import           Interface.Cache as Cache
@@ -8,11 +7,8 @@ import           Interface.Error as Error
 
 -- Other Modules
 import qualified Data.ByteString as B
-import qualified Data.Map        as M
 import           Data.Text       (Text, unpack)
-import           Text.Read
-
-
+import           Text.Read       (readEither)
 
 -- * Роутер проверяет только роли, иногда id, НО роутер не использует БД (у него даже нет доступа к соединению)
 -- Использование БД в компетенции API-функций.
@@ -34,7 +30,7 @@ router p ["posts", n, "comments", "create"] a  = withUserE a $ withInt p n $ \pi
 
 ---UPDATE---
 router p ["users", n, "edit"] (AuthAdmin _)  = withInt p n $ \pid -> API Update [User, Id pid]
-router p ["user", "edit"] a  = withAuth a $ \pid -> API Update [User, Id pid]
+router _ ["user", "edit"] a  = withAuth a $ \pid -> API Update [User, Id pid]
 router p ["authors", n, "edit"] (AuthAdmin _) = withInt p n $ \pid -> API Update [Author, Id pid]
 router p ["categories", n, "edit"] (AuthAdmin _) = withInt p n $ \pid -> API Update [Category, Id pid]
 router p ["tags", n, "edit"] (AuthAdmin _) = withInt p n $ \pid -> API Update [Tag, Id pid]
@@ -61,7 +57,7 @@ router _ ["posts", n, "comments"] _ = withInt "post_id" n $ \pid -> API Select [
 
 --SELECT BY ID---
 router p ["users", n] (AuthAdmin _) = withInt p n $ \pid -> API SelectById [User, Id pid]
-router p ["user"] a = withAuth a $ \pid -> API SelectById [User, Id pid]
+router _ ["user"] a = withAuth a $ \pid -> API SelectById [User, Id pid]
 router p ["authors", n] (AuthAdmin _) = withInt p n $ \pid -> API SelectById [Author, Id pid]
 router p ["categories", n] _ = withInt p n $ \pid -> API SelectById [Category, Id pid]
 router p ["tags", n] _ = withInt p n $ \pid -> API SelectById [Tag, Id pid]
@@ -74,7 +70,7 @@ router p _ _ = Error.throw $ unknownPathError p
 ereadInt :: MError m => B.ByteString -> Text -> m Int
 ereadInt p text = do
     let str = unpack text
-    Error.catchEither (readEither str) $ \e -> unknownPathError p
+    Error.catchEither (readEither str) $ \_ -> unknownPathError p
 
 withInt :: MError m => B.ByteString -> Text -> (Int -> API) -> m API
 withInt p text f = do
@@ -83,30 +79,21 @@ withInt p text f = do
 
 -- * Ошибка 401 - API-функция, которая требует авторизации
 withUserE :: MError m => Auth -> m API -> m API
---неверное решение, не учитывает вариант, когда m API уже включает ошибку
--- withUserE AuthNo _ = Error.throw Error.authErrorDefault
--- withUserE _ eapi   = eapi
-withUserE auth mapi = do
+withUserE a mapi = do
     api <- mapi
-    case auth of
+    case a of
         AuthNo -> Error.throw Error.authErrorDefault
         _      -> return api
-
-
 
 withUser :: MError m => Auth -> API -> m API
 withUser AuthNo _ = Error.throw Error.authErrorDefault
 withUser _ api    = return api
 
 withAuth :: MError m => Auth -> (Int -> API) -> m API
-withAuth AuthNo f          = Error.throw Error.authErrorDefault
+withAuth AuthNo _          = Error.throw Error.authErrorDefault
 withAuth (AuthAdmin uid) f = return $ f uid
 withAuth (AuthUser uid) f  = return $ f uid
 
 -- * Ошибка 400
 unknownPathError :: B.ByteString -> Error.E
 unknownPathError rawPathInfo = Error.RequestError $ template "Неизвестный путь: {0}" [show rawPathInfo]
-
-
-
-

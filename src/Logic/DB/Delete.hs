@@ -46,7 +46,7 @@ author pid = do
 
 post :: MT m => Int -> m ()
 post pid = do
-    Update.checkAuthExistPost pid
+    _ <- Update.checkAuthExistPost pid
     ParamEq (Int cid) <- Cache.getParam "content_id"
     DB.delete Post [sql|DELETE FROM posts WHERE id = {0}|] [q pid]
     DB.delete Content [sql|DELETE FROM contents WHERE id = {0}|] [q cid]
@@ -57,7 +57,7 @@ post pid = do
 
 draft :: MT m => Int -> m ()
 draft pid = do
-    Update.checkAuthExistDraft pid
+    _ <- Update.checkAuthExistDraft pid
     ParamEq (Int cid) <- Cache.getParam "content_id"
     DB.delete Draft [sql|DELETE FROM drafts WHERE id = {0}|] [q pid]
     DB.delete Content [sql|DELETE FROM contents WHERE id = {0}|] [q cid]
@@ -66,7 +66,7 @@ draft pid = do
 
 comment :: MT m => Int -> m ()
 comment pid = do
-    Update.checkAuthExistComment pid
+    _ <- Update.checkAuthExistComment pid
     DB.delete Comment [sql|DELETE FROM comments WHERE id = {0}|] [q pid]
 
 category :: MT m => Int -> m ()
@@ -107,4 +107,4 @@ checkNotExist pid name1 name2 templ = do
             [name1, name2, showResults]) where
                 showResults = concatMap helper results
                 helper :: (Int, String) -> String
-                helper (pid2, name2) = template "id = {0}, name = {1}\n" [show pid2, name2]
+                helper (pid0, name0) = template "id = {0}, name = {1}\n" [show pid0, name0]

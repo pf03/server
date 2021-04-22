@@ -141,14 +141,15 @@ showType = show . typeOf
 getPosts :: MT m => m [JSON.Post]
 getPosts = do
     categories <- getAllCategories
-    Cache.modifyParams $ JSON.evalParams categories
+    Cache.modifyParamsM $ JSON.evalParams categories
     selectPosts <- Select.posts
     JSON.evalPosts categories selectPosts
 
 getDrafts :: MT m => m [JSON.Draft]
 getDrafts = do
     categories <- getAllCategories
-    Cache.modifyParams $ JSON.evalParams categories
+
+    Cache.modifyParamsM $ JSON.evalParams categories
     selectDrafts <- Select.drafts
     JSON.evalDrafts categories selectDrafts
 

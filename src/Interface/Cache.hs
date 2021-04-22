@@ -113,6 +113,14 @@ modifyParams f = do
     setParams $ f p
     getParams
 
+modifyParamsM :: MCache m => (ParamsMap -> m ParamsMap) -> m ParamsMap
+modifyParamsM f = do
+    p <- getParams
+    newp <- f p
+    setParams newp
+    getParams
+
+
 getParam :: MCache m => BSName -> m Param
 getParam name = getsCache (\st -> params st ! name)
 

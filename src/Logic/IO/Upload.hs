@@ -44,19 +44,19 @@ saveBinary req path = do
                 stream (n+1) str
 
 -- | Для работы с телом запроса, поделенным на чанки.
-stream :: (MonadIO m, Eq a, Monoid a) => IO a -> (a -> IO()) -> m ()
-stream source receiver = liftIO $ helper 0 source receiver where
-  helper n source receiver = do
-      a <- source
-      if a == mempty
-        then putStrLn $ template "Успешно прочитано {0} чаcтей тела запроса" [show n]
-        else do
-            receiver a
-            helper (n+1) source receiver
+streamAll :: (MonadIO m, Eq a, Monoid a) => IO a -> (a -> IO()) -> m ()
+streamAll source0 = liftIO . helper (0 :: Int) source0 where
+    helper n source receiver = do
+        a <- source
+        if a == mempty
+            then putStrLn $ template "Успешно прочитано {0} чаcтей тела запроса" [show n]
+            else do
+                _ <- receiver a
+                helper (n+1) source receiver
 
 -- | Для работы с телом запроса, поделенным на чанки - должно быть не более одного чанка
 streamOne :: (MIOError m, Eq a, Monoid a) => IO a -> m a
-streamOne source = helper 0 source where
+streamOne = helper (0 :: Int) where
     helper n source = do
         liftIO $ putStrLn "streamOne"
         a <- liftEIO source

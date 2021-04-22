@@ -66,7 +66,7 @@ auth req  = do
 -----------------------------Private functions---------------------------------
 checkAuth :: (MError m, MCache m) => UTCTime -> Token -> m ()
 checkAuth date tok  = do
-    (userId, role, day, hash) <- parseToken tok
+    (userId, role, day, _) <- parseToken tok
     let curDay = iso8601Show . utctDay $ date
     if day == curDay then do
         correctToken <- genToken date userId role
