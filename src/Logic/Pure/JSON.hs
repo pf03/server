@@ -6,26 +6,24 @@ module Logic.Pure.JSON where
 -- Our Modules
 import           Common.Identifiable
 import           Common.Misc
-import           Interface.Cache                 as Cache hiding (APIType(..))
+import           Interface.Cache                 as Cache hiding (APIType(..), params)
 import           Interface.Error                 as Error 
 import qualified Logic.DB.Row                    as Row
 import qualified Logic.DB.Select                 as Select
 
 -- Other Modules
 import           Control.Monad.Except
-import           Control.Monad.Trans.Except
+-- import           Control.Monad.Trans.Except
 import           Data.Aeson
-import           Data.Aeson.Types
-import           Data.List
+-- import           Data.Aeson.Types
+-- import           Data.List
 import qualified Data.Map                        as M
-import           Data.Text                       (Text (..), pack)
+import           Data.Text                       (Text)
 import           Database.PostgreSQL.Simple
 import           Database.PostgreSQL.Simple.Time
 import           GHC.Generics
 
 
-
--- в результирующем json убрать префиксы, и возможно сделать snake_case
 data Post = Post {
     postId      :: Int,
     postContent :: Content
@@ -94,14 +92,7 @@ type Photo = Row.Photo
 -- getPosts = undefined
 
 ----------EVALUATE--------------
---такой ответ кажется избыточный, но по условиям УЧЕБНОГО проекта требуются именно вложенные сущности.
-
---evaluate from 'select' types to 'json' types
--- evalCategories :: [Select.Category] -> Except E [Category]
--- evalCategories rcs = mapM (evalCategory [] rcs . Row.categoryId) rcs
-
---здесь лучше упорядочить функции!!!!!!!!!!!!!!!!
-
+-- * Такой ответ кажется избыточным, но по условиям УЧЕБНОГО проекта требуются именно вложенные сущности.
 evalCategories :: MError m => [Select.Category] -> [Select.Category] -> m [Category]
 evalCategories allCategories = mapM (_evalCategory [] allCategories . Row.categoryId)
 
@@ -110,43 +101,45 @@ evalCategory  allCategories category = _evalCategory [] allCategories (Row.categ
 
 --intenal
 _evalCategory :: MError m => [Int] -> [Select.Category] -> Int -> m Category
-_evalCategory  childs rcs categoryId = do
-    if categoryId `elem` childs then do
-        --циклическая категория повесит наш сервак при формировании json, поэтому выкинем ошибку
-        Error.throw . DBError $ template "Обнаружена циклическая категория {0}, которая является своим же родителем" [show categoryId]
+_evalCategory  childs rcs cid = do
+    if cid `elem` childs then do
+        -- Циклическая категория повесит наш сервер при формировании json, поэтому выкинем ошибку
+        Error.throw . DBError $ 
+            template "Обнаружена циклическая категория {0}, которая является своим же родителем" [show cid]
     else do
-        let mrc = findById categoryId rcs --двух категорий с одинаковым первичным ключом быть не может. Но может быть Nothing
+        let mrc = findById cid rcs --двух категорий с одинаковым первичным ключом быть не может. Но может быть Nothing
         case mrc of
-            Nothing -> Error.throw . DBError $ template "Отсутствует категория {0}" [show categoryId]
-            Just (Row.Category categoryId mparentId name) -> do
+            Nothing -> Error.throw . DBError $ template "Отсутствует категория {0}" [show cid]
+            Just (Row.Category _ mparentId name) -> do
                 case mparentId of
-                    Nothing -> return $ Category categoryId Nothing name
+                    Nothing -> return $ Category cid Nothing name
                     Just parentId -> do
-                        parentCategory <- _evalCategory (categoryId:childs) rcs parentId
-                        return $ Category categoryId (Just parentCategory) name
+                        parentCategory <- _evalCategory (cid:childs) rcs parentId
+                        return $ Category cid (Just parentCategory) name
 
---не учтен вариант корневой категории в params
---категория не должна быть своим же родителем
+-- Категория не должна быть своим же родителем
 checkCyclicCategory :: MError m => Int -> ParamsMap -> [Select.Category] -> m ()
-checkCyclicCategory categoryId params rcs = do
+checkCyclicCategory cid params rcs = do
     case params M.! "parent_id" of
-        ParamNo -> return () --не меняем parent_id
-        ParamNull -> return () --меняем parent_id на null, т. е. делаем корневую категорию
-        ParamEq (Int parentId) -> do
+        ParamNo                 -> return () --не меняем parent_id
+        ParamNull               -> return () --меняем parent_id на null, т. е. делаем корневую категорию
+        ParamEq (Int parentId)  -> do
             grandParents <- getParents parentId rcs
-            when (categoryId `elem` grandParents) $
-                Error.throw . DBError $ template "Категрия {0} имеет в списке родителей {1} категорию {2}. Невозможно создать циклическую категорию"
-                    [show parentId, show grandParents, show categoryId]
+            when (cid `elem` grandParents) $
+                Error.throw . DBError $ 
+                    template "Категрия {0} имеет в списке родителей {1} категорию {2}. Невозможно создать циклическую категорию"
+                    [show parentId, show grandParents, show cid]
+        par                     -> Error.throw $ DevError $ template "Неверный шаблон {0} в функции updates" [show par]
 
 
 getParents :: MError m => Int -> [Select.Category] -> m [Int]
 getParents = helper [] where
     helper :: MError m => [Int] -> Int -> [Select.Category] -> m [Int]
-    helper acc categoryId rcs = do
-        let mrc = findById categoryId rcs
+    helper acc cid rcs = do
+        let mrc = findById cid rcs
         case mrc of
-            Nothing -> Error.throw . DBError $ template "Отсутствует категория {0}" [show categoryId]
-            Just (Row.Category categoryId mparentId name) -> case mparentId of
+            Nothing -> Error.throw . DBError $ template "Отсутствует категория {0}" [show cid]
+            Just (Row.Category _ mparentId _) -> case mparentId of
                 Nothing -> return acc
                 Just parentId -> do
                     when (parentId `elem` acc) $
@@ -170,9 +163,10 @@ evalPosts cs l = unitePosts <$> mapM (evalPost cs) l
 evalPost :: MError m => [Category] -> Select.Post -> m Post
 evalPost cs (rpost :. rcontent :. rcategory :.  rauthor :. user :. _ :. mtag :. mphoto) = do
     let author = turnAuthor rauthor user
-    let postId = Row.postId rpost
-    let categoryId = Row.categoryId rcategory
-    category <- getCategoryById categoryId cs $ template "Пост {0} принадлежит к несуществующей категории {1}" [show postId, show categoryId]
+    let pid = Row.postId rpost
+    let cid = Row.categoryId rcategory
+    category <- getCategoryById cid cs $ 
+        template "Пост {0} принадлежит к несуществующей категории {1}" [show pid, show cid]
     let content = turnContent rcontent author category (maybeToList mtag) (maybeToList mphoto)
     let post = turnPost rpost content
     return post
@@ -180,9 +174,10 @@ evalPost cs (rpost :. rcontent :. rcategory :.  rauthor :. user :. _ :. mtag :. 
 evalDraft :: MError m => [Category] -> Select.Draft -> m Draft
 evalDraft cs (rdraft :. rcontent :. rcategory :.  rauthor :. user :. _ :. mtag :. mphoto) = do
     let author = turnAuthor rauthor user
-    let draftId = Row.draftId rdraft
-    let categoryId = Row.categoryId rcategory
-    category <- getCategoryById categoryId cs $ template "Черновик {0} принадлежит к несуществующей категории {1}" [show draftId, show categoryId]
+    let did = Row.draftId rdraft
+    let cid = Row.categoryId rcategory
+    category <- getCategoryById cid cs $ 
+        template "Черновик {0} принадлежит к несуществующей категории {1}" [show did, show cid]
     let content = turnContent rcontent author category (maybeToList mtag) (maybeToList mphoto)
     let draft = turnDraft rdraft content
     return draft
@@ -301,15 +296,12 @@ getChildCategories :: MError m => Param -> [Category] -> m Param
 getChildCategories (ParamIn vals) cs  = if length filtered == length cs 
         then return ParamNo else return . ParamIn . map (Int . getId) $ filtered where
     cids = map (\(Int cid) -> cid) vals
-    filtered = filter (helper cids) cs
-    helper :: [Int] -> Category ->  Bool
-    helper cids c  = (getId c `elem` cids) ||
-        case parent c of
-            Nothing -> False
-            Just p  -> helper cids p
-getChildCategories ParamNo cs = return ParamNo
+    filtered = filter helper cs
+    helper :: Category ->  Bool
+    helper c  = (getId c `elem` cids) || maybe False helper (parent c)
+getChildCategories ParamNo _ = return ParamNo
 --getChildCategories param cs = error $ template "Некоректный параметр {0}" [show param]
-getChildCategories param cs = Error.throw $ 
+getChildCategories param _ = Error.throw $ 
     DevError $ template "Неверный шаблон параметра {0} в функции JSON.getChildCategories" [show param]
 
 --универсальная функция для объединения строк
