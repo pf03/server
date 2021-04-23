@@ -1,7 +1,3 @@
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE InstanceSigs          #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE UndecidableInstances  #-}
 module T.Transformer  where
 
 -- Our Modules
@@ -13,51 +9,13 @@ import           T.State                          as S
 import           Logic.IO.Config            as Config
 
 -- Other Modules
-import           Control.Applicative              ((<|>))
 import           Control.Monad.Except
 import           Control.Monad.State.Lazy
-import           Control.Monad.Trans.Except
--- import qualified Data.Aeson.Encode.Pretty         as Aeson
--- import qualified Data.ByteString                  as B
--- import qualified Data.ByteString.Char8            as BC
--- import qualified Data.ByteString.Lazy             as L
--- import qualified Data.ByteString.Lazy.Char8       as LC
 import           Database.PostgreSQL.Simple
 import qualified System.Console.ANSI              as Color
 import           System.Environment
 
--- | Данный модуль реализует класс типов MT (и остальные классы) с помощью трансформера T
 
------------------------------Instances-----------------------------------------
-
-instance Log.MLog T where
-  getSettings = S.getLogSettings
-  setSettings = S.setLogSettings
-  getConfig = S.getLogConfig
---   setConfig = S.setLogConfig
-  message = Log.messageIO
-
-instance MError T where
-    -- throw = throwT
-    -- catch = catchT where
-
-    throw :: E -> T a
-    --throw e  = toT (throwE e :: Except E a)
-    throw e  = lift $ throwE e
-
-    catch :: T a -> (E -> T a) -> T a
-    catch ta f  = StateT $ \s -> catchE (runStateT ta s) $ \e -> runStateT (f e) s
-
-instance MIOError T
-
-instance MCache T where
-    getCache = gets cache
-    setCache cache = modify (\st -> st {cache = cache})
-
-instance MDB T where
-    getConnection = gets connectionDB
-
-instance MT T
 
 -----------------------------EXTERNAL------------------------------------------
 
@@ -75,7 +33,7 @@ runT :: T a -> IO ()
 runT m = runE_ $ do
     (config, _) <- _runConfig
     connection <- _runConnection config
-    _getValue config connection m
+    _ <- _getValue config connection m
     return ()
 
 -- | Evaluate value of transformer with default value in error case
@@ -125,8 +83,6 @@ _runConnection config = do
         Log.critical lc ls $ show e
         Error.throw e
     Log.info lc ls "БД успешно подключена..."
-    let s = getS config connection
-    let cl = configLog s
     return connection
 
 _getValue :: Config -> Connection -> T a -> ExceptT E IO a
@@ -142,7 +98,6 @@ _getValue config connection m = do
 
 _showValue :: (MonadIO m, Show a) => Config -> a -> m ()
 _showValue config value = do
-    let s = getS config
     let ls = Log.LogSettings Color.Cyan True
     let lc = _log config
     Log.info lc ls "Результат: "
@@ -155,7 +110,7 @@ runE :: a -> ExceptT E IO a -> IO a
 runE a m = do
     eb <- runExceptT m
     case eb of
-        Left e  -> return a
+        Left _  -> return a
         Right b -> return b
 
 -- | Run ExceptT transformer with error handling
@@ -172,10 +127,10 @@ runE_ m = void (runExceptT m)
 
 -----------------------------CONFIG--------------------------------------------
 getS :: Config -> Connection -> S
-getS Config {_warp = configWarp, _db = _, _log = configLog} connection = S {
-    configWarp = configWarp,
+getS Config {_warp = cw, _db = _, _log = cl} connection = S {
+    configWarp = cw,
     connectionDB = connection,
-    configLog = configLog,
+    configLog = cl,
     logSettings = Log.defaultSettings,
     cache = Cache{changed = mempty, auth = AuthNo, params = mempty}
 }
@@ -183,11 +138,11 @@ getS Config {_warp = configWarp, _db = _, _log = configLog} connection = S {
 -----------------------------LOG TEST------------------------------------------
 testLog :: IO()
 testLog = runT $ do
-    Log.debugM $ "Debug data value " ++ show [1..10]  :: T()
-    Log.infoM $ "Info data value " ++ show [1..10]
-    Log.warnM  $ "warnM data value " ++ show [1..10]
-    Log.errorM $ "Error data value " ++ show [1..10]
-    Log.criticalM  $ "criticalM data value " ++ show [1..10]
+    Log.debugM $ "Debug data value " ++ show [1..10::Int]  :: T()
+    Log.infoM $ "Info data value " ++ show [1..10::Int]
+    Log.warnM  $ "warnM data value " ++ show [1..10::Int]
+    Log.errorM $ "Error data value " ++ show [1..10::Int]
+    Log.criticalM  $ "criticalM data value " ++ show [1..10::Int]
     Log.infoCM Color.Blue $ "Blue color scheme " ++ klichko
     Log.infoCM Color.Cyan $ "Cyan color scheme " ++ klichko
     Log.infoCM Color.Green $ "Green color scheme " ++ klichko

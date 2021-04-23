@@ -1,19 +1,26 @@
 module App.Emulate where
 
 -- Our Modules
-import qualified Logic.DB.Migrations             as Migrations
 import           Common.Misc
+import           Interface.Cache            as Cache
+import           Interface.DB               as DB (MT)
 import           Interface.Error            as Error
 import           Interface.Log              as Log
-import Interface.DB as DB ( MT )
 import           Logic.DB.Auth              as Auth
+import qualified Logic.DB.Migrations        as Migrations
 import qualified Logic.IO.Response          as Response
+import qualified Logic.Pure.API             as API
+import qualified Logic.Pure.Params          as Params
 import           T.Transformer
 
 -- Other Modules
 import           Control.Monad
 import           Data.Aeson
-import           Network.HTTP.Types.URI     as HTTP
+import qualified Data.ByteString.Char8      as BC
+import qualified Data.ByteString.Lazy.Char8 as LC
+import           Network.HTTP.Types
+import qualified Network.Wai                as Wai
+import           Network.Wai.Internal       as Wai
 import           System.Console.ANSI
 import qualified System.Console.ANSI        as Color
 import           Text.Read
@@ -530,6 +537,22 @@ emul = runT $ do
     forM_ cases $ uncurry listOfTestCasesByOne
     Log.infoCM Color.Blue "Все запросы завершены..."
 
+--эта обертка для удобства тестированияб аналог функции Resonse.getJSON
+getJSONTest :: MT m => BC.ByteString -> PathInfo -> Query -> Query -> RequestHeaders -> m LC.ByteString
+getJSONTest rawPathInfo pathInfo qs qsBody headers = do
+    Cache.resetCache --это нужно только для тестов, в сервере и так трансформер возрождается заново при каждом запросе
+    let req  = Wai.defaultRequest {requestHeaders = headers}
+    Auth.auth req
+    auth <- Cache.getAuth
+    api@(API apiType queryTypes) <- Log.logM $ API.router rawPathInfo pathInfo auth
+    params <- if apiType `elem` [Auth, Delete, Insert, Update]
+        then Error.catch (Log.logM $ Params.parseParams api qsBody) $
+            \(RequestError e) -> Error.throw $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в теле запроса методом x-www-form-urlencoded" [e]
+        else Error.catch (Log.logM $ Params.parseParams api qs) $
+            \(RequestError e) -> Error.throw $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в строке запроса" [e]
+    Cache.setParams params
+    Response.evalJSON api req
+
 --нужен рефакторинг! отдельная ветка для логина, и отдельная для другого запроса
 listOfTestCasesByOne :: MT m => String -> [(PathInfo, Query)] -> m (Maybe Token, Maybe Int)
 listOfTestCasesByOne name qs = do
@@ -553,7 +576,7 @@ listOfTestCasesByOne name qs = do
                     Log.debugOff
                     --str <- Error.catch (DB.getJSONTest (convert $ show pathInfo) pathInfo query query headers) (\e -> return "")
                     Error.catch (do
-                        str <- Response.getJSONTest (convert $ show pathInfo) pathInfo query query headers
+                        str <- getJSONTest (convert $ show pathInfo) pathInfo query query headers
                         --tmp <- toT . (Just <$>) . typeError ParseError . eitherDecode $ str
                         tmp <- Just <$> Error.catchEither (eitherDecode str) ParseError
                         Log.debugOn
@@ -565,9 +588,9 @@ listOfTestCasesByOne name qs = do
                         Log.infoCM Color.Yellow $ show e
                         return Nothing)
                 _ -> do
-                    Response.getJSONTest (convert $ show pathInfo) pathInfo query query headers
+                    getJSONTest (convert $ show pathInfo) pathInfo query query headers
                     Log.infoCM Color.Green "Запрос успешно завершен. Нажмите Enter для следующего теста, q + Enter для выхода или номер_теста + Enter..."
-                    
+
                     return mt
             newmn <- readCommand n mn
             Log.debugM newmt

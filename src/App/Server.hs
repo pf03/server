@@ -5,24 +5,16 @@ module App.Server where
 import           Common.Misc
 import           Logic.IO.Config
 import qualified Logic.IO.Response                as Response
-import           T.State
 import           T.Transformer
 
 -- Other Modules
 import qualified Data.ByteString                  as B
-import           Database.PostgreSQL.Simple.SqlQQ
-import           Network.HTTP.Types               (status200)
-import           Network.HTTP.Types.Header        (hContentType)
-import           Network.Wai                      (Application, responseLBS)
+import           Network.Wai                      (Application)
 import           Network.Wai.Handler.Warp         as Warp
-import           Network.Wai.Internal
-import           System.Environment
-import           System.Exit
-import Control.Concurrent
-import Control.Monad
+import Network.Wai.Internal ( getRequestBodyChunk )
+import System.Environment ( getEnv )
+import Control.Monad ( unless )
 
---с брузера почему то отправляется по два запроса при каждом обновлении страницы.
---через postman один
 run :: IO()
 run = do
     mconfig <- setEnvironment
@@ -41,9 +33,8 @@ app req f = do
     emptyBody 0 (getRequestBodyChunk req)
     f response
 
-
---Если не считывать тело запроса (например при ошибочном запросе пользователя), то вылетает ошибка Error: write ECONNRESET
---Поэтому используем эту функцию для опустошения тела запроса.
+-- | Если не считывать тело запроса (например при ошибочном запросе пользователя), то вылетает ошибка Error: write ECONNRESET
+-- Поэтому используем эту функцию для опустошения тела запроса.
 emptyBody :: Int -> IO B.ByteString -> IO ()
 emptyBody n str = do
     bs <- str --опустошаем тело запроса
@@ -54,8 +45,7 @@ emptyBody n str = do
         else do
             emptyBody (n+1) str
 
-
---ошибка при остановке сервера
+-- * Ошибка при остановке сервера
 settings :: Port -> Settings
 settings port = setPort port . 
     setInstallShutdownHandler shutdownHandler . 
@@ -70,6 +60,4 @@ stop :: IO ()
 stop = do
     command <- getLine
     putStrLn command
-    if command == "q" 
-        then return () --exitSuccess 
-        else stop
+    unless (command == "q") $ stop
