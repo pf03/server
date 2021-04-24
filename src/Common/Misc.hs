@@ -26,6 +26,7 @@ import Data.Text (Text(..))
 import           Data.Word                        (Word8)
 import           Numeric                          (showHex)
 import           Data.Aeson.Encode.Pretty   (encodePretty)
+import Data.Char (toLower, toUpper)
 
 
 type PathInfo = [Text]
@@ -276,6 +277,34 @@ forWithKey f = flip M.mapWithKey
 
 forMMem :: (Foldable t, Monad m) => t a -> b -> (b -> a -> m b) -> m b
 forMMem cont init f = foldM f init cont
+
+translit :: LC.ByteString -> LC.ByteString
+translit = LC.pack . concatMap helper . LC.unpack where
+    cyr = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя"
+    lat = ["a","b", "v", "g", "d", "e", "yo", "zh", "z", "i", "y", "k", "l", "m", "n", "o", "p", "r", "s", "t",
+        "u", "f", "h", "ts", "ch", "sh", "sch", "'", "i", "'", "e", "yu", "ya"]
+    dict :: M.Map Char String
+    dict = M.fromList $ zip cyr lat
+    helper :: Char -> String
+    helper c
+        | c `elem` cyr = dict M.! c
+        | toLower c `elem` cyr = map toUpper $ dict M.! toLower c
+        | otherwise = [c]
+
+
+translitStr :: String -> LC.ByteString
+translitStr = LC.pack . concatMap helper where
+    cyr = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя"
+    lat = ["a","b", "v", "g", "d", "e", "yo", "zh", "z", "i", "y", "k", "l", "m", "n", "o", "p", "r", "s", "t",
+        "u", "f", "h", "ts", "ch", "sh", "sch", "'", "i", "'", "e", "yu", "ya"]
+    dict :: M.Map Char String
+    dict = M.fromList $ zip cyr lat
+    helper :: Char -> String
+    helper c
+        | c `elem` cyr = dict M.! c
+        | toLower c `elem` cyr = map toUpper $ dict M.! toLower c
+        | otherwise = [c]
+    
 
 
 

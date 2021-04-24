@@ -31,16 +31,24 @@ get :: MT m => Request -> m Response
 get req = do
     Log.debugM req
     json <- getJSON req
-    return $ Wai.responseLBS status200 [(hContentType, "text/plain")] json
+    --return $ Wai.responseLBS status200 [(hContentType, "text/plain")] json
+    return $ Wai.responseLBS status200 [(hContentType, "text/plain")] $ translit json
+    --return $ Wai.responseLBS status200 [(hContentType, "text/plain"), (hContentEncoding , "utf-8")] json
     --return $ Wai.responseLBS status200 [(hContentType, "text/plain")] testjson
 
 errorHandler :: E -> Response
 errorHandler e = do
     let status = Error.getStatus e
+    -- let text = if status == internalServerError500
+    --     then convertL ("Внутренняя ошибка сервера" :: String)
+    --     else convertL . show $ e
     let text = if status == internalServerError500
-        then convertL ("Внутренняя ошибка сервера" :: String)
-        else convertL . show $ e
-    Wai.responseLBS status [(hContentType, "text/plain")] text
+        then ("Внутренняя ошибка сервера" :: String)
+        else show e
+    --let text2 = "Привет"
+    Wai.responseLBS status [(hContentType, "text/plain")] $ translitStr text
+    --Wai.responseLBS status [(hContentType, "text/plain")] text
+    --Wai.responseLBS status [(hContentType, "text/plain"), (hContentEncoding , "utf-8")] text
 
 getJSON :: MT m => Request -> m LC.ByteString
 getJSON req = do

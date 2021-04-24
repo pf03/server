@@ -284,7 +284,7 @@ setContentTags content tags = content {contentTags = tags}
 setPostContent :: Post -> Content -> Post
 setPostContent post content = post {postContent = content}
 
------------------------------Data manipultion----------------------------------
+-----------------------------Data manipulation----------------------------------
 --здесь используется тип JSON.Category, который уже проверен на цикличность и корректность в evalCategory
 
 evalParams :: MError m => [Category] -> ParamsMap -> m ParamsMap

@@ -14,7 +14,7 @@ INSERT into users (
 	('Yuryev', 'Sergey', 'Sergey.jpg', 'ysergey', 'equalpass', '2015-01-01', False),
 	('Pushkin', 'Sergey', 'Pushkin.jpg', 'psergey', 'psergeypass', '1830-01-01', False),
 	('Mayakovskiy', 'Vladimir', 'Mayakovskiy.jpg', 'vmayakovskiy', 'vmayakovskiypass', '1920-01-01', False),
-	('Москвин', 'Денис', 'Moskvin.jpg', 'dmoskvin', 'dmoskvinpass', '2020-03-03', False);
+	('Moskvin', 'Denis', 'Moskvin.jpg', 'dmoskvin', 'dmoskvinpass', '2020-03-03', False);
 
 INSERT into authors (
 	user_id,
