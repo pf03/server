@@ -4,25 +4,28 @@ module Common.Misc where
 import Control.Monad.IO.Class
 import Data.List.Split
 
---import qualified Data.ByteString as B
+import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
---import qualified Data.ByteString.Lazy as L
+import qualified Data.ByteString.Lazy as L hiding (pack)
 import qualified Data.ByteString.Lazy.Char8 as LC
 
 import Data.Aeson.Types
 import Data.Aeson
-import qualified Data.Text.Encoding as B
+import qualified Data.Text.Encoding as T
 import qualified Data.Text.Lazy.Encoding as L
-import qualified Data.Text as B (pack)
+import qualified Data.Text as T (pack)
 import Database.PostgreSQL.Simple.Types
 
-import qualified Data.Text.Lazy as L
+import qualified Data.Text.Lazy as L hiding (unpack)
 import Data.String
 import Database.PostgreSQL.Simple.Time
 import Data.Maybe
 import qualified Data.Map as M
 import Control.Monad.Except
 import Data.Text (Text(..))
+import           Data.Word                        (Word8)
+import           Numeric                          (showHex)
+import           Data.Aeson.Encode.Pretty   (encodePretty)
 
 
 type PathInfo = [Text]
@@ -119,7 +122,41 @@ instance Convert BC.ByteString where
   convert = id
 
 instance Convert String where
-    convert = B.encodeUtf8 . B.pack  --encodeUtf8 для корректной кодировки кирилицы
+    convert = T.encodeUtf8 . T.pack  --encodeUtf8 для корректной кодировки кирилицы
+
+conv :: IO()
+--conv = putStrLn $ toHex1 ("русс" :: BC.ByteString)
+--conv = putStrLn $ toHex1 $ convert ("text" :: String) 
+-- conv = putStrLn $ toHex1 $ convert ("русс" :: String) 
+--B.unpack $ convert ("text русский"::String) 
+
+-- conv = LC.putStrLn $ encodePretty ("русс" :: String)
+--conv = putStrLn $ toHex2 $ encodePretty ("р" :: String)  -- 22 d1 80 22 --норм
+--conv = LC.putStrLn  $ encodePretty ("р" :: String)  --"╤А"
+--conv = BC.putStrLn  $ (convert ("р" :: String) ::BC.ByteString)  --"╤А"
+-- conv = LC.putStrLn   ("р" :: LC.ByteString)  --@
+-- conv = putStrLn $ toHex2 $ ("р" :: LC.ByteString)  --40
+
+conv = LC.putStrLn "р" --не работает
+
+testjson :: LC.ByteString
+testjson = "p"
+    --convertL (convert ("р" :: String) ::BC.ByteString) --"╤А"
+
+-- toHex3 :: String -> String
+-- toHex3 bs = foldr helper "" (B.unpack bs) where
+--     helper :: Word8 -> String -> String
+--     helper w8 acc = if w8 < 16 then " 0" <> showHex w8 acc else " " <> showHex w8 acc
+
+toHex1 :: BC.ByteString -> String
+toHex1 bs = foldr helper "" (B.unpack bs) where
+    helper :: Word8 -> String -> String
+    helper w8 acc = if w8 < 16 then " 0" <> showHex w8 acc else " " <> showHex w8 acc
+
+toHex2 :: LC.ByteString -> String
+toHex2 bs = foldr helper "" (L.unpack bs) where
+    helper :: Word8 -> String -> String
+    helper w8 acc = if w8 < 16 then " 0" <> showHex w8 acc else " " <> showHex w8 acc
 
 instance Convert LC.ByteString where
   convert = BC.pack . LC.unpack

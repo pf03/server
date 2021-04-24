@@ -288,7 +288,7 @@ setPostContent post content = post {postContent = content}
 --здесь используется тип JSON.Category, который уже проверен на цикличность и корректность в evalCategory
 
 evalParams :: MError m => [Category] -> ParamsMap -> m ParamsMap
-evalParams categories = adjustM (`getChildCategories` categories) "category"
+evalParams categories = adjustM (`getChildCategories` categories) "category_id"
     --par <- getChildCategories (params M.! "category") categories
     --return $ M.insert "category" par params
 

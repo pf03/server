@@ -1,6 +1,5 @@
 module App.Server where
-
-
+    
 -- Our Modules
 import           Common.Misc
 import           Logic.IO.Config
@@ -22,13 +21,17 @@ run = do
         Nothing -> return ()
         Just config -> do
             let port = warpPort . _warp $ config
-            putStrLn $ template "Слушаем порт {0}. Для выхода введите q" [show port]
-            Warp.runSettings (settings port) app
+
+            putStrLn $ template "Слушаем порт {0}" [show port]
+            Warp.run port app
+
+            -- putStrLn $ template "Слушаем порт {0}. Для выхода введите q" [show port]
+            -- Warp.runSettings (settings port) app --не работает сервер
 
 app :: Application
 app req f = do
     configString <- getEnv "configString"
-    putStrLn "app"
+    --putStrLn "app"
     response <- evalTwithHandler  (Response.get req) Response.errorHandler configString
     emptyBody 0 (getRequestBodyChunk req)
     f response
@@ -46,6 +49,7 @@ emptyBody n str = do
             emptyBody (n+1) str
 
 -- * Ошибка при остановке сервера
+-- Network.Socket.accept: failed (Socket operation on non-socket (WSAENOTSOCK))
 settings :: Port -> Settings
 settings port = setPort port . 
     setInstallShutdownHandler shutdownHandler . 

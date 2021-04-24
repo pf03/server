@@ -32,6 +32,7 @@ get req = do
     Log.debugM req
     json <- getJSON req
     return $ Wai.responseLBS status200 [(hContentType, "text/plain")] json
+    --return $ Wai.responseLBS status200 [(hContentType, "text/plain")] testjson
 
 errorHandler :: E -> Response
 errorHandler e = do

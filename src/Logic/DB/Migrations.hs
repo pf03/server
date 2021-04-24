@@ -59,7 +59,7 @@ pathMigration name = template "{0}/{1}" [pathMigrations, name]
 namesList :: [FileName]
 namesList = [
     "0000_base.sql",
-    "0001_insert_data.sql",
+    "0001_insert_data_en.sql",
     "0002_hash_passwords.sql",
     "0003_rename_news_to_posts.sql"
     ]
