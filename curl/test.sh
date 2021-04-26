@@ -1,3 +1,10 @@
+FAKEUSER="Authorization: 2_admin_2021-04-24_5f0a06b2dcb5f11a62aea56d11975444"
+ADMIN="Authorization: 2_admin_2021-04-24_5f0a06b2dcb5f11a62aea56d1197513e"
+USER3="Authorization: 3_user_2021-04-24_23604cef9d6aeced41f136184af05eb7"
+USER4="Authorization: 4_user_2021-04-24_8e7eef03791cf45472a4b73e8502b56f"
+USER5="Authorization: 5_user_2021-04-24_c498c0a7a1976ccff7bc9eba244155c7"
+USER6="Authorization: 6_user_2021-04-24_ba4871393c6a06c0a1a6a048688a5d50"
+USER7="Authorization: 7_user_2021-04-24_3dfe19bc82f5fb06ab5b1150ce50939f"
 
 
 # read -p 'НАЗВАНИЕ: ' NAME
@@ -6,6 +13,8 @@
 # токены актуальны на 24.04.2021
 # auth
 
+
+# в функции логин тоже нужно сделать подмену даты!!
 # curl --data "login=fake&pass=fake" http://localhost/login
 
 # curl --data "login=DELETED_USER&pass=DELETED_USER" http://localhost/login
@@ -99,33 +108,17 @@
 # curl --data "order_by=photos" http://localhost/posts
 # curl --data "page=1" http://localhost/posts
 
-curl --data "tag_id__in=[1,2,3]&created_at__bt=(2018-05-21,2030-05-21)&category_id__in=[1,2,3]&name__like=GHC&text__like=glasgow&author_name__like=Denis&contains__like=haskell&order_by=created_at&page=1" http://localhost/posts
+# BODY="tag_id__in=[1,2,3]"
+# BODY+="&created_at__bt=(2018-05-21,2030-05-21)"
+# BODY+="&category_id__in=[1,2,3]"
+# BODY+="&name__like=GHC"
+# BODY+="&text__like=glasgow"
+# BODY+="&author_name__like=Denis"
+# BODY+="&contains__like=haskell"
+# BODY+="&order_by=created_at"
+# BODY+="&page=1"
+# curl --data "$BODY" http://localhost/posts
 
-    # --data "tag_id__in=[1,2,3]" 
-    # --data "created_at__bt=(2018-05-21,2030-05-21)" 
-    # --data "category_id__in=[1,2,3]"
-    # --data "name__like=mgnovenye"
-    # --data "text__like=glasgow"
-    # --data "author_name=Denis"
-    # --data "contains__like=haskell"
-    # --data "order_by=created_at"
-    # --data "order_by=author_name"
-    # --data "order_by=category_id"
-    # --data "order_by=photos"
-    # --data "page=1"
-
-
-
-
-
-# &category_id__in="[1,2,3]"
-# &name=mgnovenye
-    # &text__like=glasgow
-    # &author_name=Denis
-    # &contains__like=haskell
-
-# ошибка JSON.evalParams category_id Map.!: given key is not an element in the map
-# сравнить со старой версией!!
 # curl http://localhost/drafts
 # curl http://localhost/drafts -H "Authorization: 2_admin_2021-04-24_5f0a06b2dcb5f11a62aea56d1197513e"
 # curl http://localhost/drafts -H "Authorization: 3_user_2021-04-24_23604cef9d6aeced41f136184af05eb7"
@@ -138,6 +131,82 @@ curl --data "tag_id__in=[1,2,3]&created_at__bt=(2018-05-21,2030-05-21)&category_
 
 # insert 
 
-# curl http://localhost/users/create?last_name
-# curl --data "login=DELETED_USER&pass=DELETED_USER" http://localhost/login
+# user
+
+# BODY="last_name=last_name"
+# BODY+="&first_name=first_name"
+# BODY+="&avatar=avatar"
+# BODY+="&login=login"
+# BODY+="&pass=pass"
+# curl --data "$BODY" http://localhost/users/create
+
+
+
+# curl --data "" http://localhost/users/2/edit
+# curl --data "" http://localhost/users/2/edit  -H "$USER3" 
+# curl --data "" http://localhost/users/2/edit  -H "$ADMIN" 
+
+# BODY="last_name=last_name"
+# BODY+="&first_name=first_name"
+# BODY+="&avatar=avatar"
+# BODY+="&pass=pass"
+# curl --data "$BODY" http://localhost/users/2/edit  -H "$ADMIN" 
+
+
+# BODY="last_name=last_name"
+# BODY+="&first_name=first_name"
+# BODY+="&avatar=avatar"
+# BODY+="&pass=pass"
+# curl --data "$BODY" http://localhost/user/edit  -H "$ADMIN" 
+# curl --data "$BODY" http://localhost/user/edit  -H "$USER3" 
+# curl --data "$BODY" http://localhost/user/edit  -H "$USER4" 
+# curl --data "$BODY" http://localhost/user/edit  -H "$USER5" 
+
+# curl --data "$BODY" http://localhost/users/3/delete
+# curl --data "$BODY" http://localhost/users/3/delete  -H "$USER5" 
+# curl --data "$BODY" http://localhost/users/3/delete  -H "$USER3" 
+# curl --data "$BODY" http://localhost/users/3/delete  -H "$ADMIN" 
+
+# author
+
+# BODY="user_id=4"
+# BODY+="&description=description"
+# curl --data "$BODY" http://localhost/authors/create
+# curl --data "$BODY" http://localhost/authors/create  -H "$USER4" 
+# curl --data "$BODY" http://localhost/authors/create  -H "$ADMIN" 
+
+# BODY="user_id=4"
+# BODY+="&description=description"
+# curl --data "$BODY" http://localhost/authors/2/edit 
+# curl --data "$BODY" http://localhost/authors/2/edit   -H "$USER4" 
+# curl --data "$BODY" http://localhost/authors/2/edit   -H "$ADMIN" 
+
+# curl --data "$BODY" http://localhost/authors/2/delete
+# curl --data "$BODY" http://localhost/authors/2/delete   -H "$USER4" 
+# curl --data "$BODY" http://localhost/authors/2/delete   -H "$ADMIN" 
+
+#category
+
+# BODY="parent_id=2"
+# BODY+="&category_name=category_name"
+# curl --data "$BODY" http://localhost/categories/create
+# curl --data "$BODY" http://localhost/categories/create  -H "$USER4" 
+# curl --data "$BODY" http://localhost/categories/create  -H "$ADMIN" 
+
+# BODY="parent_id=2"
+# BODY+="&category_name=category_name"
+# curl --data "$BODY" http://localhost/categories/2/edit 
+# curl --data "$BODY" http://localhost/categories/2/edit   -H "$USER4" 
+# curl --data "$BODY" http://localhost/categories/2/edit   -H "$ADMIN" 
+
+# curl --data "$BODY" http://localhost/categories/2/delete
+# curl --data "$BODY" http://localhost/categories/2/delete   -H "$USER4" 
+# curl --data "$BODY" http://localhost/categories/2/delete   -H "$ADMIN" 
+# curl --data "$BODY" http://localhost/categories/9/delete   -H "$ADMIN" 
+
+
+
+
+
+
 

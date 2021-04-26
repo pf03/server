@@ -62,3 +62,7 @@ dbinit = runT Migrations.dbinit
 
 server :: IO ()
 server = Server.run
+
+--для отладки
+dbrestartForce_ :: IO ()
+dbrestartForce_ = runT Migrations.dbrestartForce 
