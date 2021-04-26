@@ -288,7 +288,7 @@ setPostContent post content = post {postContent = content}
 --здесь используется тип JSON.Category, который уже проверен на цикличность и корректность в evalCategory
 
 evalParams :: MError m => [Category] -> ParamsMap -> m ParamsMap
-evalParams categories = adjustM (`getChildCategories` categories) "category_id"
+evalParams categories = adjustM (`getChildCategories` categories) ParamNo "category_id"
     --par <- getChildCategories (params M.! "category") categories
     --return $ M.insert "category" par params
 
@@ -309,11 +309,13 @@ unite :: (Identifiable a) => (a -> a -> a) -> [a] -> [a]
 unite f = foldl helper [] where
     helper acc a = updateInsertById (f a) a acc
 
-adjustM :: Monad m => Ord k => (a -> m a) -> k -> M.Map k a -> m (M.Map k a)
-adjustM kl k m = do
-    let olda = m M.! k
-    newa <- kl olda
-    return $ M.insert k newa m 
+adjustM :: Monad m => Ord k => (a -> m a) -> a -> k -> M.Map k a -> m (M.Map k a)
+adjustM kl def k  m = do
+    let ma = M.lookup k m
+    newa <- case ma of 
+        Just a -> kl a
+        Nothing -> return def
+    return $ M.insert k newa m
 
 
 

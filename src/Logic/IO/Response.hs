@@ -54,19 +54,24 @@ getJSON :: MT m => Request -> m LC.ByteString
 getJSON req = do
     Cache.resetChanged
     let (rpinfo, pinfo, qs) = ( Wai.rawPathInfo req, Wai.pathInfo req, Wai.queryString req)
-    rb <- Upload.streamOne (getRequestBodyChunk req)
-    Log.debugM rb
-    let qsBody = parseQuery rb
+    
     Auth.auth req
     a <- Cache.getAuth
     api@(API apiType _) <- Log.logM $ API.router rpinfo pinfo a
+
+    rb <- Upload.streamOne (getRequestBodyChunk req)
+    Log.debugM rb
+    qsBody <- case apiType of
+        Upload -> return []
+        _ -> return $ parseQuery rb
+
     params <- if apiType `elem` [Auth, Delete, Insert, Update]
         then Error.catch (Log.logM $ Params.parseParams api qsBody) $
             \(RequestError e) -> Error.throw $ RequestError $ template 
                 "{0}.\n Внимание: параметры для данного запроса должны передаваться в теле запроса методом x-www-form-urlencoded" [e]
-        else Error.catch (Log.logM $ Params.parseParams api qs) $
+        else Error.catch (Log.logM $ Params.parseParams api (qs<>qsBody)) $
             \(RequestError e) -> Error.throw $ RequestError $ template 
-                "{0}.\n Внимание: параметры для данного запроса должны передаваться в строке запроса" [e]
+                "{0}.\n Внимание: параметры для данного запроса могут передаваться как в строке запроса, так и в теле запроса методом x-www-form-urlencoded" [e]
     Cache.setParams params
     evalJSON api req
 
@@ -139,7 +144,7 @@ getDrafts :: MT m => m [JSON.Draft]
 getDrafts = do
     categories <- getAllCategories
 
-    _ <- Cache.modifyParamsM $ JSON.evalParams categories
+    -- _ <- Cache.modifyParamsM $ JSON.evalParams categories это только для posts
     selectDrafts <- Select.drafts
     JSON.evalDrafts categories selectDrafts
 

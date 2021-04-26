@@ -237,7 +237,6 @@ updateCategoryCases = ("updateCategory", tuples) where
             (,) ["categories"] []
         ]
 
-
 deleteCategoryCases :: (String, [(PathInfo, Query)])
 deleteCategoryCases = ("deleteCategory", tuples) where
     tuples = [

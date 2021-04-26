@@ -29,6 +29,9 @@ import           System.Environment  (getArgs)
 -- db-init                  - инициализация всех таблиц базы данных с нуля
 -- migrations               - применение миграций к локальной базе данных без потери данных
 -- db-drop                  - удаление всех таблиц БД
+-- debug-mode               - режим отладки и тестирования с помощью curl скриптов:
+--                              а) все тексты на русском языке переводятся на транслит
+--                              б) дата сервера при авторизации подменяется на 24.04.21, так как токены в скриптах актуальны именно на эту дату
 
 main :: IO()
 main = do
@@ -38,6 +41,7 @@ main = do
         ["db-init"] -> dbinit
         ["migrations"] -> migrations
         ["db-drop"] -> dbdrop
+        ["debug-mode"] -> server
         _ -> do
             putStrLn "Неверные опции командной строки!"
             putStrLn "Возможные опции:"
@@ -45,6 +49,7 @@ main = do
             putStrLn "db-init                     - инициализация всех таблиц базы данных с нуля"
             putStrLn "migrations                  - применение миграций к локальной базе данных без потери данных"
             putStrLn "db-drop                     - удаление всех таблиц БД"
+            putStrLn "debug-mode                  - режим отладки и тестирования с помощью curl скриптов"
 
 dbdrop :: IO ()
 dbdrop = runT Migrations.dbdrop

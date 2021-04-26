@@ -79,10 +79,54 @@
 # curl http://localhost/tags
 
 # curl http://localhost/posts
+# curl http://localhost/posts?page=2
+
+#  Параметры для select запросов могут быть как в строке запроса, так и в теле, для остальных запросов только в теле 
+# curl --data "tag_id__in=[1,2,3]" http://localhost/posts
+# curl --data "created_at__bt=(2018-05-21,2030-05-21)"  http://localhost/posts
+# curl --data "category_id__in=[1,2,3]" http://localhost/posts
+# curl --data "name=Ya pomnyu chudnoe mgnovenye" http://localhost/posts
+# curl --data "name__like=mgnovenye" http://localhost/posts
+# curl --data "text__like=glasgow" http://localhost/posts
+# curl --data "author_name__like=Denis" http://localhost/posts
+# curl --data "author_name=Moskvin Denis" http://localhost/posts
+# curl --data "contains__like=haskell" http://localhost/posts
+# curl --data "order_by=fake" http://localhost/posts
+# curl --data "order_by=created_at" http://localhost/posts
+# curl --data "order_by=author_name" http://localhost/posts
+# curl --data "order_by=author_name" http://localhost/posts
+# curl --data "order_by=category_id" http://localhost/posts
+# curl --data "order_by=photos" http://localhost/posts
+# curl --data "page=1" http://localhost/posts
+
+curl --data "tag_id__in=[1,2,3]&created_at__bt=(2018-05-21,2030-05-21)&category_id__in=[1,2,3]&name__like=GHC&text__like=glasgow&author_name__like=Denis&contains__like=haskell&order_by=created_at&page=1" http://localhost/posts
+
+    # --data "tag_id__in=[1,2,3]" 
+    # --data "created_at__bt=(2018-05-21,2030-05-21)" 
+    # --data "category_id__in=[1,2,3]"
+    # --data "name__like=mgnovenye"
+    # --data "text__like=glasgow"
+    # --data "author_name=Denis"
+    # --data "contains__like=haskell"
+    # --data "order_by=created_at"
+    # --data "order_by=author_name"
+    # --data "order_by=category_id"
+    # --data "order_by=photos"
+    # --data "page=1"
+
+
+
+
+
+# &category_id__in="[1,2,3]"
+# &name=mgnovenye
+    # &text__like=glasgow
+    # &author_name=Denis
+    # &contains__like=haskell
 
 # ошибка JSON.evalParams category_id Map.!: given key is not an element in the map
 # сравнить со старой версией!!
-curl http://localhost/drafts
+# curl http://localhost/drafts
 # curl http://localhost/drafts -H "Authorization: 2_admin_2021-04-24_5f0a06b2dcb5f11a62aea56d1197513e"
 # curl http://localhost/drafts -H "Authorization: 3_user_2021-04-24_23604cef9d6aeced41f136184af05eb7"
 # curl http://localhost/drafts -H "Authorization: 4_user_2021-04-24_8e7eef03791cf45472a4b73e8502b56f"
@@ -91,3 +135,9 @@ curl http://localhost/drafts
 # curl http://localhost/drafts -H "Authorization: 7_user_2021-04-24_3dfe19bc82f5fb06ab5b1150ce50939f"
 
 # curl http://localhost/posts/1/comments
+
+# insert 
+
+# curl http://localhost/users/create?last_name
+# curl --data "login=DELETED_USER&pass=DELETED_USER" http://localhost/login
+
