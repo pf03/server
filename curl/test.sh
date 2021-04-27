@@ -6,6 +6,7 @@ USER5="Authorization: 5_user_2021-04-24_c498c0a7a1976ccff7bc9eba244155c7"
 USER6="Authorization: 6_user_2021-04-24_ba4871393c6a06c0a1a6a048688a5d50"
 USER7="Authorization: 7_user_2021-04-24_3dfe19bc82f5fb06ab5b1150ce50939f"
 
+# echo "hello"
 
 # read -p 'НАЗВАНИЕ: ' NAME
 # echo ${NAME}
@@ -87,7 +88,7 @@ USER7="Authorization: 7_user_2021-04-24_3dfe19bc82f5fb06ab5b1150ce50939f"
 
 # curl http://localhost/tags
 
-# curl http://localhost/posts
+
 # curl http://localhost/posts?page=2
 
 #  Параметры для select запросов могут быть как в строке запроса, так и в теле, для остальных запросов только в теле 
@@ -119,13 +120,7 @@ USER7="Authorization: 7_user_2021-04-24_3dfe19bc82f5fb06ab5b1150ce50939f"
 # BODY+="&page=1"
 # curl --data "$BODY" http://localhost/posts
 
-# curl http://localhost/drafts
-# curl http://localhost/drafts -H "Authorization: 2_admin_2021-04-24_5f0a06b2dcb5f11a62aea56d1197513e"
-# curl http://localhost/drafts -H "Authorization: 3_user_2021-04-24_23604cef9d6aeced41f136184af05eb7"
-# curl http://localhost/drafts -H "Authorization: 4_user_2021-04-24_8e7eef03791cf45472a4b73e8502b56f"
-# curl http://localhost/drafts -H "Authorization: 5_user_2021-04-24_c498c0a7a1976ccff7bc9eba244155c7"
-# curl http://localhost/drafts -H "Authorization: 6_user_2021-04-24_ba4871393c6a06c0a1a6a048688a5d50"
-# curl http://localhost/drafts -H "Authorization: 7_user_2021-04-24_3dfe19bc82f5fb06ab5b1150ce50939f"
+
 
 # curl http://localhost/posts/1/comments
 
@@ -204,6 +199,114 @@ USER7="Authorization: 7_user_2021-04-24_3dfe19bc82f5fb06ab5b1150ce50939f"
 # curl --data "$BODY" http://localhost/categories/2/delete   -H "$ADMIN" 
 # curl --data "$BODY" http://localhost/categories/9/delete   -H "$ADMIN" 
 
+# tag
+# BODY="name=some_tag"
+# curl --data "$BODY" http://localhost/tags/create 
+# curl --data "$BODY" http://localhost/tags/create   -H "$USER4" 
+# curl --data "$BODY" http://localhost/tags/create   -H "$ADMIN"
+
+# BODY="name=edited_tag"
+# URL=http://localhost/tags/2/edit
+# curl --data "$BODY" ${URL}
+# curl --data "$BODY" ${URL} -H "$USER4" 
+# curl --data "$BODY" ${URL} -H "$ADMIN" 
+
+# URL=http://localhost/tags/2/delete
+# curl --data "$BODY" ${URL}
+# curl --data "$BODY" ${URL} -H "$USER4" 
+# curl --data "$BODY" ${URL} -H "$ADMIN" 
+
+# draft
+
+# BODY="page=1"
+# URL=http://localhost/drafts
+# curl ${URL}
+# curl ${URL} -H "$ADMIN"
+# curl ${URL} -H "$USER3"
+# curl ${URL} -H "$USER4"
+# curl ${URL} -H "$USER5"
+# curl ${URL} -H "$USER6"
+# curl ${URL} -H "$USER7"
+
+# BODY="name=name"
+# BODY+="&category_id=1"
+# BODY+="&text=text"
+# BODY+="&photo=photo.jpg"
+# BODY+="&tag_id__all=[1,2,3]"
+# BODY+="&photos__all=[\"photo1.jpg\",\"photo2.jpg\"]"
+# URL=http://localhost/drafts/create 
+# curl --data "$BODY" ${URL}
+# curl --data "$BODY" ${URL} -H "$USER4" 
+# curl --data "$BODY" ${URL} -H "$ADMIN"
+# curl --data "$BODY" ${URL} -H "$USER5" 
+
+# BODY="name=name"
+# BODY+="&category_id=2"
+# BODY+="&text=text2"
+# BODY+="&photo=photo2.jpg"
+# BODY+="&tag_id__all=[1,2,3,4]"
+# BODY+="&photos__all=[\"photo3.jpg\",\"photo4.jpg\"]"
+# URL=http://localhost/drafts/2/edit 
+# curl --data "$BODY" ${URL}
+# curl --data "$BODY" ${URL} -H "$USER4" 
+# curl --data "$BODY" ${URL} -H "$ADMIN"
+# curl --data "$BODY" ${URL} -H "$USER5" 
+
+# URL=http://localhost/drafts/2/delete
+# curl --data "$BODY" ${URL}
+# curl --data "$BODY" ${URL} -H "$USER4" 
+# curl --data "$BODY" ${URL} -H "$ADMIN"
+# curl --data "$BODY" ${URL} -H "$USER5"
+
+# post
+
+# BODY="page=1"
+# URL=http://localhost/posts
+# curl --data "$BODY" ${URL}
+
+# URL=http://localhost/drafts/2/publish 
+# curl ${URL}
+# curl ${URL} -H "$USER4"
+# curl ${URL} -H "$USER5"  
+# curl ${URL} -H "$ADMIN"
+
+# URL=http://localhost/posts/3/edit
+# BODY="name=name"
+# BODY+="&category_id=3"
+# BODY+="&text=text3"
+# BODY+="&photo=photo3.jpg"
+# BODY+="&tag_id__all=[1,2,3,4,5]"
+# BODY+="&photos__all=[\"photo5.jpg\",\"photo6.jpg\"]"
+# curl --data "$BODY" ${URL}
+# curl --data "$BODY" ${URL} -H "$USER4"
+# curl --data "$BODY" ${URL} -H "$USER5"  
+# curl --data "$BODY" ${URL} -H "$ADMIN"
+
+# URL=http://localhost/posts/3/delete
+# curl --data "$BODY" ${URL}
+# curl --data "$BODY" ${URL} -H "$USER4" 
+# curl --data "$BODY" ${URL} -H "$USER5"
+# curl --data "$BODY" ${URL} -H "$ADMIN"
+
+# comments
+
+# BODY="page=1"
+# URL=http://localhost/posts/1/comments
+# curl --data "$BODY" ${URL}
+
+# BODY="text=comment_text"
+# URL=http://localhost/posts/1/comments/create
+# curl --data "$BODY" ${URL}
+# curl --data "$BODY" ${URL} -H "$USER4" 
+# curl --data "$BODY" ${URL} -H "$USER5"
+# curl --data "$BODY" ${URL} -H "$ADMIN"
+
+
+# URL=http://localhost/comments/6/delete
+# curl --data "$BODY" ${URL}
+# curl --data "$BODY" ${URL} -H "$USER4" 
+# curl --data "$BODY" ${URL} -H "$USER5"
+# curl --data "$BODY" ${URL} -H "$ADMIN"
 
 
 
