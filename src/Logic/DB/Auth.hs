@@ -63,17 +63,8 @@ auth req  = do
     case lookup "Authorization" h of
         Nothing -> Cache.setAuth AuthNo
         Just a -> do
-            -- Это нужно переделать. обращение к аргументам не в начале программы и обращение к непонятной дате.
-            -- может как-то через IOrefs - определить эти переменные в начале программы, а здесь обратится через IOREf??
-            -- args <- liftEIO getArgs
-            -- date <- if args == ["debug-mode"] 
-            --     then return $ read "2021-04-24"
-            --     else liftEIO getCurrentTime
-            date <- if True
-                then return debugDate
-                else liftEIO getCurrentTime
+            date <- liftEIO getCurrentTime
             checkAuth date (Token $ BC.unpack a)
-
 
 debugDate :: UTCTime
 debugDate = UTCTime (fromGregorian 2021 04 24) (secondsToDiffTime 0)

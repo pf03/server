@@ -5,6 +5,7 @@ import qualified App.Server          as Server
 import qualified Logic.DB.Migrations as Migrations
 import           T.State             (T)
 import           T.Transformer       (runT)
+import App.Emulate as Emulate
 
 -- Other Modules
 import           System.Environment  (getArgs)
@@ -66,3 +67,9 @@ server = Server.run
 --для отладки
 dbrestartForce_ :: IO ()
 dbrestartForce_ = runT Migrations.dbrestartForce 
+
+--для отладки
+genTokens_ :: IO()
+genTokens_ = runT Emulate.writeTokens
+
+

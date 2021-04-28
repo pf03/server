@@ -3,7 +3,7 @@ module App.Emulate where
 -- Our Modules
 import           Common.Misc
 import           Interface.Cache            as Cache
-import           Interface.DB               as DB (MT)
+import           Interface.DB               as DB (MT, MDB)
 import           Interface.Error            as Error
 import           Interface.Log              as Log
 import           Logic.DB.Auth              as Auth
@@ -603,8 +603,6 @@ listOfTestCasesByOne name qs = do
                         Log.infoCM Color.Yellow "Нажмите Enter для следующего теста, q + Enter для выхода или номер_теста + Enter..."
                         newmn <- readCommand n mn
                         return (mt, newmn)
-
-
     where
         readCommand :: MIOError m => Int -> Maybe Int -> m (Maybe Int)
         readCommand n mn = if Just n < mn  then return mn else do
@@ -613,5 +611,51 @@ listOfTestCasesByOne name qs = do
             case readEither answ of
                 Right newn -> return (Just newn)
                 _          -> return Nothing
+
+
+-------------------------------------------------------------------------------
+
+-- | Для генерации sh скрипта с токенами.
+
+pathTokens :: FilePath
+pathTokens = "curl/tokens.sh"
+
+
+writeTokens :: MT m => m ()
+writeTokens = do
+    tuples@((adminToken, _):_) <- forM users $ \(pname, login, pass) -> do
+        token <- getToken login pass
+        let t = templ pname token
+        return (token, t)
+    let ts = map snd tuples
+    let ftoken = fakeToken adminToken
+    let ft = templ "FAKEUSER" ftoken
+
+    liftEIO $ BC.writeFile pathTokens $ convert $ concatMap (<>"\n") (ft:ts)
+    where
+        users = [
+            ("ADMIN", "admin", "123456"),
+            ("USER3", "pivan", "equalpass"),
+            ("USER4", "ysergey", "equalpass"),
+            ("USER5", "psergey", "psergeypass"),
+            ("USER6", "vmayakovskiy", "vmayakovskiypass"),
+            ("USER7", "dmoskvin", "dmoskvinpass")
+            ]
+
+        getToken :: MT m => String -> String -> m Token
+        getToken login pass = do
+            Cache.addStrParam "login" login
+            Cache.addStrParam "pass" pass
+            token <- Auth.login
+            Log.debugM token
+            return token
+
+        templ :: String -> Token -> String
+        templ pname (Token t) = template "{0}=\"Authorization: {1}\"" [pname, t]
+
+        fakeToken :: Token -> Token 
+        fakeToken (Token t) = if last t == '0' then Token $ init t <> "1" else Token $ init t <> "0"
+
+
 
 
