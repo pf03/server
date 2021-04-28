@@ -59,11 +59,13 @@ getJSON req = do
     a <- Cache.getAuth
     api@(API apiType _) <- Log.logM $ API.router rpinfo pinfo a
 
-    rb <- Upload.streamOne (getRequestBodyChunk req)
+    rb <- case apiType of
+        Upload  -> return mempty
+        _       -> Upload.streamOne (getRequestBodyChunk req)
     Log.debugM rb
     qsBody <- case apiType of
-        Upload -> return []
-        _ -> return $ parseQuery rb
+        Upload  -> return []
+        _       -> return $ parseQuery rb
 
     params <- if apiType `elem` [Auth, Delete, Insert, Update]
         then Error.catch (Log.logM $ Params.parseParams api qsBody) $
@@ -143,7 +145,6 @@ getPosts = do
 getDrafts :: MT m => m [JSON.Draft]
 getDrafts = do
     categories <- getAllCategories
-
     -- _ <- Cache.modifyParamsM $ JSON.evalParams categories это только для posts
     selectDrafts <- Select.drafts
     JSON.evalDrafts categories selectDrafts
