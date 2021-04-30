@@ -2,7 +2,7 @@ module Logic.DB.Migrations where
 
 -- Our Modules
 import           Common.Misc
-import           Interface.DB                     as DB
+import           Interface.DB                     as DB hiding (all)
 import           Interface.Error                  as Error
 import           Interface.Log                    as Log
 import qualified Logic.DB.Insert                  as Insert
@@ -14,11 +14,14 @@ import qualified Logic.IO.File                    as File
 import           Control.Monad
 import           Database.PostgreSQL.Simple.Types
 import qualified System.Console.ANSI              as Color (Color (..))
+import System.Directory
+import Data.List
 
 -----------------------------External--------------------------------
 dbinit :: MDB m => m ()
 dbinit = do
     Log.warnM "Производятся инициализация базы данных с нуля..."
+    namesList <- getNamesList
     migrate namesList
     Log.warnM "Все миграции выполнены успешно"
 
@@ -26,6 +29,7 @@ run :: MDB m => m ()
 run = do
     Log.warnM "Производятся миграции базы данных..."
     migrations <- Select.allMigrations
+    namesList <- getNamesList
     namesTodo <- checkMigrations migrations namesList
     migrate namesTodo
     Log.warnM "Все миграции выполнены успешно"
@@ -56,13 +60,24 @@ pathMigrations = "migrations"
 pathMigration :: FileName -> FilePath
 pathMigration name = template "{0}/{1}" [pathMigrations, name]
 
-namesList :: [FileName]
-namesList = [
-    "0000_base.sql",
-    "0001_insert_data_en.sql",
-    "0002_hash_passwords.sql",
-    "0003_rename_news_to_posts.sql"
-    ]
+getNamesList :: MIOError m => m [FileName]
+getNamesList = do
+    items <- liftEIO $ listDirectory pathMigrations
+    printT items
+    let files = sort $ filter helper items
+    unless (all (uncurry helper2) $ zip [0..] files) $ Error.throw $ IOError "Проверьте порядок номеров в файлах миграций!"
+    printT files
+    return files
+    where
+        --проверка формата 0000_migration_name.sql
+        helper :: FileName -> Bool
+        helper (a:b:c:d:'_':xs)|all (`elem` show[0..9]) [a,b,c,d] && ".sql" `isSuffixOf` xs = True 
+        helper _ = False
+
+        --проверка очередности файлов, n <= 9999
+        helper2 :: Int -> FileName -> Bool
+        helper2 n f = shown `isPrefixOf` f where
+            shown = replicate (4 - length (show n)) '0' <> show n
 
 -- | Из всего списка миграций опредаляем те, ктороый еще не выполнены
 checkMigrations :: (MError m, MLog m) => [Select.Migration] -> [FileName] -> m [FileName]

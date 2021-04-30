@@ -5,3 +5,6 @@ data.json
 log.txt
 response.json
 migrations/select.sql
+dist/config.json
+dist/server-exe.exe
+dist/response.json

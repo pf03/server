@@ -25,6 +25,7 @@ default-extensions: OverloadedStrings, TemplateHaskell, QuasiQuotes
 dependencies:
 - base >= 4.7 && < 5
 - bytestring
+- directory
 - warp
 - wai
 - http-types

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 09c54579f220389a683e18c092c31f8d43c37fccf253ea4f37ff6da1ed87477e
+-- hash: 9e34f046dc86bed9728918ca5288a245138d06327798019e4b45ea185bc971b9
 
 name:           server
 version:        0.1.0.0
@@ -67,6 +67,7 @@ library
     , bytestring
     , containers
     , cryptohash-md5
+    , directory
     , hspec
     , http-types
     , mtl
@@ -98,6 +99,7 @@ executable server-exe
     , bytestring
     , containers
     , cryptohash-md5
+    , directory
     , hspec
     , http-types
     , mtl
@@ -132,6 +134,7 @@ test-suite server-test
     , bytestring
     , containers
     , cryptohash-md5
+    , directory
     , hspec
     , http-types
     , mtl

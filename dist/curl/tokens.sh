@@ -1,0 +1,7 @@
+FAKEUSER="Authorization: 2_admin_2021-04-30_d802b9b3b167aca41ade5d15a1fadc70"
+ADMIN="Authorization: 2_admin_2021-04-30_d802b9b3b167aca41ade5d15a1fadc74"
+USER3="Authorization: 3_user_2021-04-30_756b6babbdfcea14a0582ab75b64a49b"
+USER4="Authorization: 4_user_2021-04-30_73c5665b38cc2efcb2d0a85c86ccbb05"
+USER5="Authorization: 5_user_2021-04-30_738ce7cf0ece280e412907fe40571442"
+USER6="Authorization: 6_user_2021-04-30_38ff72261dffd191fac40696176651f8"
+USER7="Authorization: 7_user_2021-04-30_03a49d7c4d096112b6a47c661fd53345"

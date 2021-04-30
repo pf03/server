@@ -10,6 +10,47 @@ import App.Emulate as Emulate
 -- Other Modules
 import           System.Environment  (getArgs)
 
+-- Это все перенести в Readme и перевести на английский
+-- ПОРЯДОК ЗАПУСКА И ТЕСТИРОВАНИЯ (проверено только для Windows):
+-- 1. stack build
+-- 2. Полученный испольняемый файл (в случае Windows server-exe.exe) переместите в папку dist репозитория, 
+-- которая содержит все необходимые дополнительные файлы
+-- 3. Файл config-example.json переименуйте в config.json и заполните
+-- 4. Для создания таблиц базы данных с нуля и приведение в актуальное состояние запустите сервер с флагом db-init.
+-- Остальные опции командной строки, которые могут пригодиться во время тестирования, указаны ниже.
+-- 3. Для обновления файла токенов dist/curl/tokens.sh запустите сервер с флагом gen-tokens
+-- 4. api-функции тестируются с помощью curl-запросов в соответствующей папке
+-- 5. Для тестирования чистых функций запустите stack test
+-- 6. Для тестирования миграций:
+--    названия файлов имеют строгий формат 1234_migration_name.sql и строгую очередность, начиная с 0000_migration_name.sql;
+--    файл drop.sql используется для удаления таблиц;
+--    файлы с другими названиями игнорируются.
+-- Для тестирования необходимо 
+--    удалить БД с помощью команды db-drop, 
+--    удалить (переименовать) часть файлов миграций,
+--    инициализировать таблицы и применить оставшиеся в папке миграции командой db-init,
+--    вернуть миграции в папку migrations
+--    применить все миграции с помощью команды migrations
+
+-- ОПЦИИ КОМАНДНОЙ СТРОКИ:
+
+-- ЗАПУСК СЕРВЕРА:
+-- Запуск без аргументов    - запуск сервера
+-- translit                 - сообщения об ошибках на транслите, из-за проблем с кириллицей в bash (перевести на английский!!!!!!!!!!!!!)
+
+-- МИГРАЦИИ:
+-- db-init                  - применение миграций к локальной базе данных, начиная с нулевой миграции
+-- migrations               - применение миграций к локальной базе данных, начиная с первой невыполненной миграции (той, которой нет в таблице БД migrations)
+-- db-drop                  - удаление всех таблиц БД
+-- db-restart               - db-drop + db-init
+-- db-restart-force         - то же принудительно
+
+-- CURL:
+-- gen-tokens               - Обновление файла токенов dist/curl/tokens.sh
+
+
+-- stack test
+
 -- Логика работы сервера разбита на следующие слои (представлены в соответствующих папках в src):
 -- 1. Common    - общие функции;
 -- 2. Interface - классы типов, которые реализуют абстрактный доступ высших слоев к интерфейсам:
@@ -25,50 +66,50 @@ import           System.Environment  (getArgs)
 -- 5. App       - слой приложения - функции, которые имеют доступ как к интерфейсу, так и к его реализации.
 -- Низшие слои не могут импортировать модули из высших слоев.
 
--- Опции командной строки:
--- Запуск без аргументов    - запуск сервера
--- db-init                  - инициализация всех таблиц базы данных с нуля
--- migrations               - применение миграций к локальной базе данных без потери данных
--- db-drop                  - удаление всех таблиц БД
--- debug-mode               - режим отладки и тестирования с помощью curl скриптов:
---                              а) все тексты на русском языке переводятся на транслит
---                              б) дата сервера при авторизации подменяется на 24.04.21, так как токены в скриптах актуальны именно на эту дату
+
 
 main :: IO()
 main = do
     args <- getArgs
     case args of
-        [] -> server
-        ["db-init"] -> dbinit
-        ["migrations"] -> migrations
-        ["db-drop"] -> dbdrop
-        ["debug-mode"] -> server
+        [] -> server_
+        ["db-init"] -> dbinit_
+        ["migrations"] -> migrations_
+        ["db-drop"] -> dbdrop_
+        ["db-restart"] -> dbrestart_
+        ["db-restart-force"] -> dbrestartForce_
+        ["gen-tokens"] -> genTokens_
         _ -> do
             putStrLn "Неверные опции командной строки!"
             putStrLn "Возможные опции:"
-            putStrLn "Запуск без аргументов       - запуск сервера"
-            putStrLn "db-init                     - инициализация всех таблиц базы данных с нуля"
-            putStrLn "migrations                  - применение миграций к локальной базе данных без потери данных"
-            putStrLn "db-drop                     - удаление всех таблиц БД"
-            putStrLn "debug-mode                  - режим отладки и тестирования с помощью curl скриптов"
+            putStrLn "Запуск без аргументов - запуск сервера"
+            putStrLn "db-init               - применение миграций к локальной базе данных, начиная с нулевой миграции"
+            putStrLn "migrations            - применение миграций к локальной базе данных, начиная с первой невыполненной миграции (той, которой нет в таблице БД migrations)"
+            putStrLn "db-drop               - удаление всех таблиц БД"
+            putStrLn "db-restart            - db-drop + db-init"
+            putStrLn "db-restart-force      - то же принудительно"
+            putStrLn "gen-tokens            - Обновление файла токенов dist/curl/tokens.sh"
 
-dbdrop :: IO ()
-dbdrop = runT Migrations.dbdrop
 
-migrations :: IO ()
-migrations = runT Migrations.run 
 
-dbinit :: IO ()
-dbinit = runT Migrations.dbinit 
+dbinit_ :: IO ()
+dbinit_ = runT Migrations.dbinit 
 
-server :: IO ()
-server = Server.run
+migrations_ :: IO ()
+migrations_ = runT Migrations.run 
 
---для отладки
+dbdrop_ :: IO ()
+dbdrop_ = runT Migrations.dbdrop
+
+server_ :: IO ()
+server_ = Server.run
+
+dbrestart_ :: IO ()
+dbrestart_ = dbdrop_ >> dbinit_
+
 dbrestartForce_ :: IO ()
 dbrestartForce_ = runT Migrations.dbrestartForce 
 
---для отладки
 genTokens_ :: IO()
 genTokens_ = runT Emulate.writeTokens
 
