@@ -1,6 +1,6 @@
 module App.Emulate where
 
--- Our Modules
+-- Our modules
 import           Common.Misc
 import           Interface.Cache            as Cache
 import           Interface.DB               as DB (MT, MDB)
@@ -13,7 +13,7 @@ import qualified Logic.Pure.API             as API
 import qualified Logic.Pure.Params          as Params
 import           T.Transformer
 
--- Other Modules
+-- Other modules
 import           Control.Monad
 import           Data.Aeson
 import qualified Data.ByteString.Char8      as BC
@@ -25,8 +25,50 @@ import           System.Console.ANSI
 import qualified System.Console.ANSI        as Color
 import           Text.Read
 
--- ЭТОТ МОДУЛЬ НЕ ДЛЯ РЕВЬЮ, А ДЛЯ ОТЛАДКИ
--- Эмуляция последовательных запросов к серверу с разной авторизацией
+-- | Generate sh script with tokens.
+writeTokens :: MT m => m ()
+writeTokens = do
+    tuples@((adminToken, _):_) <- forM users $ \(pname, login, pass) -> do
+        token <- getToken login pass
+        let t = templ pname token
+        return (token, t)
+    let ts = map snd tuples
+    let ftoken = fakeToken adminToken
+    let ft = templ "FAKEUSER" ftoken
+
+    liftEIO $ BC.writeFile pathTokens $ convert $ concatMap (<>"\n") (ft:ts)
+    where
+        users = [
+            ("ADMIN", "admin", "123456"),
+            ("USER3", "pivan", "equalpass"),
+            ("USER4", "ysergey", "equalpass"),
+            ("USER5", "psergey", "psergeypass"),
+            ("USER6", "vmayakovskiy", "vmayakovskiypass"),
+            ("USER7", "dmoskvin", "dmoskvinpass")
+            ]
+
+        pathTokens :: FilePath
+        pathTokens = "curl/tokens.sh"
+
+        getToken :: MT m => String -> String -> m Token
+        getToken login pass = do
+            Cache.addStrParam "login" login
+            Cache.addStrParam "pass" pass
+            token <- Auth.login
+            Log.debugM token
+            return token
+
+        templ :: String -> Token -> String
+        templ pname (Token t) = template "{0}=\"Authorization: {1}\"" [pname, t]
+
+        fakeToken :: Token -> Token 
+        fakeToken (Token t) = if last t == '0' then Token $ init t <> "1" else Token $ init t <> "0"
+
+
+
+-------------------------------------------------------------------------------
+-- This part of module is for debug, but not review
+-- Emulation of a sequence of requests to the server with different authorization
 
 selectPostCases :: (String, [(PathInfo, Query)])
 selectPostCases = ("selectPost", zip pathInfos queries) where
@@ -611,50 +653,6 @@ listOfTestCasesByOne name qs = do
             case readEither answ of
                 Right newn -> return (Just newn)
                 _          -> return Nothing
-
-
--------------------------------------------------------------------------------
-
--- | Для генерации sh скрипта с токенами.
-
-pathTokens :: FilePath
-pathTokens = "curl/tokens.sh"
-
-
-writeTokens :: MT m => m ()
-writeTokens = do
-    tuples@((adminToken, _):_) <- forM users $ \(pname, login, pass) -> do
-        token <- getToken login pass
-        let t = templ pname token
-        return (token, t)
-    let ts = map snd tuples
-    let ftoken = fakeToken adminToken
-    let ft = templ "FAKEUSER" ftoken
-
-    liftEIO $ BC.writeFile pathTokens $ convert $ concatMap (<>"\n") (ft:ts)
-    where
-        users = [
-            ("ADMIN", "admin", "123456"),
-            ("USER3", "pivan", "equalpass"),
-            ("USER4", "ysergey", "equalpass"),
-            ("USER5", "psergey", "psergeypass"),
-            ("USER6", "vmayakovskiy", "vmayakovskiypass"),
-            ("USER7", "dmoskvin", "dmoskvinpass")
-            ]
-
-        getToken :: MT m => String -> String -> m Token
-        getToken login pass = do
-            Cache.addStrParam "login" login
-            Cache.addStrParam "pass" pass
-            token <- Auth.login
-            Log.debugM token
-            return token
-
-        templ :: String -> Token -> String
-        templ pname (Token t) = template "{0}=\"Authorization: {1}\"" [pname, t]
-
-        fakeToken :: Token -> Token 
-        fakeToken (Token t) = if last t == '0' then Token $ init t <> "1" else Token $ init t <> "0"
 
 
 
