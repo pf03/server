@@ -35,6 +35,8 @@ import           System.Environment  (getArgs)
 --    вернуть миграции в папку migrations
 --    применить все миграции с помощью команды migrations
 
+-- Для запуска исполняемого файла нео
+
 -- ОПЦИИ КОМАНДНОЙ СТРОКИ:
 
 -- ЗАПУСК СЕРВЕРА:
@@ -92,6 +94,9 @@ main = do
             putStrLn "db-restart            - db-drop + db-init"
             putStrLn "db-restart-force      - то же принудительно"
             putStrLn "gen-tokens            - Обновление файла токенов dist/curl/tokens.sh"
+    putStrLn "Нажмите Enter для выхода из приложения..."
+    _ <- getLine
+    return()
 
 
 
