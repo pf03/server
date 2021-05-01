@@ -4,6 +4,7 @@ config.json
 data.json
 log.txt
 response.json
+response1.json
 migrations/select.sql
 dist/config.json
 dist/server-exe.exe
