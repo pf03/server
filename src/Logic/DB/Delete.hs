@@ -8,39 +8,39 @@ module Logic.DB.Delete
     , tag
     ) where
 
--- Our Modules
+-- Our modules
 import           Common.Misc
 import           Interface.Cache                  as Cache
 import           Interface.DB                     as DB
 import           Interface.Error                  as Error
 import qualified Logic.DB.Update                  as Update
 
--- Other Modules
+-- Other modules
 import           Control.Monad.Identity           (when)
 import           Database.PostgreSQL.Simple.SqlQQ (sql)
 import           Database.PostgreSQL.Simple.Types as SQL (Query)
 
--- | Удаление 4 типов
--- 1. Удаленная сущность заменяется на значение по умолчанию. Используется для users и authors
--- 2. Каскадное удаление вместе с привязанными сущностями. Используется для posts и drafts.
--- Для tags удаляется тег и все привязки тега к контенту
--- 3. Удаление строго по условию, если к данной сущности ничего не привязано.
--- Сначала нужно отредактировать или удалить связанные сущности, а потом продолжить удаление.
--- Используется для categories.
--- 4. Простое удаление, если от сущности ничего не зависит. Используется для comments
+-- | 4 cases for delete
+-- 1. The deleted entity should be replaced with the default value. Used for users and authors
+-- 2. Cascade delete along with binded entities. Used for posts and drafts.
+-- For tags, the tag and all tag bindings to contents should be deleted
+-- 3. Delete strictly by condition, if nothing is binded to this entity.
+-- First you should to edit or delete binded entities, and then continue deletion.
+-- Used for categories.
+-- 4. Simple deletion if nothing depends on the entity. Used for comments
 
 -----------------------------Public functions----------------------------------
 user :: MT m => Int -> m ()
 user pid = do
-    when (pid == 1) $ Error.throw $ DBError "Невозможно удалить пользователя по умолчанию с id = 1"
-    when (pid == 2) $ Error.throw $ DBError "Невозможно удалить админа с id = 2"
+    when (pid == 1) $ Error.throw $ DBError "Unable to delete default user with id = 1"
+    when (pid == 2) $ Error.throw $ DBError "Unable to delete admin with id = 2"
     DB.update Author [sql|UPDATE authors SET user_id = 1 WHERE user_id = {0}|] [q pid]
     DB.update Comment [sql|UPDATE comments SET user_id = 1 WHERE user_id = {0}|] [q pid]
     DB.delete User [sql|DELETE FROM users WHERE id = {0}|] [q pid]
 
 author :: MT m => Int -> m ()
 author pid = do
-    when (pid == 1) $ Error.throw $ DBError "Невозможно удалить автора по умолчанию с id = 1"
+    when (pid == 1) $ Error.throw $ DBError "Unable to delete default author with id = 1"
     DB.update Content [sql|UPDATE contents SET author_id = 1 WHERE author_id = {0}|] [q pid]
     DB.delete Author [sql|DELETE FROM authors WHERE id = {0}|] [q pid]
 
@@ -71,19 +71,19 @@ comment pid = do
 
 category :: MT m => Int -> m ()
 category pid = do
-    checkNotExist pid "категорию" "дочерние категории" $ template [sql|
+    checkNotExist pid "category" "child categories" $ template [sql|
         SELECT id, category_name FROM categories
         WHERE categories.parent_id = {0}
     |] [q pid]
 
-    checkNotExist pid "категорию" "черновики" $ template [sql|
+    checkNotExist pid "category" "drafts" $ template [sql|
         SELECT drafts.id, contents.name FROM drafts
         LEFT JOIN contents ON contents.id = drafts.content_id
         LEFT JOIN categories ON categories.id = contents.category_id
         WHERE categories.id = {0}
     |] [q pid]
 
-    checkNotExist pid "категорию" "посты" $ template [sql|
+    checkNotExist pid "category" "posts" $ template [sql|
         SELECT posts.id, contents.name FROM posts
         LEFT JOIN contents ON contents.id = posts.content_id
         LEFT JOIN categories ON categories.id = contents.category_id
@@ -103,7 +103,7 @@ checkNotExist pid name1 name2 templ = do
     results <- DB.query $ template templ [q pid]
     case results :: [(Int, String)] of
         [] -> return ()
-        _ -> Error.throw $ DBError  (template "Невозможно удалить {0}, так как к нему привязаны следующие {1}:\n{2}" 
+        _ -> Error.throw $ DBError  (template "Unable to delete {0} because the following {1} are binded to it:\n{2}" 
             [name1, name2, showResults]) where
                 showResults = concatMap helper results
                 helper :: (Int, String) -> String

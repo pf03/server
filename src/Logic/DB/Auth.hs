@@ -1,12 +1,12 @@
 {-# LANGUAGE DeriveGeneric #-}
 module Logic.DB.Auth
-    -- ( Token(..)
-    -- , login
-    -- , auth
-    -- ) 
+    ( Token(..)
+    , login
+    , auth
+    ) 
     where
 
--- Our Modules
+-- Our modules
 import           Common.Misc
 import           Interface.Cache                  as Cache hiding (auth)
 import           Interface.DB                     as DB
@@ -14,7 +14,7 @@ import           Interface.Error                  as Error
 import           Interface.Log                    as Log
 import           Logic.DB.Select                  (p)
 
--- Other Modules
+-- Other modules
 import           Control.Monad.Identity           (when)
 import qualified Crypto.Hash.MD5 as MD5               (hash)
 import           Data.Aeson                       (FromJSON, ToJSON)
@@ -31,7 +31,6 @@ import qualified Network.Wai                      as Wai
 import           Numeric                          (showHex)
 import           Text.Read                        (readEither)
 import           System.Environment  (getArgs)
--- import Data.Time.Calendar
 
 -----------------------------Types---------------------------------------------
 newtype Token = Token {token :: String}  deriving (Show, Generic, Eq)
@@ -49,14 +48,14 @@ login = do
     case users  :: [(Int, Bool)] of
         [(userId, isAdmin)]   -> do
             Log.debugM users
-            when (userId == 1) $ Error.throw $ AuthError "Невозможно авторизоваться удаленным пользователем"
+            when (userId == 1) $ Error.throw $ AuthError "Unable to login as a deleted user"
             let role = if isAdmin then "admin" else "user"
             date <- liftEIO getCurrentTime
             genToken date userId role
-        _ -> Error.throw $ AuthError "Неверный логин или пароль!"
+        _ -> Error.throw $ AuthError "Wrong login or password!"
 
--- | Проверка токена происходит без базы данных
--- AuthNo только в случае отсутствия токена, в других случаях ошибка
+-- * Token verification take place without a database
+-- AuthNo will be only in case of missing token, in other cases will be an error
 auth :: (MIOError m, MCache m) => Wai.Request -> m ()
 auth req  = do
     let h = Wai.requestHeaders req
@@ -68,6 +67,7 @@ auth req  = do
 
 debugDate :: UTCTime
 debugDate = UTCTime (fromGregorian 2021 04 24) (secondsToDiffTime 0)
+
 -----------------------------Private functions---------------------------------
 checkAuth :: (MError m, MCache m) => UTCTime -> Token -> m ()
 checkAuth date tok  = do
@@ -79,8 +79,8 @@ checkAuth date tok  = do
             then Cache.setAuth $ AuthUser userId
             else if correctToken == tok && role == "admin"
                 then Cache.setAuth $ AuthAdmin userId
-                else Error.throw $ AuthError "Неверный токен!"
-    else Error.throw $ AuthError "Неверная дата токена!"
+                else Error.throw $ AuthError "Wrong token!"
+    else Error.throw $ AuthError "Wrong token date!"
 
 parseToken :: MError m => Token -> m (Int, String, String, String)
 parseToken (Token t)  = do
@@ -89,8 +89,8 @@ parseToken (Token t)  = do
         [userIdStr, role, day, hash] | role =="admin" || role == "user" || role == "author" -> do
             case readEither userIdStr of
                 Right userId -> return (userId, role, day, hash)
-                _            -> Error.throw $ AuthError "Неверный токен!" --"Неверный формат токена!"
-        _ -> Error.throw $ AuthError "Неверный токен!" --"Неверный формат токена!"
+                _            -> Error.throw $ AuthError "Wrong token!" --"Wrong token format!"
+        _ -> Error.throw $ AuthError "Wrong token!" --"Wrong token format!"
 
 genToken :: Monad m => UTCTime -> Int -> String -> m Token
 genToken  date userId role = do

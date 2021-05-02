@@ -1,14 +1,12 @@
-module Common.Color 
-    ( module Common.Color
-    ) where 
---этот модуль должен импортироваться только модулем Log
+module Common.Color where 
 
+-- Our modules
+import Common.Misc
+
+-- Other modules
 import System.Console.ANSI
 import Control.Monad.IO.Class
 import Data.Maybe
-
---наши модули
-import Common.Misc
 
 setSchemeT :: MonadIO m => Color -> m ()
 setSchemeT color = case color of
@@ -21,7 +19,6 @@ setSchemeT color = case color of
 setColorT ::  MonadIO m => Color -> m ()
 setColorT color = setColorSchemeT Vivid NormalIntensity (Just color) Nothing 
 
---вообще coli может быть разным для Background и Foreground
 setColorSchemeT :: (MonadIO m) => ColorIntensity -> ConsoleIntensity -> Maybe Color -> Maybe Color -> m()
 setColorSchemeT coli coni mcolor1 mcolor2 = liftIO $ do
     ifJust mcolor1 $ setSGR [SetColor Foreground coli (fromJust mcolor1)]
@@ -31,18 +28,15 @@ setColorSchemeT coli coni mcolor1 mcolor2 = liftIO $ do
 resetColorSchemeT ::  MonadIO m => m ()
 resetColorSchemeT =  liftIO $ setSGR [Reset]
 
----------------------------TESTING TABLE-------------------------------------------------------------------
-
--- Set colors and write some text in those colors.
+-----------------------------Testing table-------------------------------------
+-- | Set colors and write some text in those colors.
 colorCell :: ColorIntensity -> ConsoleIntensity -> (String, Maybe Color) -> (String, Maybe Color) -> IO ()
 colorCell coli coni (colorName1, mcolor1)  (colorName2, mcolor2) = do
     ifJust mcolor1 $ setSGR [SetColor Foreground coli (fromJust mcolor1)]
     ifJust mcolor2 $ setSGR [SetColor Background coli (fromJust mcolor2)]
     setSGR [SetConsoleIntensity coni]
-    --putStr $ template (to18 "{0}-On-{1}") [colorName1, colorName2]
     putStr $ template  " {0} {1} " [take 3 colorName1, take 3 colorName2]
     setSGR [Reset]  -- Reset to default colour scheme
-    --putStrLn "Default colors."
 
 colors :: [Maybe Color]
 colors = [Nothing] <> map Just [Black, Red, Green, Yellow, Blue, Magenta, Cyan, White]

@@ -11,8 +11,8 @@ import qualified Data.Map                        as M
 import           Database.PostgreSQL.Simple.Time
 import           GHC.Generics
 
--- | Данный модуль реализует класс типов MCache для работы с состоянием в чистом коде.
--- А также соответствующие типы и функции для работы с Cache
+-- This module implements the MCache typeclass to handle state in pure code.
+-- As well as the corresponding types and functions for working with Cache
 
 -----------------------------Types---------------------------------------------
 data Cache = Cache {
@@ -43,7 +43,7 @@ data Param = ParamEq {paramEq :: Val}
 
 data Val = Str { valStr :: String} | Int { valInt :: Int} | Date { valDate :: Date} deriving (Show, Eq)
 
-type BSName = BS    --created_at
+type BSName = BS
 type BS = ByteString
 
 --API--
@@ -89,11 +89,9 @@ addChanged qt at n = do
     queryType Update = "edited"
     queryType Delete = "deleted"
     queryType Upload = "uploaded"
-    -- * Следующие паттерны не используются, и заполнены только из-за предупреждений компилятора
     queryType Select = "selected"
     queryType SelectById = "selected"
     queryType Auth = "authorized"
-
 
 getChanged :: MCache m => m Changed
 getChanged = getsCache changed
@@ -120,11 +118,10 @@ modifyParamsM f = do
     setParams newp
     getParams
 
-
 getParam :: MCache m => BSName -> m Param
 getParam name = getsCache (\st -> params st ! name)
 
---добавить user_id, author_id и т. д.
+-- | For example "user_id", "tag_id"
 addIdParam :: MCache m => BSName -> Int -> m ParamsMap
 addIdParam name pid = modifyParams $ M.insert name (ParamEq (Int pid))
 

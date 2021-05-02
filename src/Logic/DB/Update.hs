@@ -30,7 +30,7 @@ user :: MT m => Int -> m ()
 user pid = do
     _ <- Cache.addIdParam "id" pid
     checkExist "id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
-    -- Логин нужен для проверки пароля
+    -- Login is required to generate new password
     [Only login] <- DB.query $ template [sql|SELECT users.login FROM users WHERE users.id = {0}|] [q pid]
     params <- Cache.addStrParam "login" login
     DB.update User [sql|UPDATE users SET {0} WHERE id = {1}|] <$$>
@@ -82,7 +82,7 @@ draft pid = do
     Logic.DB.Update.tagToContent Execute
     Logic.DB.Update.photos
 
--- | Проверка существования вместе с авторизацией, для запросов DB.update и delete
+-- | Draft existence check with authorization for update and delete requests
 checkAuthExistDraft :: MT m => Int -> m ParamsMap
 checkAuthExistDraft pid = do
     qu <- [sql|
@@ -102,7 +102,7 @@ post :: MT m => Int -> m ()
 post pid = do
     params <- checkAuthExistPost pid
     when (params ! "author_id" == ParamEq (Int 1)) $
-        Error.throw $ DBError "Невозможно создать черновик от удаленного автора (автора по умолчанию) id = 1"
+        Error.throw $ DBError "Unable to create draft from deleted author with id = 1"
     checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
     Insert.tagToContent Check
     [Only cid] <- DB.query . template
@@ -111,13 +111,13 @@ post pid = do
     Cache.addChanged Insert Content 1
     DB.insert Draft [sql|INSERT into drafts (content_id, post_id) values ({0}, {1})|]
         [q cid, q pid]
-    Cache.addIdParam_ "content_id" cid --перезаписываем
+    Cache.addIdParam_ "content_id" cid -- update param
     Insert.tagToContent Execute
     Insert.photos
 
--- * Аутентификация удаленным пользователем не пройдет. Удаленный автор привязан к удаленному
--- пользователю. Таким образом посты с удаленными авторами и пользователями сможет редактировать
--- только админ
+-- * Deleted user authentication will fail. The deleted author is binded to the deleted
+-- user. Thus, posts with deleted authors and users will be able to edit
+-- only admin
 checkAuthExistPost :: MT m => Int -> m ParamsMap
 checkAuthExistPost pid = do
     qu <- [sql|
@@ -133,8 +133,8 @@ checkAuthExistPost pid = do
     Cache.addIdParam "content_id" cid
 
 ----------------------------------Comment--------------------------------------
--- * В общем случае checkAuthExist возвращает три параметра
-checkAuthExistComment :: MT m => Int -> m Int --возвращаем userId
+-- * In common checkAuthExist returns 3 parameters. This function returns only userId
+checkAuthExistComment :: MT m => Int -> m Int 
 checkAuthExistComment pid = do
     let qu = template [sql| SELECT user_id, 0, 0 FROM comments WHERE id = {0}|] [q pid]
     (\(a, _, _) -> a) <$> checkAuthExist pid "comment_id" qu
@@ -159,21 +159,21 @@ updates params names = DB.concat "," <$> mapMaybeM helper names where
     upd field (ParamEq v) = return . Just $ template [sql|{0} = {1}|] [field, val v]
     upd _ ParamNo = return Nothing
     upd field ParamNull = return . Just $ template [sql|{0} = null|] [field]
-    upd _ param = Error.throw $ DevError $ template "Неверный шаблон {0} в функции updates" [show param]
+    upd _ param = Error.throw $ patError "Update.updates" param
 
 checkAuthExist :: MT m => Int -> BSName -> Query ->  m (Int, Int, Int)
 checkAuthExist pid name qu = do
     exist <- DB.query qu
     case exist of
-        [] -> Error.throw $ DBError  (template "Указан несуществующий параметр {0}: {1}" [show name, show pid])
+        [] -> Error.throw $ DBError $ template "Entity {0} = {1} is not exist" [show name, show pid]
         [(uid, aid, cid)] -> do
             a <- Cache.getAuth
             case a of
                 AuthNo                            -> Error.throw authErrorDefault
-                AuthAdmin _                       -> return (uid, aid, cid) --админ может РЕДАКТИРОВАТЬ все публикации (модерация)
-                AuthUser authuid | uid == authuid -> return (uid, aid, cid) --юзер может РЕДАКТИРОВАТЬ только своё
+                AuthAdmin _                       -> return (uid, aid, cid) -- admin can EDIT all contents (moderation)
+                AuthUser authuid | uid == authuid -> return (uid, aid, cid) -- user can EDIT only his own contents
                 _                                 -> Error.throw authErrorWrong
-        res -> Error.throw $ DevError $ template "Неверный результат запроса {0} в функции checkAuthExist" [show res]
+        res -> Error.throw $ DevError $ template "Wrong query result {0} in function Update.checkAuthExist" [show res]
 
 withParam :: MCache m => BSName -> m() -> m()
 withParam name t = do

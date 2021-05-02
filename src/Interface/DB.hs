@@ -25,41 +25,41 @@ connectDB connectInfo = connect connectInfo `Error.catchEIO` handler where
     handler _ = DBError "Ошибка соединения с базой данных!"
 
 -----------------------------Query functions-----------------------------------
--- | Как правило, в этом запросы должны быть корректные, так как все запросы проверяются на уровне логики.
--- Однако в случае ошибки, логгируется подробная информация об ошибке, а пользователю отдается стандартный текст.
--- В идеале пользователю можно отдать пользователю код ошибки или порядковый номер,
--- но это выходит за рамки учебного задания.
+-- As a rule, queries in this module should be correct, since all queries are checked at the logic level.
+-- However, in case of an error, detailed information about the error is logged, and the user is given a standard text.
+-- Ideally, we can give the user an error code or sequence number,
+-- but this is outside the scope of the educational task.
 
--- | Запрос, возвращающий значение
--- LiftIO использовать нельзя, т.к теряется обработка ошибок
+-- | Query that returns a value
 query :: (MDB m,  Show r, FromRow r) => Query -> m [r]
 query qu = do
     Log.debugM qu
     conn <- getConnection
+    -- LiftIO cannot be used because error handling is lost
     Error.catch (liftEIO $ SQL.query_ conn qu ) $ \e -> do
-        Log.errorM "Произошла ошибка в запросе:"
+        Log.errorM "An error occurred in the request:"
         Log.errorM $ show qu
         Log.errorM $ show e
         Error.throw dbErrorDefault
 
--- | Запрос, возвращающий количество изменений, без автоматической записи количества изменных сущностей
+-- | Query that returns the number of changes without automatic recording the number of changed entities
 execute :: MDB m => Query -> [Query] -> m Int64
 execute q0 qs = do
     let qu = template q0 qs
     conn <- getConnection
     Error.catch (liftEIO $ SQL.execute_ conn qu) $ \e -> do
-        Log.errorM "Произошла ошибка в запросе:"
+        Log.errorM "An error occurred in the request:"
         Log.errorM $ show qu
         Log.errorM $ show e
         Error.throw dbErrorDefault
 
--- | Запрос без автоматической записи количества изменных сущностей
+-- | Query without automatic recording of the number of changed entities
 execute_ :: MDB m => Query -> [Query] -> m ()
 execute_ q0 qs = do
     n <- execute q0 qs
-    Log.debugM $ template "Выполнен запрос, изменено {0} строк" [show n] --и это, т .е результат выполнения
+    Log.debugM $ template "Выполнен запрос, изменено {0} строк" [show n]
 
--- | Вспомогательная функция для автоматической записи количества изменный сущностей
+-- | Helper function for automatic recording of the number of changed entities
 _execute :: MT m => QueryType -> APIType -> Query -> [Query] ->  m ()
 _execute queryType apiType q0 qs   = do
     let qu = template q0 qs
@@ -68,18 +68,20 @@ _execute queryType apiType q0 qs   = do
     rows <- liftEIO $ SQL.execute_ conn qu
     Cache.addChanged queryType apiType rows
 
--- | Запросы с автоматической записью измененных сущностей
+-- | Insert query with automatic recording of the number of changed entities
 insert  :: MT m => APIType -> Query -> [Query] ->  m ()
 insert = _execute Insert
 
+-- | Update query with automatic recording of the number of changed entities
 update  :: MT m => APIType -> Query -> [Query] ->  m ()
 update = _execute Update
 
+-- | Delete query with automatic recording of the number of changed entities
 delete  :: MT m => APIType -> Query -> [Query] ->  m ()
 delete = _execute Delete
 
 -----------------------------Templates-----------------------------------------
--- Разнообразные шаблоны для составления сложных запросов из простых кусков
+-- Various templates for composing complex queries from simple pieces
 
 whereAll :: Query -> [Query] -> Query
 whereAll qu conditions = Interface.DB.concat2 Interface.DB.where_ qu $ Interface.DB.all conditions

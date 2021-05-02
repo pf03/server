@@ -11,14 +11,14 @@ module Logic.DB.Select
     , p, val, cond, authUserIdParam
     ) where
 
--- Our Modules
+-- Our modules
 import           Common.Misc
 import           Interface.Cache                  as Cache
 import           Interface.DB                     as DB
 import           Interface.Error                  as Error
 import qualified Logic.DB.Row                     as Row
 
--- Other Modules
+-- Other modules
 import           Data.Map                         as M ((!))
 import           Data.Maybe
 import           Database.PostgreSQL.Simple.SqlQQ (sql)
@@ -77,7 +77,7 @@ category pid = listToMaybe <$> DB.query qu where
 categories :: MT m => m [Category]
 categories = DB.query =<< categoriesQuery
 
--- * Все категории без пагинации нужны для вычисления родительских категорий
+-- * All categories without pagination are needed to evaluate parent categories
 allCategories :: MDB m => m [Category]
 allCategories = DB.query selectCategoriesQuery
 
@@ -173,9 +173,9 @@ postsQuery = do
                 postIdsSubquery [sql|tags.name|] param
                 ]
 
-        -- | Поиск по имени и id тега
-        -- Вытягиваем id постов, в которых хотя бы один из тегов удовлетворяет условию.
-        -- После чего возвращаем все теги постов с данными id
+        -- Search by tag name and id.
+        -- We take ids of posts in which at least one of the tags matches the condition.
+        -- Then we return all the posts tags with those ids.
         existTagSubquery :: MError m => Query -> Param -> m Query
         existTagSubquery field param  = do
             c <- cond field param
@@ -194,9 +194,9 @@ postsQuery = do
                 "category_id"   -> return [sql|contents.category_id|]
                 "photos"        -> return $ DB.brackets [sql|SELECT COUNT(*) FROM photos WHERE
                     photos.content_id = contents.id|]
-                _               -> Error.throw $ DevError $ template "Неверный параметр {0} в функции orderBy" [paramName]
+                _               -> Error.throw $ DevError $ template "Wrong parameter {0} in function orderBy" [paramName]
         orderBy ParamNo = return [sql||]
-        orderBy par = Error.throw $ DevError $ template "Неверный шаблон параметра {0} в функции orderBy" [show par]
+        orderBy par = Error.throw $ patError "Select.postsQuery (orderBy)" par
 
 -----------------------------Tag-----------------------------------------------
 type Tag = Row.Tag
@@ -241,12 +241,12 @@ pagination  = do
     case paramPage of
         ParamEq (Int page)  -> return $ template [sql|LIMIT {0} OFFSET {1}|] [q quantity, q $ (page-1)*quantity] where
             quantity = 20
-        _                   -> Error.throw $ DevError $ template "Неверный шаблон параметра {0} в функции pagination" [show paramPage]
+        _                   -> Error.throw $ patError "Insert.pagination" paramPage
 
 -----------------------------Templates-----------------------------------------
 p :: MError m => Param -> m Query
 p (ParamEq v) = return $ val v
-p param       = Error.throw $ DevError $ template "Неверный шаблон параметра {0} в функции p" [show param]
+p param       = Error.throw $ patError "Insert.pagination" param
 
 val :: Val -> Query
 val (Int a)  = q a
@@ -264,9 +264,9 @@ cond field param = case param of
     ParamLike v         -> return $ template [sql|{0} = {1}|] [field, val v]
     ParamNo             -> return [sql|TRUE|]
     ParamNull           -> return $ template [sql|{0} = null|] [field]
-    _                   -> Error.throw $ DevError $ template "Неверный шаблон параметра {0} в функции cond" [show param]
+    _                   -> Error.throw $ patError "Insert.pagination" param
 
--- * Админ может ЧИТАТЬ все публикации
+-- * Admin can READ all publications
 authUserIdParam :: (MError m, MCache m) => m Param
 authUserIdParam = do
     a <- Cache.getAuth
@@ -274,7 +274,3 @@ authUserIdParam = do
         AuthAdmin _     -> return ParamNo
         AuthUser userId -> return $ ParamEq (Int userId)
         _               -> Error.throw Error.authErrorDefault
-
-
-
-

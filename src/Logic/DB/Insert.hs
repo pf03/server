@@ -13,13 +13,13 @@ module Logic.DB.Insert
     , rowEither
     ) where
 
--- Our Modules
+-- Our modules
 import           Common.Misc
 import           Interface.Cache                  as Cache hiding (Cache (..))
 import           Interface.DB                     as DB
 import           Interface.Error                  as Error
 import           Logic.DB.Select                  (cond, p, val)
--- Other Modules
+-- Other modules
 import           Control.Monad.Identity           (unless, when)
 import           Data.Map                         ((!))
 import           Data.Maybe                       (listToMaybe)
@@ -36,7 +36,7 @@ migration name = do
 user :: MT m => m ()
 user = do
     params <- Cache.getParams
-    checkNotExist "Пользователь" "login" [sql|SELECT 1 FROM users WHERE users.login = {0}|]
+    checkNotExist "user" "login" [sql|SELECT 1 FROM users WHERE users.login = {0}|]
     passQuery <- (return . template [sql|md5 (CONCAT_WS(' ', {0}, {1}))|]) <$$> 
         [cell(params ! "login"), cell(params ! "pass")]
     DB.insert User
@@ -50,19 +50,19 @@ user = do
             , Right [sql|current_date|]
             , Right [sql|False|]
             ]]
+            
 ----------------------------------Author---------------------------------------
 author :: MT m => m ()
 author = do
     params <- Cache.getParams
     checkExist "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
-    --проверка на то, что данный автор уже существует
-    checkNotExist "Автор" "user_id" [sql|SELECT 1 FROM authors WHERE authors.user_id = {0}|]
+    checkNotExist "author" "user_id" [sql|SELECT 1 FROM authors WHERE authors.user_id = {0}|]
     insert Author [sql|INSERT into authors (user_id, description)  values {0}|] <$$>
         [row params ["user_id", "description"]]
 
 ----------------------------------Category-------------------------------------
--- * Нельзя вставить категорию с нeсуществующим родителем, но можно вставить
--- категорию без родителя, "parent_id" - необязаельный параметр
+-- * You cannot insert a category with a non-existent parent, 
+-- but you can insert a category without a parent, "parent_id" is an optional parameter
 category :: MT m => m ()
 category = do
     params <- Cache.getParams
@@ -74,10 +74,10 @@ category = do
 tag :: MT m => m ()
 tag = do
     params <- Cache.getParams
-    checkNotExist "Тег" "name" [sql|SELECT 1 FROM tags WHERE tags.name = {0}|]
+    checkNotExist "tag" "name" [sql|SELECT 1 FROM tags WHERE tags.name = {0}|]
     insert Tag [sql|INSERT into tags (name)  values ({0})|] <$$> [p $ params ! "name"]
 
---сначала должна идти проверочная часть, потом часть с записью в бд
+-- Check and execute parts for right sequence
 tagToContent :: MT m => Action -> m ()
 tagToContent Check = do
     params <- Cache.getParams
@@ -95,7 +95,7 @@ draft :: MT m => m ()
 draft = do
     params <- addAuthAuthorIdParam
     when (params ! "author_id" == ParamEq (Int 1)) $ Error.throw $ DBError
-        "Невозможно создать черновик от удаленного автора (автора по умолчанию) id = 1"
+        "Unable to create draft from deleted author with id = 1"
     checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
     tagToContent Check
     [Only cid] <- (DB.query . template
@@ -119,12 +119,12 @@ publish pid = do
     case mpostId :: Maybe Int of
         Nothing -> do
             insert Post [sql|INSERT into posts (content_id) values ({0})|]
-                [q (contentId :: Int)] --новость публикуется в первый раз
+                [q (contentId :: Int)] -- first publish
         Just postId -> do
             [Only oldContentId] <- DB.query $ template [sql|SELECT content_id FROM posts WHERE posts.id = {0}|]
                 [q postId]
             update Post [sql|UPDATE posts SET content_id = {0} WHERE posts.id = {1}|] [q contentId, q postId]
-            --контент привязан или к черновику или к посту, поэтому нигде больше не используется
+            -- delete old content, because it's not used anywhere 
             delete Content [sql|DELETE FROM contents WHERE contents.id = {0} |] [q (oldContentId :: Int)]
             execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [q oldContentId]
             delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [q oldContentId]
@@ -136,7 +136,7 @@ comment postId = do
     _ <- addAuthUserIdParam
     params <- Cache.addIdParam "post_id" postId
     when (params ! "user_id" == ParamEq (Int 1)) $ Error.throw $ DBError
-        "Невозможно создать комментарий от удаленного пользователя (пользователя по умолчанию) id = 1"
+        "Unable to create comment from deleted author with id = 1"
     checkExist "post_id" [sql|SELECT 1 FROM posts WHERE posts.id = {0}|]
     checkExist "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
     insert Comment [sql|INSERT into comments (post_id, user_id, creation_date, text) values {0}|] <$$>
@@ -151,7 +151,7 @@ photos = do
             [rows params ["photos", "content_id"]]
 
 ----------------------------------Common---------------------------------------
--- * В шаблон подставляется внутренний pid, если параметр обязательный, то ParamNo никогда не выскочит
+-- | Check for entity existence
 checkExist :: MT m => BSName -> Query -> m ()
 checkExist name templ = do
     par <- Cache.getParam name
@@ -162,20 +162,18 @@ checkExist name templ = do
             exist <- DB.query $ template templ [q pid]
             case exist :: [Only Int] of
                 [] -> Error.throw $ DBError $ template
-                    "Указан несуществующий параметр {0}: {1}" [show name, show pid]
+                    "Entity {0} = {1} is not exist" [show name, show pid]
                 _ -> return ()
-        helper par = Error.throw $ DevError $ template
-            "Неверный шаблон в функции checkExist: {0}" [show par]
+        helper par = Error.throw $ patError "Insert.checkExist" par
 
--- | Проверка на существование ВСЕХ сущностей из списка
+-- | Check for all entities existence
 checkExistAll :: MT m => BSName -> [Int] -> Query -> m ()
 checkExistAll name ids templ = do
     exist <- fromOnly <<$>> DB.query templ
     when (length exist /= length ids) $ do
         let notExist = filter (`notElem` exist) ids
-        Error.throw $ DBError $ template "Параметры {0} из списка {1} не существуют"
+        Error.throw $ DBError $ template "Entities \"{0}\" from list {1} are not exist"
             [show name, show notExist]
-
 
 checkNotExist :: MT m => String -> BSName -> Query -> m()
 checkNotExist description name templ = do
@@ -186,21 +184,18 @@ checkNotExist description name templ = do
             exist <- DB.query $ template templ [val v]
             case exist :: [Only Int] of
                 [] -> return ()
-                _ -> Error.throw $ DBError  (template "{2} с таким {0} = {1} уже существует"
+                _ -> Error.throw $ DBError  (template "Entity \"{2}\" with {0} = {1} is already exist"
                     [show name, toString v, description])
-        helper par = Error.throw $ 
-            DevError $ template "Неверный шаблон параметра {0} в функции Insert.checkNotExist" [show par]
+        helper par = Error.throw $ patError "Insert.checkNotExist" par
         toString :: Val -> String
         toString (Int n)  = show n
         toString (Str s)  = show s
         toString (Date d) = show d
 
-
-
 row :: MError m => ParamsMap -> [BSName] -> m Query
 row params names = list <$> mapM (\name -> cell (params ! name)) names
 
--- * Количество строк определяется по первому параметру, который должен быть ParamAll
+-- * The number of lines is determined by the first parameter, which must be ParamAll
 rows :: MError m => ParamsMap -> [BSName] -> m Query
 rows params names = res where
     (ParamAll first) = params ! head names
@@ -216,8 +211,6 @@ emptyParam (ParamAll []) = True
 emptyParam (ParamIn [])  = True
 emptyParam _             = False
 
-
--- | Обобщенный ряд
 rowEither :: MError m => ParamsMap -> [Either BSName Query] -> m Query
 rowEither params nqs = list <$> mapM helper nqs where
     helper :: MError m => Either BSName Query -> m Query
@@ -228,15 +221,15 @@ rowEither params nqs = list <$> mapM helper nqs where
 cell :: MError m => Param -> m Query
 cell (ParamEq v) = return $ val v
 cell ParamNo     = return [sql|null|]
-cell par         = Error.throw $ DevError $ template "Неверный шаблон параметра {0} в функции cell" [show par]
+cell par         = Error.throw $ patError "Insert.cell" par
 
 cellByNumber :: MError m => Param -> Int -> m Query
 cellByNumber (ParamEq v) _     = return $ val v
 cellByNumber (ParamAll vs) n = return $ val (vs !! n)
 cellByNumber ParamNo _         = return [sql|null|]
-cellByNumber par _ = Error.throw $ DevError $ template "Неверный шаблон параметра {0} в функции cell" [show par]
+cellByNumber par _ = Error.throw $ patError "Insert.cellByNumber" par
 
--- * Aдмин может CОЗДАВАТЬ только свои публикации
+-- * Admin can CREATE only his own publications
 addAuthAuthorIdParam :: MT m => m ParamsMap
 addAuthAuthorIdParam = do
     _ <-addAuthUserIdParam
@@ -248,11 +241,11 @@ addAuthAuthorIdParam = do
         WHERE users.id = {0}
     |] <$$> [p paramUserId])
     case mauthorId :: (Maybe Int) of
-        Nothing       -> Error.throw $ AuthError "Данная функция доступна только авторам"
-        Just 1        -> Error.throw $ AuthError "Невозможна аутентификация удаленного автора"
+        Nothing       -> Error.throw $ AuthError "This feature is only available for authors"
+        Just 1        -> Error.throw $ AuthError "Unable to authenticate deleted author"
         Just authorId -> Cache.addIdParam "author_id" authorId
 
--- * Админ может СОЗДАВАТЬ только свои публикации (комментарии)
+-- * Admin can CREATE only his own publications (comments)
 addAuthUserIdParam :: (MError m, MCache m) => m ParamsMap
 addAuthUserIdParam = do
     auth <- Cache.getAuth

@@ -1,17 +1,18 @@
 module Logic.Pure.API where
 
--- Our Modules
+-- Our modules
 import           Common.Misc
 import           Interface.Cache as Cache
 import           Interface.Error as Error
 
--- Other Modules
+-- Other modules
 import qualified Data.ByteString as B
 import           Data.Text       (Text, unpack)
 import           Text.Read       (readEither)
 
--- * Роутер проверяет только роли, иногда id, НО роутер не использует БД (у него даже нет доступа к соединению)
--- Использование БД в компетенции API-функций.
+-- * The router only checks the roles, sometimes the id, BUT the router does not use the database 
+-- (it does not even have access to the connection)
+-- The use of the database is within the competence of API functions.
 router :: MError m => B.ByteString -> PathInfo -> Auth -> m API
 ---AUTH---
 router _ ["login"] _ = return $ API Auth []
@@ -23,8 +24,8 @@ router _ ["authors", "create"] (AuthAdmin _) = return $ API Insert [Author]
 router _ ["categories", "create"] (AuthAdmin _) = return $ API Insert [Category]
 router _ ["tags", "create"] (AuthAdmin _) = return $ API Insert [Tag]
 router _ ["drafts", "create"] a  = withUser a $ API Insert [Draft]
--- * Во всех остальных апи на втором месте должно быть число. Если его нет - не выдаем существование этого апи
--- * Hовость нельзя опубликовать напрямую без черновика (премодерации)
+-- * In all other api, the second place in list should be a number. If it is not there, we do not betray the existence of this api
+-- * News cannot be published directly without a draft (pre-moderation)
 router p ["drafts", n, "publish"] (AuthAdmin _) = withInt p n $ \pid -> API Insert [Draft, Id pid, Post]
 router p ["posts", n, "comments", "create"] a  = withUserE a $ withInt p n $ \pid -> API Insert [Post, Id pid, Comment]
 
@@ -77,7 +78,7 @@ withInt p text f = do
     pid <- ereadInt p text
     return $ f pid
 
--- * Ошибка 401 - API-функция, которая требует авторизации
+-- * Error 401 - API function that requires authorization
 withUserE :: MError m => Auth -> m API -> m API
 withUserE a mapi = do
     api <- mapi
@@ -94,6 +95,6 @@ withAuth AuthNo _          = Error.throw Error.authErrorDefault
 withAuth (AuthAdmin uid) f = return $ f uid
 withAuth (AuthUser uid) f  = return $ f uid
 
--- * Ошибка 400
+-- * Error 400
 unknownPathError :: B.ByteString -> Error.E
-unknownPathError rawPathInfo = Error.RequestError $ template "Неизвестный путь: {0}" [show rawPathInfo]
+unknownPathError rawPathInfo = Error.RequestError $ template "Unknown path: {0}" [show rawPathInfo]

@@ -1,11 +1,11 @@
 module Logic.Pure.Params where
 
--- Our Modules
+-- Our modules
 import           Common.Misc
 import           Interface.Cache                 as Cache
 import           Interface.Error                 as Error
 
--- Other Modules
+-- Other modules
 import           Control.Monad.Except
 import qualified Data.ByteString                 as B
 import           Data.ByteString.Char8           as BC (ByteString)
@@ -18,7 +18,7 @@ import           Text.Read
 
 
 -----------------------------Types---------------------------------------------
--- Eq - отсутствие суффикса
+-- Eq - no suffix
 data Templ = Eq | In | All | Lt | Gt | Bt | Like  deriving (Show, Eq)
 
 data ParamType = ParamTypePage
@@ -40,7 +40,7 @@ type BSKey = BS     --created_at__lt
 type BSValue = BS   --"2021-01-01"
 type BSTempl = BS   --"__lt"
 
------------------------------GLOBAL CONSTANTS, used in other functions-----------------------------------------------------
+-----------------------------Params map----------------------------------------
 
 templates :: [(Templ, BSTempl)]
 templates = [(Eq ,""), (In, "__in"), (All, "__all"), (Lt, "__lt"), (Gt, "__gt"), (Bt, "__bt"), (Like, "__like")]
@@ -49,7 +49,6 @@ possibleParamDescs :: (MError m) => API -> m (M.Map BSName ParamDesc)
 possibleParamDescs (API queryType apiType) = M.fromList <$> list where
     param a b c d = (a, ParamDesc b c d False)
     paramNull a b c d = (a, ParamDesc b c d True)
-    --list :: MError m => m [(BSName, ParamDesc)] 
     list = case queryType of
         Auth -> return [
                 param "login" [Eq] ParamTypeStr True,
@@ -60,7 +59,7 @@ possibleParamDescs (API queryType apiType) = M.fromList <$> list where
             [Photo] -> return [
                 param "name" [Eq]  (ParamTypeFileName ["jpg", "png", "bmp"]) True
                 ]
-            _ -> Error.throw $ DevError $ template "Неверный apiType в Params.possibleParamDescs: {0}" [show apiType]
+            _ -> Error.throw $ patError "Params.possibleParamDesc" apiType
 
         Select -> case apiType of
             [Post] -> return $ map ($ False) [
@@ -70,18 +69,16 @@ possibleParamDescs (API queryType apiType) = M.fromList <$> list where
                 param "tag_id" [Eq, In, All] ParamTypeInt,
                 param "name" [Eq, Like] ParamTypeStr,
                 param "text" [Like] ParamTypeStr,
-                param "contains" [Like] ParamTypeStr,  --API новостей должно поддерживать поиск по строке, которая может быть найдена либо в текстовом контенте, либо в имени автора, либо в названии категории/тега
+                param "contains" [Like] ParamTypeStr,  -- The news API should support search by string, which can be found in either text content, author name, or category / tag name
                 param "order_by" [Eq] $ ParamTypeSort ["created_at", "author_name", "category_id", "photos"],
                 param "page" [Eq] ParamTypePage
                 ]
-            _ -> return $ map ($ False) [param "page" [Eq] ParamTypePage] --в тз про фильтры для других функций кроме posts ничего не сказано
+            _ -> return $ map ($ False) [param "page" [Eq] ParamTypePage]
         SelectById -> return []
         Delete -> return []
 
         Insert -> case apiType of
             [User] -> return [
-                --В каком формате нужно хранить и отдавать картинки (аватарки пользователей, фотографии к новостям)?
-                --Просто URL до картинки. URL должен вести до твоего сервера, по запросу на этот URL сама картинка должна возвращаться
                 param "last_name" [Eq] ParamTypeStr True,
                 param "first_name" [Eq] ParamTypeStr True,
                 param "avatar" [Eq] ParamTypeStr True,
@@ -92,40 +89,31 @@ possibleParamDescs (API queryType apiType) = M.fromList <$> list where
                 param "user_id" [Eq] ParamTypeInt True,
                 param "description" [Eq] ParamTypeStr True
                 ]
-            -- parent_id нельзя редактировать, чтобы не возникло циклических категорий. Можно только удалить категорию и создать заново
-            --хотя удалить категорию тоже не всегда можно из-за связанных сущностей. Поэтому лучше сделать проверку на цикличность
             [Category] -> return [
                 param "parent_id" [Eq] ParamTypeInt False,
                 param "category_name" [Eq] ParamTypeStr True
                 ]
             [Tag] -> return [param "name" [Eq] ParamTypeStr True]
-            --тут еще добавить список тегов!!!
             [Draft] -> return [
                 param "name" [Eq] ParamTypeStr True,
                 param "category_id" [Eq] ParamTypeInt True,
                 param "text" [Eq] ParamTypeStr True,
                 param "photo" [Eq] ParamTypeStr True,
-                --возможно в данном случае более правильно использовать json, но в тз были именно такие конструкции
-                --по крайней мере такие запросы единообразны с запросами select
                 param "tag_id" [All] ParamTypeInt True,
-                param "photos" [All] ParamTypeStr True --отличаем от главного фото
+                param "photos" [All] ParamTypeStr True
                 ]
-            [Draft, Id _, Post] -> return [] --publish
-            [Post] -> return [] --[param "draft_id" [Eq] ParamTypeInt True] --draft_id уже в роутере
+            [Draft, Id _, Post] -> return [] -- publish
+            [Post] -> return [] 
             [Post, Id _, Comment] -> return [
-                --param "user_id" [Eq] ParamTypeInt True,  --это из авторизации
-                --param "creation_date" [Eq] ParamTypeDate True,   --дата берется на серваке
                 param "text" [Eq] ParamTypeStr True
                 ]
-            _ -> Error.throw $ DevError $ template "Неверный apiType в Params.possibleParamDescs: {0}" [show apiType]
-        --дополнительное требование - хотя бы один из параметров присутствует для update (checkParams)
+            _ -> Error.throw $ patError "Params.possibleParamDesc" apiType
+        -- An additional requirement - at least one of the parameters is present for Update (Params.checkParams)
         Update -> case apiType of
             User:_ -> return [
-                --В каком формате нужно хранить и отдавать картинки (аватарки пользователей, фотографии к новостям)?
-                --Просто URL до картинки. URL должен вести до твоего сервера, по запросу на этот URL сама картинка должна возвращаться
                 param "last_name" [Eq] ParamTypeStr False,
                 param "first_name" [Eq] ParamTypeStr False,
-                param "avatar" [Eq] ParamTypeStr False,  --потом подумать над загрузкой фото
+                param "avatar" [Eq] ParamTypeStr False,
                 param "pass" [Eq] ParamTypeStr False
                 ]
             Author:_ -> return [
@@ -137,31 +125,27 @@ possibleParamDescs (API queryType apiType) = M.fromList <$> list where
                 param "category_name" [Eq] ParamTypeStr False
                 ]
             Tag:_ -> return [param "name" [Eq] ParamTypeStr False]
-            --тут еще добавить список тегов!!!
             Draft:_ -> return [
-                --param "author_id" [Eq] ParamTypeInt False, --не редактируется
                 param "name" [Eq] ParamTypeStr False,
                 param "category_id" [Eq] ParamTypeInt False,
                 param "text" [Eq] ParamTypeStr False,
                 param "photo" [Eq] ParamTypeStr False,
-                --param "news_id" [Eq] ParamTypeInt False --можно привязать черновик к другой новости?
                 param "tag_id" [All] ParamTypeInt False,
-                param "photos" [All] ParamTypeStr False --отличаем от главного фото
+                param "photos" [All] ParamTypeStr False
                 ]
             [Post, Id _, Comment] -> return [
                 param "user_id" [Eq] ParamTypeInt False,
                 param "text" [Eq] ParamTypeStr False
                 ]
             [Post, Id _] -> return [
-                --param "author_id" [Eq] ParamTypeInt False,
-                param "name" [Eq] ParamTypeStr True,  --для создания нового контента эти параметры обязательны. Фронтенд может взять их из оригинального поста
+                param "name" [Eq] ParamTypeStr True,  -- These parameters are required to create new content. The frontend can take them from the original post
                 param "category_id" [Eq] ParamTypeInt True,
                 param "text" [Eq] ParamTypeStr True,
                 param "photo" [Eq] ParamTypeStr True,
                 param "tag_id" [All] ParamTypeInt True,
-                param "photos" [All] ParamTypeStr True --отличаем от главного фото
+                param "photos" [All] ParamTypeStr True
                 ]
-            _ -> Error.throw $ DevError $ template "Неверный apiType в Params.possibleParamDescs: {0}" [show apiType]
+            _ -> Error.throw $ patError "Params.possibleParamDesc" apiType
 
 
 possibleParams :: BSName -> ParamDesc -> [BSKey]
@@ -170,55 +154,55 @@ possibleParams bsname (ParamDesc ts _ _ _) = for ts $ \templ -> bsname <> jlooku
 concatParams :: M.Map BSName ParamDesc -> [BSKey]
 concatParams = concat . M.mapWithKey possibleParams
 
---------------------------------------------PARSE PARAMS WITH ERRORS HANDLING------------------------------------------------------------------
-
+-----------------------------Parse params--------------------------------------
 parseParams :: MError m => API -> Query -> m ParamsMap
 parseParams  api qs = do
     paramDescs <- possibleParamDescs api
-    --let names = M.keys paramDescs
     checkParams api qs paramDescs
     forMapWithKeyM paramDescs $ parseParam qs
 
 checkParams :: MError m => API -> Query -> M.Map BSName ParamDesc -> m ()
 checkParams api qs paramDesc  = do
-    --Update должен иметь хотя бы один параметр, иначе не имеет смысла
+    -- Update must have at least one parameter, otherwise it doesn't make sense
     case api of
         API Update _ -> do
-            when (null qs) $ Error.throw . RequestError $ template "Необходимо указать хотя бы один параметр для редактирвания из следующего списка : {0}" [show $ M.keys paramDesc]
+            when (null qs) $ Error.throw . RequestError $ 
+                template "You must specify at least one parameter for edit from the following list: {0}" [show $ M.keys paramDesc]
         _ -> return ()
 
-
     if M.null paramDesc && not (null qs) then do
-        Error.throw . RequestError $ "Данная api-функция не имеет параметров"
+        Error.throw . RequestError $ "This api function has no parameters"
         else do
-            --проверка на лишние параметры
+            -- check for unsupported parameters
             let pars = map fst qs
             let cp = concatParams paramDesc
             forM_ pars $ \param -> do
                 if param `elem` cp then return () else
-                    Error.throw . RequestError $ template "Недопустимый параметр запроса: {0}" [show param]
+                    Error.throw . RequestError $ template "Unsupported request parameter: {0}" [show param]
 
 parseParam :: MError m => Query -> BSName -> ParamDesc -> m Param
 parseParam qs bsname paramDesc@(ParamDesc _ pt _ nl)  = do
     mtuple <- findTemplate qs bsname paramDesc
     readParamAny pt mtuple nl
 
---проверка всей строки запроса
---проверка на дублирующие, взаимоисключающие, обязательные параметры и параметры без значения (все проверки, кроме проверки на лишние параметры)
+-- Checking the entire query string
+-- Check for duplicate, mutually exclusive, required parameters and parameters without value 
+-- (all checks, except for checking for unsupported parameters)
 findTemplate :: MError m => [(BS, Maybe BS)] -> BSName -> ParamDesc -> m (Maybe (Templ, BSKey, BSValue))
 findTemplate qs name paramDesc@(ParamDesc _ _ mst _) = do
     let pp = possibleParams name paramDesc
     let filtered = forMaybe qs $ \q -> checkParam q name paramDesc
     case filtered of
         [] -> if  mst
-            then Error.throw . RequestError $ template "Не указан обязательный параметр {0}" [show name]
+            then Error.throw . RequestError $ template "Required parameter {0} not specified " [show name]
             else return Nothing
-        [(_, param, Nothing)]       -> Error.throw . RequestError $ template "Не указано значение параметра {0}" [show param]
+        [(_, param, Nothing)]       -> Error.throw . RequestError $ template "Parameter value {0} not specified" [show param]
         [(tmpl, param, Just value)] -> return . Just $ (tmpl, param, value)
-        (_:_) -> Error.throw . RequestError $ template "В списке параметров запроса должно быть не более одного значения из списка {0}, а их {1}: {2}"
+        (_:_) -> Error.throw . RequestError $ 
+            template "The list of query parameters must contain no more than one value from the list {0}, but there are {1}: {2}"
             [show pp, show. length $ filtered, show filtered]
 
---проверка одного элемента строки запроса
+-- Checking one element of the query string
 checkParam :: (BS, Maybe BS) -> BSName -> ParamDesc -> Maybe (Templ, BSKey, Maybe BSValue)
 checkParam (param, mvalue) name (ParamDesc ts _ _ _) = res where
     mtmpl = find (\tpl -> param == name <> jlookup tpl templates ) ts
@@ -226,11 +210,11 @@ checkParam (param, mvalue) name (ParamDesc ts _ _ _) = res where
         Nothing   -> Nothing
         Just tmpl -> Just (tmpl, param, mvalue)
 
---------------------------------------PARAMS HANDLERS--------------------------------------------------------------------
-
+-----------------------------Params handlers-----------------------------------
 readParamAny :: MError m => ParamType -> Maybe (Templ, BSKey, BSValue) -> Bool -> m Param
 readParamAny _ (Just (_, _, "null")) True = return ParamNull
-readParamAny _ (Just (_, key, "null")) False = Error.throw . RequestError $ template "Для параметра {0} не разрешено значение null" [show key]
+readParamAny _ (Just (_, key, "null")) False = Error.throw . RequestError $ 
+    template "Value \"null\" is not allowed for parameter {0}" [show key]
 readParamAny pt mtuple _  = do
     case pt of
         ParamTypePage          -> readParamPage mtuple
@@ -241,7 +225,7 @@ readParamAny pt mtuple _  = do
         ParamTypeFileName list -> readParamFileName list mtuple
 
 
---продумать, какие ограничения есть для каждой из трех функций
+
 readParamPage :: MError m => Maybe (Templ, BSKey, BSValue) -> m Param
 readParamPage mtuple = case mtuple of
     Nothing -> return $ ParamEq (Int 1)
@@ -249,7 +233,8 @@ readParamPage mtuple = case mtuple of
 
 readParamInt :: MError m => Maybe (Templ, BSKey, BSValue) -> m Param
 readParamInt mtuple = case mtuple of
-    Just (Like, param, _) -> Error.throw . RequestError $ template "Шаблон param__like допустим только для строковых параметров: {0}" [show param]
+    Just (Like, param, _) -> Error.throw . RequestError $ 
+        template "The \"param__like\" template is only valid for string parameters: {0}" [show param]
     _ -> readParam Int "Int" mtuple
 
 readParamStr :: MError m => Maybe (Templ, BSKey, BSValue) -> m Param
@@ -257,7 +242,8 @@ readParamStr = readParam Str "String"
 
 readParamDate :: MError m => Maybe (Templ, BSKey, BSValue) -> m Param
 readParamDate mtuple = case mtuple of
-    Just (Like, param, _) -> Error.throw . RequestError $ template "Шаблон param__like допустим только для строковых параметров: {0}" [show param]
+    Just (Like, param, _) -> Error.throw . RequestError $ 
+        template "The \"param__like\" template is only valid for string parameters: {0}" [show param]
     _ -> readParam Date "Date" mtuple
 
 readParamSort :: MError m => [BSName] -> Maybe (Templ, BSKey, BSValue) -> m Param
@@ -265,18 +251,21 @@ readParamSort list mtuple= do
     case mtuple of
         Just (Eq, param, bs)  -> if bs `elem` list
             then readParam Str "String" mtuple
-            else Error.throw . RequestError $ template "Параметр {0} должен быть элементом списка {1}" [show param, show list]
-        Just (_, param, _) -> Error.throw . RequestError $ template "Для параметров сортировки допустим только шаблон eq: {0}" [show param]
+            else Error.throw . RequestError $ 
+                template "The parameter {0} must be an element of the list {1}" [show param, show list]
+        Just (_, param, _) -> Error.throw . RequestError $ 
+            template "Only template \"eq\" is valid for collation: {0}" [show param]
         Nothing -> readParam Str "String" mtuple
 
 readParamFileName :: MError m => [BSName] -> Maybe (Templ, BSKey, BSValue) -> m Param
 readParamFileName list mtuple = case mtuple of
     Just (Eq, param, bs) -> if any (helper bs) list
         then readParam Str "String" mtuple
-        else Error.throw . RequestError $ template "Параметр {0} должен быть названием файла с одним из следующих разрешений: {1} в формате foo.png" [show param, show list]
-    _ -> Error.throw $ DevError $ template "Неверный шаблон {0} в функции Params.readParamFileName" [show mtuple]
+        else Error.throw . RequestError $ 
+            template "Parameter {0} must be a filename with one of the following extensions: {1}, in the format \"foo.png\"" [show param, show list]
+    _ -> Error.throw $ patError "Params.readParamFileName" mtuple
     where
-    --проверка на сответствие формату файла, например "foo.png"
+    --check the file format, for example "foo.png"
     helper :: ByteString -> ByteString -> Bool
     helper bs format | B.length bs < 2 + B.length format = False
     helper bs format | takeEnd (1 + B.length format) bs  == "." <> format = True where takeEnd n xs = B.drop (B.length xs - n) xs
@@ -300,43 +289,28 @@ readParam cons consStr mtuple = do
                 return $ ParamBt (cons val1, cons val2)
             Like -> ParamLike . cons <$> ereadMap pt bs param
 
-----------------------------------DECODING----------------------------------------------------------------------------------------------------
-
+-----------------------------Decoding------------------------------------------
 ereadMap :: (MError m, Read a) => String -> BS -> BS -> m a
 ereadMap t bs param = case t of
-    "Int" -> eread bs $ template "{0}целым числом" [mustBe]
-    "[Int]" -> eread bs $ template "{0}массивом, состоящим из целых чисел в формате [x,y,z]" [mustBe]
-    "(Int,Int)" -> eread bs $ template "{0}парой целых чисел в формате (x,y)" [mustBe]
-    --вариант со строковым параметром без кавычек ?text__like=glasgow
-    "String" -> eread ("\"" <> bs <> "\"") $ template "{0}строкой" [mustBe]
-    --вариант со строковым параметром в кавычках ?text__like="glasgow"
-    --"String" -> eread bs $ template "{0}строкой" [mustBe]
-    --каждая строка внутри массива или кортежа должна быть в кавычках!!! ?tag__in=["python","haskell"]
-    "[String]" -> eread bs $ template "{0}массивом, состоящим из строк в формате [x,y,z]" [mustBe]
-    "(String,String)" -> eread bs $ template "{0} парой строк в формате (x,y)" [mustBe]
-    "Date" -> eread bs $ template "{0}датой в формате YYYY-MM-DD" [mustBe]
-    "[Date]" -> eread bs $ template "{0}списком дат в формате [YYYY-MM-DD,YYYY-MM-DD,YYYY-MM-DD]" [mustBe]
-    "(Date,Date)" -> eread bs $ template "{0}списком дат в формате (YYYY-MM-DD,YYYY-MM-DD)" [mustBe]
-    _ -> Error.throw . RequestError $ template "Неизвестный тип параметра {1}: {0}" [t, show param]
-    where mustBe = template "Параметр запроса {0} должен быть " [show param]
+    "Int" -> eread bs $ template "{0}an integer" [mustBe]
+    "[Int]" -> eread bs $ template "{0}a list of integers in the format [x,y,z]" [mustBe]
+    "(Int,Int)" -> eread bs $ template "{0}a pair of integers in the format (x,y)" [mustBe]
+    -- option with string parameter without quotes ?text__like=glasgow
+    "String" -> eread ("\"" <> bs <> "\"") $ template "{0}a string" [mustBe]
+    -- option with string parameter with quotes ?text__like="glasgow"
+    --"String" -> eread bs $ template "{0}a string" [mustBe]
+    -- every string inside a list or tuple must be quoted ?tag__in=["python","haskell"]
+    "[String]" -> eread bs $ template "{0}a list of strings in the format [x,y,z]" [mustBe]
+    "(String,String)" -> eread bs $ template "{0}a pair of strings in the format (x,y)" [mustBe]
+    "Date" -> eread bs $ template "{0}a date in the format YYYY-MM-DD" [mustBe]
+    "[Date]" -> eread bs $ template "{0}a list of dates in the format [YYYY-MM-DD,YYYY-MM-DD,YYYY-MM-DD]" [mustBe]
+    "(Date,Date)" -> eread bs $ template "{0}a pair of dates in the format (YYYY-MM-DD,YYYY-MM-DD)" [mustBe]
+    _ -> Error.throw . RequestError $ template "Unknown parameter type {1}: {0}" [t, show param]
+    where mustBe = template "The query parameter {0} must be " [show param]
 
 eread :: (MError m, Read a) => BC.ByteString -> String -> m a
 eread bs err = Error.catchEither (readEither . unpackString $ bs) $ \_ -> RequestError err
 
--- eread :: Read a => BC.ByteString -> Except String a
--- eread = except . readEither . BC.unpack
-
---это для корректной обработки кириллицы
+-- For correct processing of the Cyrillic alphabet
 unpackString :: BC.ByteString -> String
 unpackString = T.unpack . T.decodeUtf8
-
-
-
-
-
-
-
-
-
-
-

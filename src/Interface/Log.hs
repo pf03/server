@@ -1,11 +1,11 @@
 {-# LANGUAGE DeriveGeneric #-}
 module Interface.Log where
 
---Our Modules
+--Our modules
 import qualified Common.Color           as Color
 import           Common.Misc
 
---Other Modules
+--Other modules
 import           Control.Monad
 import           Control.Monad.IO.Class (MonadIO (..))
 import           Data.Aeson             (encode, Value (String))
@@ -20,33 +20,31 @@ import Data.Char ( toUpper )
 data LogConfig = LogConfig{
     colorEnable    :: Enable,
     terminalEnable :: Enable,
-    fileEnable     :: Enable,
-    minLevel       :: Int  --уровень включения логов, в файле удобней указывать Int, а не LogLevel
+    fileEnable     :: Enable,  
+    -- | Minimal log level as an integer
+    minLevel       :: Int 
 } deriving (Show, Generic)
 
 instance FromJSON LogConfig
 instance ToJSON LogConfig
 
-data LogLevel =  Debug | -- отладочные данные
-    Info    | -- информация о работе приложения
-    Warn    | -- предупреждения
-    Error   | -- некритическая ошибка, которая может в том или ином виде отдаваться пользователю
-    Critical  -- критическая ошибка, ведущая к завершению работы приложения
+data LogLevel =  
+    Debug   | -- Debug data
+    Info    | -- Information about app work
+    Warn    | -- Warnings
+    Error   | -- Non-critical error, that can be given to the user in one form or another
+    Critical  -- Critical error leading to application termination
     deriving (Eq, Enum, Ord, Show)
 
 type ColorScheme = Color
 type Enable = Bool
--- type FuncName = String
 data LogSettings = LogSettings {colorScheme :: ColorScheme, debugMode :: Enable} deriving Show
 
-
---объединить Config и Settings в одно
 -----------------------------Class---------------------------------------------
 class Monad m => MLog m where
   getSettings :: m LogSettings
   setSettings :: ColorScheme -> Enable -> m ()
   getConfig :: m LogConfig
---   setConfig :: LogConfig -> m ()
   message :: LogConfig -> LogSettings -> LogLevel -> String -> m ()
 
 -----------------------------MLog----------------------------------------------
@@ -76,20 +74,20 @@ resetSettings = do
     let LogSettings cs e = defaultSettings
     setSettings cs e
 
+defaultSettings :: LogSettings
+defaultSettings = LogSettings Black True
+
+defaultConfig :: LogConfig
+defaultConfig = LogConfig {colorEnable = False, terminalEnable = True, fileEnable = False, minLevel = 0}
+
 logM :: (MLog m, Show a) => m a -> m a
 logM m = do
     a <- m
     debugM a
     return a
 
--- *Эту функцию рекомендуется использовать только при отладке, иначе можно лишиться нужных логов
--- setLevel :: MLog m => LogLevel -> m ()  
--- setLevel newMinLevel = do
---     config <- getConfig
---     setConfig $ config {minLevel = fromEnum newMinLevel}
-
--- | Для отладочной информации сделано исключение - она может быть любого типа Show a,
--- а не только строкового
+-- * An exception has been made for debug information - it can be of any type Show a,
+-- not just a String
 debugM :: (MLog m, Show a) => a -> m ()
 debugM a = messageM Debug (show a)
 
@@ -131,10 +129,11 @@ error lc ls = messageIO lc ls Error
 critical :: MonadIO m => LogConfig -> LogSettings -> String -> m ()
 critical lc ls = messageIO lc ls Critical
 
--- | Реализация класса типов MLog по умолчанию для IO-монады.
--- В чистом коде, например для тестирования, можно заменить эту реализацию на другую, 
--- например основанную на writerT, или на пустую реализацию return ()
--- Info можно показывать в разных цветовых схемах, а для остальных уровней цвет соответствует уровню
+-----------------------------Default implementation----------------------------
+-- The default implementation of the MLog typeclass for the IO monad.
+-- In pure code, for example for testing, you can replace this implementation with another one,
+-- for example based on writerT, or empty return () implementation
+-- Info can be shown in different color schemes, and for other levels the color corresponds to the level
 messageIO :: MonadIO m => LogConfig -> LogSettings -> LogLevel -> String -> m ()
 messageIO (LogConfig ecolor eterminal efile minLevel) (LogSettings colorScheme debugMode) level text = do
     if level < toEnum minLevel && not debugMode then return () else do
@@ -148,24 +147,19 @@ messageIO (LogConfig ecolor eterminal efile minLevel) (LogSettings colorScheme d
             logText :: String
             logText = map toUpper (show level) <> " " <> text
 
------------------------------Simple functions----------------------------------
-defaultSettings :: LogSettings
-defaultSettings = LogSettings Black True
+            getColor :: LogLevel -> Color
+            getColor  Debug    = Green
+            getColor  Info     = Blue -- here you can use different color schemes for the convenience of displaying information
+            getColor  Warn     = Magenta
+            getColor  Error    = Yellow
+            getColor  Critical = Red
 
-defaultConfig :: LogConfig
-defaultConfig = LogConfig {colorEnable = False, terminalEnable = True, fileEnable = False, minLevel = 0}
+            file :: (MonadIO m, ToJSON a) => a -> m()
+            file str = do
+                liftIO $ B.appendFile "log.txt" $ convert . encode $ str
+                liftIO $ B.appendFile "log.txt" $ convert ("\n" :: String)
 
-file :: (MonadIO m, ToJSON a) => a -> m()
-file str = do
-    liftIO $ B.appendFile "log.txt" $ convert . encode $ str
-    liftIO $ B.appendFile "log.txt" $ convert ("\n" :: String)
 
-clearFile :: IO()
-clearFile = B.writeFile "log.txt" $ convert ("" :: String)
 
-getColor :: LogLevel -> Color
-getColor  Debug    = Green
-getColor  Info     = Blue -- здесь можно использовать разные цветовые схемы для удобства отображения информации
-getColor  Warn     = Magenta
-getColor  Error    = Yellow
-getColor  Critical = Red
+
+

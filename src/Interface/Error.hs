@@ -1,6 +1,10 @@
 {-# LANGUAGE FlexibleInstances #-}
 module Interface.Error where
 
+-- Our modules
+import           Common.Misc
+
+-- Other modules
 import qualified Control.Exception          as E
 import           Control.Monad.Except
 import           Control.Monad.Trans.Except (catchE, throwE)
@@ -19,26 +23,26 @@ data E = ParseError String
     | DBError String
     | IOError String
     | AuthError String
-    -- Ошибка, которая никогда не должна выскочить при правильном составлении программы 
-    -- (например, некорректное сопоставление с образцом)
+    -- | An error that should never occur when the program is written correctly
+    -- (for example, incorrect pattern matching)
     | DevError String 
     | SomeError String
 
 type EE = Either E
 
 instance Show E where
-    show (ParseError s)   = "Ошибка парсинга JSON: "++s
-    show (RequestError s) = "Ошибка веб-запроса: "++s
-    show (ConfigError s)  = "Ошибка конфигурации: "++s
-    show (DBError s)      = "Ошибка базы данных: "++s
-    show (IOError s)      = "Ошибка ввода-вывода: "++s
-    show (AuthError s)    = "Ошибка авторизации: "++s
-    show (DevError s)     = "Ошибка разработчика: "++s
-    show (SomeError s)    = "Неведомая ошибка: "++s
+    show (ParseError s)   = "Parse JSON error: "++s
+    show (RequestError s) = "Request error: "++s
+    show (ConfigError s)  = "Config error: "++s
+    show (DBError s)      = "DB error: "++s
+    show (IOError s)      = "IO error: "++s
+    show (AuthError s)    = "Authorization error: "++s
+    show (DevError s)     = "Developer error: "++s
+    show (SomeError s)    = "Some error: "++s
 instance E.Exception E
 
 getStatus :: E -> Status
-getStatus (ParseError _)   = internalServerError500  --есть ли такие ошибки??
+getStatus (ParseError _)   = internalServerError500
 getStatus (RequestError _) = badRequest400
 getStatus (ConfigError _)  = internalServerError500
 getStatus (DBError _)      = badRequest400
@@ -48,16 +52,19 @@ getStatus (DevError _)     = internalServerError500
 getStatus (SomeError _)    = internalServerError500
 
 errorDefault :: E
-errorDefault = SomeError "Ошибка по умолчанию"
+errorDefault = SomeError "Some error occured"
 
 authErrorDefault :: E
-authErrorDefault = AuthError "Данная функция требует авторизации"
+authErrorDefault = AuthError "This function requires authorization"
 
 dbErrorDefault :: E
-dbErrorDefault = DBError "Произошла ошибка базы данных. Обратитесь к администратору"
+dbErrorDefault = DBError "A database error has occurred. Contact the administrator"
 
 authErrorWrong :: E
-authErrorWrong = AuthError "Неверная авторизация"
+authErrorWrong = AuthError "Wrong authorization"
+
+patError :: Show a => String -> a -> E 
+patError func pat = DevError $ template "Wrong pattern in function \"{0}\": {1}" [func, show pat]
 
 -----------------------------MError--------------------------------------------
 class MonadFail m => MError m where
@@ -85,7 +92,7 @@ catchEIO m h = do
     --handler :: Exception e => (e -> IO (EE a))
     handler e = return . Left  . h $ e
 
--- * То же, но ошибки не задаются пользователем, а обрабатываются автоматически
+-- * The same as previous, but errors are handled automatically, without user handlers
 liftEIO :: MIOError m => IO a -> m a
 liftEIO m = do
     ea <- liftIO $  (Right <$> m) `E.catch` iohandler `E.catch` sqlhandler `E.catch` otherhandler
@@ -115,6 +122,6 @@ instance MError (ExceptT E IO) where
 
 instance MIOError (ExceptT E IO)
 
------------------------------DECODE--------------------------------------------
+-----------------------------Decode--------------------------------------------
 eDecode :: (MError m, FromJSON a) => LC.ByteString -> m a
 eDecode bs = catchEither (eitherDecode bs) ParseError

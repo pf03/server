@@ -1,11 +1,11 @@
 {-# LANGUAGE DeriveGeneric #-}
 module Logic.IO.Config where
 
--- Our Modules
+-- Our modules
 import           Interface.Error            as Error
 import           Interface.Log              as Log
 
--- Other Modules
+-- Other modules
 import           Control.Exception          (IOException)
 import           Data.Aeson
 import qualified Data.ByteString.Lazy       as L
@@ -50,8 +50,8 @@ readConfig = do
     return (fileConfig, show bs) where
         handler :: IOException -> E
         handler e
-            | isDoesNotExistError e = ConfigError "Файл конфигурации не найден!"
-            | otherwise = ConfigError "Ошибка чтения файла конфигурации"
+            | isDoesNotExistError e = ConfigError "Configuration file not found!"
+            | otherwise = ConfigError "Error reading configuration file"
 
 pathConfig :: FilePath
 pathConfig = "config.json"

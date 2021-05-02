@@ -1,163 +1,73 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE UndecidableInstances #-}
 module Common.Misc where
-import Control.Monad.IO.Class
-import Data.List.Split
-
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Char8 as BC
-import qualified Data.ByteString.Lazy as L hiding (pack)
-import qualified Data.ByteString.Lazy.Char8 as LC
-
-import Data.Aeson.Types
-import Data.Aeson
-import qualified Data.Text.Encoding as T
-import qualified Data.Text.Lazy.Encoding as L
-import qualified Data.Text as T (pack)
-import Database.PostgreSQL.Simple.Types
-
-import qualified Data.Text.Lazy as L hiding (unpack)
-import Data.String
-import Database.PostgreSQL.Simple.Time
-import Data.Maybe
-import qualified Data.Map as M
-import Control.Monad.Except
-import Data.Text (Text(..))
+import           Control.Monad.Except
+import           Data.Aeson
+import           Data.Aeson.Encode.Pretty         (encodePretty)
+import           Data.Aeson.Types
+import qualified Data.ByteString                  as B
+import qualified Data.ByteString.Char8            as BC
+import qualified Data.ByteString.Lazy             as L hiding (pack)
+import qualified Data.ByteString.Lazy.Char8       as LC
+import           Data.Char                        (toLower, toUpper)
+import           Data.List.Split
+import qualified Data.Map                         as M
+import           Data.Maybe
+import           Data.String
+import           Data.Text                        (Text (..))
+import qualified Data.Text                        as T (pack)
+import qualified Data.Text.Encoding               as T
+import qualified Data.Text.Lazy                   as L hiding (unpack)
+import qualified Data.Text.Lazy.Encoding          as L
 import           Data.Word                        (Word8)
+import           Database.PostgreSQL.Simple.Time
+import           Database.PostgreSQL.Simple.Types
 import           Numeric                          (showHex)
-import           Data.Aeson.Encode.Pretty   (encodePretty)
-import Data.Char (toLower, toUpper)
 
-
+-----------------------------Types---------------------------------------------
 type PathInfo = [Text]
 type Path = String
 data Action = Check | Execute --flag
 
-----------------вспомогательные монадические функции -------------------------------------
-ifJust :: Monad m => Maybe a -> m () -> m () 
-ifJust ma m = case ma of 
-      Just _ -> m
-      _ -> return ()
-
-ifNothing :: Monad m => Maybe a -> m () -> m () 
-ifNothing ma m = case ma of 
-      Nothing -> m
-      _ -> return ()
-
-fromJustM :: Monad m => Maybe a -> (a -> m ()) -> m () 
-fromJustM = forM_
-
-printT :: (MonadIO m, Show a) => a -> m ()
-printT = liftIO . print
-
-putStrLnT :: MonadIO m => String -> m ()
-putStrLnT = liftIO . putStrLn
-
-readLnT :: MonadIO m => m String
-readLnT = liftIO getLine
-
-----------------для работы со строками------------------------------------------------------
---подстановка в шаблон
-
+-----------------------------Template------------------------------------------
+-- | Substitution in a template
+-- Using: template "Hello {0}, {1}, {0}, {1}," ["Petya", "Vasya"]
 class Template s where
     template :: s -> [s] -> s
 
-
-instance Template BC.ByteString where 
-  --template :: BC.ByteString ->  [BC.ByteString] -> BC.ByteString
+instance Template BC.ByteString where
   template str args = foldl f str $ zip ts args where
       ts = map (\n -> "{"<> (fromString . show $ n) <>"}") [0,1..]
       f:: BC.ByteString ->  (BC.ByteString,BC.ByteString) -> BC.ByteString
       f acc (t, arg) = replaceB t arg acc where
-        --замена одной строки на другую
         replaceB :: BC.ByteString ->  BC.ByteString -> BC.ByteString ->  BC.ByteString
         replaceB t s str = let strs = splitOnB t str in
-            mconcat $ init $ foldr (\part acc -> part:s:acc) [] strs 
-        --не очень эффективное решение!!!!!!!!!!
+            mconcat $ init $ foldr (\part acc -> part:s:acc) [] strs
         splitOnB :: BC.ByteString ->  BC.ByteString -> [BC.ByteString]
-        splitOnB t str = map BC.pack $ splitOn (BC.unpack t) (BC.unpack str) 
+        splitOnB t str = map BC.pack $ splitOn (BC.unpack t) (BC.unpack str)
 
-instance Template String where 
-  --template :: String -> [String] -> String
+instance Template String where
   template str args = foldl f str $ zip ts args where
       ts = map (\n -> ('{':show n)++"}")[0,1..]
       f:: String -> (String, String) -> String
       f acc (t, arg) = replace t arg acc where
-        --замена одной строки на другую
-        replace :: String -> String -> String -> String 
+        replace :: String -> String -> String -> String
         replace t s str = let strs = splitOn t str in
-            concat $ init $ foldr (\part acc -> part:s:acc) [] strs 
+            concat $ init $ foldr (\part acc -> part:s:acc) [] strs
 
-instance Template Query where 
-  template (Query str) args = Query $ template str $ map fromQuery args 
+instance Template Query where
+  template (Query str) args = Query $ template str $ map fromQuery args
 
-
--- test = template "Hello {0}, {1}, {0}, {1}," ["Petya", "Vasya"]
--- t1 = replace "{0}" "Vasya" "Hello {0}, {1}, {0}, {1}," 
-
-safeTail :: [a] -> [a]
-safeTail [] = []
-safeTail x = tail x
-
-safeInit :: [a] -> [a]
-safeInit [] = []
-safeInit x = init x
-
--- splitOnB :: [BC.ByteString] -> BC.ByteString ->  BC.ByteString -> [BC.ByteString]
--- splitOnB acc template str | beginFromTemplateB template str  = splitOnB (acc++[mempty]) template $ BC.drop (BC.length template) str
--- splitOnB (a:as) template str = splitOnB ((a <> (BC.head str)):as ) template (BC.tail str)
--- --splitOnB template str | template /= str == []:splitOnB template str
-
-
-
--- beginFromTemplateB :: BC.ByteString ->  BC.ByteString -> Bool
--- beginFromTemplateB template str = if length str < length template then False else take (length template) str == template
-
-----------------------------------------Convert--------------------------------------------------
---сделать двухпараметрический класс типов
---strict version
+-----------------------------Convert-------------------------------------------
 class Convert a where
     convert :: a -> BC.ByteString
 
 instance Convert BC.ByteString where
   convert = id
 
+-- * EncodeUtf8 for correct Cyrillic encoding
 instance Convert String where
-    convert = T.encodeUtf8 . T.pack  --encodeUtf8 для корректной кодировки кирилицы
-
-conv :: IO()
---conv = putStrLn $ toHex1 ("русс" :: BC.ByteString)
---conv = putStrLn $ toHex1 $ convert ("text" :: String) 
--- conv = putStrLn $ toHex1 $ convert ("русс" :: String) 
---B.unpack $ convert ("text русский"::String) 
-
--- conv = LC.putStrLn $ encodePretty ("русс" :: String)
---conv = putStrLn $ toHex2 $ encodePretty ("р" :: String)  -- 22 d1 80 22 --норм
---conv = LC.putStrLn  $ encodePretty ("р" :: String)  --"╤А"
---conv = BC.putStrLn  $ (convert ("р" :: String) ::BC.ByteString)  --"╤А"
--- conv = LC.putStrLn   ("р" :: LC.ByteString)  --@
--- conv = putStrLn $ toHex2 $ ("р" :: LC.ByteString)  --40
-
-conv = LC.putStrLn "р" --не работает
-
-testjson :: LC.ByteString
-testjson = "p"
-    --convertL (convert ("р" :: String) ::BC.ByteString) --"╤А"
-
--- toHex3 :: String -> String
--- toHex3 bs = foldr helper "" (B.unpack bs) where
---     helper :: Word8 -> String -> String
---     helper w8 acc = if w8 < 16 then " 0" <> showHex w8 acc else " " <> showHex w8 acc
-
-toHex1 :: BC.ByteString -> String
-toHex1 bs = foldr helper "" (B.unpack bs) where
-    helper :: Word8 -> String -> String
-    helper w8 acc = if w8 < 16 then " 0" <> showHex w8 acc else " " <> showHex w8 acc
-
-toHex2 :: LC.ByteString -> String
-toHex2 bs = foldr helper "" (L.unpack bs) where
-    helper :: Word8 -> String -> String
-    helper w8 acc = if w8 < 16 then " 0" <> showHex w8 acc else " " <> showHex w8 acc
+    convert = T.encodeUtf8 . T.pack
 
 instance Convert LC.ByteString where
   convert = BC.pack . LC.unpack
@@ -168,21 +78,22 @@ instance Convert Int where
 instance Convert Float where
   convert = BC.pack . show
 
-instance Convert Value where 
-     convert = convert . encode 
+instance Convert Value where
+     convert = convert . encode
 
-instance Convert Object where 
-     convert = convert . encode 
+instance Convert Object where
+     convert = convert . encode
 
-instance Convert Date where 
-     convert = BC.pack . show 
+instance Convert Date where
+     convert = BC.pack . show
 
-instance Convert Query where 
+instance Convert Query where
      convert (Query bs) = bs
 
+jc :: Convert a => a -> Maybe BC.ByteString
+jc = Just . convert
 
-
---lazy version
+-----------------------------ConvertL-------------------------------------------
 class ConvertL a where
     convertL :: a -> LC.ByteString
 
@@ -201,33 +112,35 @@ instance ConvertL Int where
 instance ConvertL Float where
   convertL = LC.pack . show
 
-instance ConvertL Value where 
-     convertL = convertL . encode 
+instance ConvertL Value where
+     convertL = convertL . encode
 
-instance ConvertL Object where 
-     convertL = convertL . encode 
+instance ConvertL Object where
+     convertL = convertL . encode
 
+-----------------------------Monadic and simple functions----------------------
+ifJust :: Monad m => Maybe a -> m () -> m ()
+ifJust ma m = case ma of
+      Just _ -> m
+      _      -> return ()
 
+ifNothing :: Monad m => Maybe a -> m () -> m ()
+ifNothing ma m = case ma of
+      Nothing -> m
+      _       -> return ()
 
+fromJustM :: Monad m => Maybe a -> (a -> m ()) -> m ()
+fromJustM = forM_
 
-jc :: Convert a => a -> Maybe BC.ByteString
-jc = Just . convert
+printT :: (MonadIO m, Show a) => a -> m ()
+printT = liftIO . print
 
+putStrLnT :: MonadIO m => String -> m ()
+putStrLnT = liftIO . putStrLn
 
-_1of3 :: (a,b,c) -> a
-_1of3 (a,b,c) = a 
+readLnT :: MonadIO m => m String
+readLnT = liftIO getLine
 
-_12of3 :: (a,b,c) -> (a,b)
-_12of3 (a,b,c) = (a,b)
-
-_2of3 :: (a,b,c) -> b
-_2of3 (a,b,c) = b
-
-_3of3 :: (a,b,c) -> c
-_3of3 (a,b,c) = c
-
-
---фильтруем элементы, для которых результат Nothing
 forMaybe :: [a] -> (a -> Maybe b)  -> [b]
 forMaybe = flip mapMaybe
 
@@ -239,35 +152,32 @@ mapMaybeM f list = do
 jlookup :: Eq a => a -> [(a, b)] -> b
 jlookup key list = fromJust $ lookup key list
 
--- jlookup :: Map k v -> v
--- jlookup key list = fromJust $ lookup key list
-
 for :: [a] -> (a -> b) -> [b]
 for = flip map
 
 (<<$>>) :: (Monad m, Monad n) => (a -> b) -> m (n a) -> m (n b)
 (<<$>>) f mna = do
     na <- mna
-    return $ f <$> na 
+    return $ f <$> na
 infixl 4 <<$>>
 
 (<$$>) :: Monad m => ([a] -> m b) -> [m a] -> m b
 (<$$>) f list = sequenceA list >>= f
-infixl 4 <$$> 
-
-
---это zipWithM
--- mapM2 :: (a -> b -> m c) ->  [a] ->  [b] -> m [c]
--- mapM2 f as bs = mapM (uncurry f) $ zip as bs
-
--- forM2 :: (a -> b -> m c) ->  [a] ->  [b] -> m [c]
--- forM2 f as bs = mapM (uncurry f) $ zip as bs
+infixl 4 <$$>
 
 forMapM :: Monad m => M.Map k v -> (k -> m w) -> m (M.Map k w)
 forMapM mp f = sequence $ M.mapWithKey (\k _ -> f k) mp
 
 forMapWithKeyM :: Monad m => M.Map k v -> (k -> v -> m w) -> m (M.Map k w)
 forMapWithKeyM mp f = sequence $ M.mapWithKey f mp
+
+adjustM :: Monad m => Ord k => (a -> m a) -> a -> k -> M.Map k a -> m (M.Map k a)
+adjustM kl def k  m = do
+    let ma = M.lookup k m
+    newa <- case ma of 
+        Just a -> kl a
+        Nothing -> return def
+    return $ M.insert k newa m
 
 forMap :: M.Map k v -> (k -> w) -> M.Map k w
 forMap mp f = M.mapWithKey (\k _ -> f k) mp
@@ -278,22 +188,35 @@ forWithKey f = flip M.mapWithKey
 forMMem :: (Foldable t, Monad m) => t a -> b -> (b -> a -> m b) -> m b
 forMMem cont init f = foldM f init cont
 
-translit :: LC.ByteString -> LC.ByteString
-translit = LC.pack . concatMap helper . LC.unpack where
-    cyr = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя"
-    lat = ["a","b", "v", "g", "d", "e", "yo", "zh", "z", "i", "y", "k", "l", "m", "n", "o", "p", "r", "s", "t",
-        "u", "f", "h", "ts", "ch", "sh", "sch", "'", "i", "'", "e", "yu", "ya"]
-    dict :: M.Map Char String
-    dict = M.fromList $ zip cyr lat
-    helper :: Char -> String
-    helper c
-        | c `elem` cyr = dict M.! c
-        | toLower c `elem` cyr = map toUpper $ dict M.! toLower c
-        | otherwise = [c]
+safeTail :: [a] -> [a]
+safeTail [] = []
+safeTail x  = tail x
 
+safeInit :: [a] -> [a]
+safeInit [] = []
+safeInit x  = init x
+
+_1of3 :: (a,b,c) -> a
+_1of3 (a,b,c) = a
+
+_12of3 :: (a,b,c) -> (a,b)
+_12of3 (a,b,c) = (a,b)
+
+_2of3 :: (a,b,c) -> b
+_2of3 (a,b,c) = b
+
+_3of3 :: (a,b,c) -> c
+_3of3 (a,b,c) = c
+
+-----------------------------Translit------------------------------------------
+translit :: LC.ByteString -> LC.ByteString
+translit = LC.pack . translitStrStr . LC.unpack
 
 translitStr :: String -> LC.ByteString
-translitStr = LC.pack . concatMap helper where
+translitStr = LC.pack . translitStrStr
+
+translitStrStr :: String -> String
+translitStrStr = concatMap helper where
     cyr = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя"
     lat = ["a","b", "v", "g", "d", "e", "yo", "zh", "z", "i", "y", "k", "l", "m", "n", "o", "p", "r", "s", "t",
         "u", "f", "h", "ts", "ch", "sh", "sch", "'", "i", "'", "e", "yu", "ya"]
@@ -304,10 +227,3 @@ translitStr = LC.pack . concatMap helper where
         | c `elem` cyr = dict M.! c
         | toLower c `elem` cyr = map toUpper $ dict M.! toLower c
         | otherwise = [c]
-    
-
-
-
-
-
-

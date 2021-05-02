@@ -4,11 +4,11 @@
 
 module Logic.DB.Row where
 
--- Our Modules
+-- Our modules
 import           Common.Identifiable
 import           Common.Misc
 
--- Other Modules
+-- Other modules
 import           Data.Aeson                         
 import           Data.Text                          (Text (..), pack)
 import           Database.PostgreSQL.Simple.FromRow
@@ -19,7 +19,6 @@ type FileName = String
 data Migration = Migration {
     migrationId :: Int,
     migrationName :: FileName
-    -- migrationDescription :: String
     } deriving (Show, Generic, FromRow)
 instance Identifiable Migration where
     getId = migrationId
@@ -122,8 +121,6 @@ data Comment = Comment {
 instance ToJSON Comment
 instance Identifiable Comment where
     getId = commentId
-
-
 
 instance FromRow (Maybe Tag) where
     fromRow = do

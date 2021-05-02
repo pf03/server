@@ -3,7 +3,7 @@
 
 module Logic.Pure.JSON where
 
--- Our Modules
+-- Our modules
 import           Common.Identifiable
 import           Common.Misc
 import           Interface.Cache                 as Cache hiding (APIType(..), params)
@@ -11,18 +11,14 @@ import           Interface.Error                 as Error
 import qualified Logic.DB.Row                    as Row
 import qualified Logic.DB.Select                 as Select
 
--- Other Modules
+-- Other modules
 import           Control.Monad.Except
--- import           Control.Monad.Trans.Except
 import           Data.Aeson
--- import           Data.Aeson.Types
--- import           Data.List
 import qualified Data.Map                        as M
 import           Data.Text                       (Text)
 import           Database.PostgreSQL.Simple
 import           Database.PostgreSQL.Simple.Time
 import           GHC.Generics
-
 
 data Post = Post {
     postId      :: Int,
@@ -35,7 +31,7 @@ instance Identifiable Post where
 data Draft = Draft {
     draftId      :: Int,
     draftContent :: Content,
-    draftPostId  :: Maybe Int  --или Maybe draftPost??
+    draftPostId  :: Maybe Int
 } deriving (Show, Generic)
 instance ToJSON Draft
 instance Identifiable Draft where
@@ -88,26 +84,25 @@ type User = Row.User
 type Tag = Row.Tag
 type Photo = Row.Photo
 
--- getPosts:: [Select.Post] -> [JSON.Post]
--- getPosts = undefined
+-----------------------------Evaluate------------------------------------------
+-- Evaluate from 'Select' types to 'JSON' types
 
-----------EVALUATE--------------
--- * Такой ответ кажется избыточным, но по условиям УЧЕБНОГО проекта требуются именно вложенные сущности.
+-- * This answer seems redundant, but according to the terms of the TRAINING project, required exactly nested entities.
 evalCategories :: MError m => [Select.Category] -> [Select.Category] -> m [Category]
 evalCategories allCategories = mapM (_evalCategory [] allCategories . Row.categoryId)
 
 evalCategory :: MError m => [Select.Category] -> Select.Category -> m Category
 evalCategory  allCategories category = _evalCategory [] allCategories (Row.categoryId category)
 
---intenal
+-- intenal
 _evalCategory :: MError m => [Int] -> [Select.Category] -> Int -> m Category
 _evalCategory  childs rcs cid = do
     if cid `elem` childs then do
-        -- Циклическая категория повесит наш сервер при формировании json, поэтому выкинем ошибку
+        -- The cyclic category will froze our server when generating json, so let's throw out the error
         Error.throw . DBError $ 
-            template "Обнаружена циклическая категория {0}, которая является своим же родителем" [show cid]
+            template "Cyclic category {0} found, which is its own parent" [show cid]
     else do
-        let mrc = findById cid rcs --двух категорий с одинаковым первичным ключом быть не может. Но может быть Nothing
+        let mrc = findById cid rcs -- There can't be two categories with the same primary key. But it can be no one
         case mrc of
             Nothing -> Error.throw . DBError $ template "Отсутствует категория {0}" [show cid]
             Just (Row.Category _ mparentId name) -> do
@@ -117,19 +112,19 @@ _evalCategory  childs rcs cid = do
                         parentCategory <- _evalCategory (cid:childs) rcs parentId
                         return $ Category cid (Just parentCategory) name
 
--- Категория не должна быть своим же родителем
+-- Category should not be its own parent
 checkCyclicCategory :: MError m => Int -> ParamsMap -> [Select.Category] -> m ()
 checkCyclicCategory cid params rcs = do
     case params M.! "parent_id" of
-        ParamNo                 -> return () --не меняем parent_id
-        ParamNull               -> return () --меняем parent_id на null, т. е. делаем корневую категорию
+        ParamNo                 -> return ()
+        ParamNull               -> return () -- root category
         ParamEq (Int parentId)  -> do
             grandParents <- getParents parentId rcs
             when (cid `elem` grandParents) $
                 Error.throw . DBError $ 
-                    template "Категрия {0} имеет в списке родителей {1} категорию {2}. Невозможно создать циклическую категорию"
+                    template "Category {0} has category {2} in the parent list {1}. Unable to create cyclic category"
                     [show parentId, show grandParents, show cid]
-        par                     -> Error.throw $ DevError $ template "Неверный шаблон {0} в функции updates" [show par]
+        par                     -> Error.throw $ patError "JSON.checkCyclicCategory" par
 
 
 getParents :: MError m => Int -> [Select.Category] -> m [Int]
@@ -138,12 +133,12 @@ getParents = helper [] where
     helper acc cid rcs = do
         let mrc = findById cid rcs
         case mrc of
-            Nothing -> Error.throw . DBError $ template "Отсутствует категория {0}" [show cid]
+            Nothing -> Error.throw . DBError $ template "Category missing {0}" [show cid]
             Just (Row.Category _ mparentId _) -> case mparentId of
                 Nothing -> return acc
                 Just parentId -> do
                     when (parentId `elem` acc) $
-                        Error.throw . DBError $ template "Категория {0} является своим же родителем" [show parentId]
+                        Error.throw . DBError $ template "Category {0} is its own parent" [show parentId]
                     helper ([parentId] <> acc) parentId rcs
 
 getCategoryById :: MError m => Int -> [Category] -> String -> m Category
@@ -166,7 +161,7 @@ evalPost cs (rpost :. rcontent :. rcategory :.  rauthor :. user :. _ :. mtag :. 
     let pid = Row.postId rpost
     let cid = Row.categoryId rcategory
     category <- getCategoryById cid cs $ 
-        template "Пост {0} принадлежит к несуществующей категории {1}" [show pid, show cid]
+        template "Post {0} belongs to a category that does not exist {1}" [show pid, show cid]
     let content = turnContent rcontent author category (maybeToList mtag) (maybeToList mphoto)
     let post = turnPost rpost content
     return post
@@ -177,7 +172,7 @@ evalDraft cs (rdraft :. rcontent :. rcategory :.  rauthor :. user :. _ :. mtag :
     let did = Row.draftId rdraft
     let cid = Row.categoryId rcategory
     category <- getCategoryById cid cs $ 
-        template "Черновик {0} принадлежит к несуществующей категории {1}" [show did, show cid]
+        template "Draft {0} belongs to a category that does not exist {1}" [show did, show cid]
     let content = turnContent rcontent author category (maybeToList mtag) (maybeToList mphoto)
     let draft = turnDraft rdraft content
     return draft
@@ -198,8 +193,6 @@ uniteDrafts = map (modifyDraftTags filterById . modifyDraftPhotos filterById) . 
 
 evalAuthor :: Select.Author -> Author
 evalAuthor  (author :. user) = turnAuthor author user
-    --uncurry turnAuthor
---(Row.Author :. Row.User)
 
 evalAuthors :: [Select.Author] -> [Author]
 evalAuthors = map evalAuthor
@@ -215,8 +208,9 @@ maybeToList :: Maybe a -> [a]
 maybeToList Nothing  = []
 maybeToList (Just a) = [a]
 
-----------TURN--------------
---turn from 'row' types to 'json' types
+-----------------------------Turn----------------------------------------------
+-- Turn from 'Row' types to 'JSON' types
+
 turnContent ::  Row.Content -> Author -> Category -> [Tag] -> [Photo] -> Content
 turnContent (Row.Content a _ c d _ f g) author category = Content a author c d category f g --tags photos
 
@@ -227,12 +221,12 @@ turnComment :: Row.Comment -> User -> Comment
 turnComment (Row.Comment a _ _ d e) user = Comment a user d e
 
 turnPost :: Row.Post -> Content -> Post
-turnPost (Row.Post a _) = Post a --content
+turnPost (Row.Post a _) = Post a
 
 turnDraft :: Row.Draft -> Content -> Draft
 turnDraft (Row.Draft a _ c) content = Draft a content c
 
----------GET-------------------
+-----------------------------Getters-------------------------------------------
 getPostTags :: Post -> [Tag]
 getPostTags = contentTags . postContent
 
@@ -245,7 +239,7 @@ getDraftTags = contentTags . draftContent
 getDraftPhotos :: Draft -> [Photo]
 getDraftPhotos = contentPhotos . draftContent
 
----------SET-------------------
+-----------------------------Setters-------------------------------------------
 setPostTags :: [Tag] -> Post -> Post
 setPostTags tags post = post {postContent = newContent} where
     content = postContent post;
@@ -285,12 +279,10 @@ setPostContent :: Post -> Content -> Post
 setPostContent post content = post {postContent = content}
 
 -----------------------------Data manipulation----------------------------------
---здесь используется тип JSON.Category, который уже проверен на цикличность и корректность в evalCategory
+-- Here the JSON.Category type is used, which has already been checked for cyclicity and correctness in JSON.evalCategory
 
 evalParams :: MError m => [Category] -> ParamsMap -> m ParamsMap
 evalParams categories = adjustM (`getChildCategories` categories) ParamNo "category_id"
-    --par <- getChildCategories (params M.! "category") categories
-    --return $ M.insert "category" par params
 
 getChildCategories :: MError m => Param -> [Category] -> m Param
 getChildCategories (ParamIn vals) cs  = if length filtered == length cs 
@@ -300,22 +292,14 @@ getChildCategories (ParamIn vals) cs  = if length filtered == length cs
     helper :: Category ->  Bool
     helper c  = (getId c `elem` cids) || maybe False helper (parent c)
 getChildCategories ParamNo _ = return ParamNo
---getChildCategories param cs = error $ template "Некоректный параметр {0}" [show param]
-getChildCategories param _ = Error.throw $ 
-    DevError $ template "Неверный шаблон параметра {0} в функции JSON.getChildCategories" [show param]
+getChildCategories param _ = Error.throw $ patError "JSON.getChildCategories" param
 
---универсальная функция для объединения строк
+-- | Universal function for concatenating rows
 unite :: (Identifiable a) => (a -> a -> a) -> [a] -> [a]
 unite f = foldl helper [] where
     helper acc a = updateInsertById (f a) a acc
 
-adjustM :: Monad m => Ord k => (a -> m a) -> a -> k -> M.Map k a -> m (M.Map k a)
-adjustM kl def k  m = do
-    let ma = M.lookup k m
-    newa <- case ma of 
-        Just a -> kl a
-        Nothing -> return def
-    return $ M.insert k newa m
+
 
 
 
