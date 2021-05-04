@@ -3,9 +3,9 @@
 <h2> ORDER OF LAUNCH AND TESTNG (tested only for Windows) </h2>
 
 1.	Run commands:
-* git clone https://github.com/pf03/server.git
-* cd server
-* stack build
+   * git clone https://github.com/pf03/server.git
+   * cd server
+   * stack build
 2. Move the resulting binary file (in the case of Windows server-exe.exe) to the ‘dist’ folder of the repository, which contains all the necessary additional files
 3. Rename the config-example.json file to config.json and, if necessary, edit it
 4. To initialize DB tables and bring them up to date, start the server with the ‘db-init’ flag. The rest of the command line options that might be useful for testing are listed below.
