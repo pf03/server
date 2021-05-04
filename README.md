@@ -1,6 +1,6 @@
 # server
 
-<h2> ORDER OF LAUNCH AND TESTNG (tested only for Windows) </h1>
+<h2> ORDER OF LAUNCH AND TESTNG (tested only for Windows) </h2>
 
 1.	Run commands:
     git clone https://github.com/pf03/server.git
@@ -13,29 +13,29 @@
 4. API  functions could be tested using ‘curl’ requests in the corresponding folder
 5. To test pure functions run ‘stack test’
 6. Rules for registration of migrations:
-    - file names are in the strict ‘1234_migration_name.sql’ format and in strict order, starting at ‘0000_migration_name.sql’;
-    - the ‘drop.sql’ file is used to drop tables;
-    - files with other names are ignored.
+    * file names are in the strict ‘1234_migration_name.sql’ format and in strict order, starting at ‘0000_migration_name.sql’;
+    * the ‘drop.sql’ file is used to drop tables;
+    * files with other names are ignored.
 For migrations test:
-    - drop the database using the db-drop command,
-    - delete (rename) part of the migration files,
-    - initialize the tables and apply the remaining migrations  in the migration folder with the ‘db-init’ command,
-    - return migrations to the migrations folder
-    - apply all migrations using ‘migrations’ command
+    * drop the database using the db-drop command,
+    * delete (rename) part of the migration files,
+    * initialize the tables and apply the remaining migrations  in the migration folder with the ‘db-init’ command,
+    * return migrations to the migrations folder
+    * apply all migrations using ‘migrations’ command
 ***
 <h2>COMMAND LINE ARGUMENTS</h2>
 
 <h3>STARTING THE SERVER:<h3>
-    - start with no arguments - start the server
+    * start with no arguments - start the server
 
 <h3>MIGRATION:<h3>
-    - ‘db-init’         - applying migrations to the local database, starting with zero migration
-    - ‘migrations’      - applying migrations to the local database, starting with the first not applied migration(the one that is not in the migrations database table)
-    - ‘db-drop’         - drop all database tables
-    - ‘db-restart’      – ‘db-drop’ + ‘db-init’
-    - ‘db-restart-force’- force ‘db-restart’
+    * ‘db-init’         - applying migrations to the local database, starting with zero migration
+    * ‘migrations’      - applying migrations to the local database, starting with the first not applied migration(the one that is not in the migrations database table)
+    * ‘db-drop’         - drop all database tables
+    * ‘db-restart’      – ‘db-drop’ + ‘db-init’
+    * ‘db-restart-force’- force ‘db-restart’
 <h3>CURL:<h3>
-    - ‘gen-tokens’      - update token file ‘dist/curl/tokens.sh’
+    * ‘gen-tokens’      - update token file ‘dist/curl/tokens.sh’
 
 ***
 <h2>MODULES<h2>
