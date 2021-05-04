@@ -1,5 +1,5 @@
 # SERVER
-
+*** 
 ## ORDER OF LAUNCH AND TESTNG (tested only for Windows)
 
 1.	Run commands:
@@ -26,11 +26,11 @@ For migrations test:
 ***
 ## COMMAND LINE ARGUMENTS
 
-### STARTING THE SERVER:
+#### STARTING THE SERVER:
   
 * start with no arguments - start the server
 
-### MIGRATION:
+#### MIGRATION:
   
 * ‘db-init’         - applying migrations to the local database, starting with zero migration
 * ‘migrations’      - applying migrations to the local database, starting with the first not applied migration(the one that is not in the migrations database table)
@@ -38,12 +38,12 @@ For migrations test:
 * ‘db-restart’      – ‘db-drop’ + ‘db-init’
 * ‘db-restart-force’- force ‘db-restart’
 
-### CURL:
+#### CURL:
   
 * ‘gen-tokens’      - update token file ‘dist/curl/tokens.sh’
 
 ***
-### MODULES
+## MODULES
 
 The server operation logic is divided into the following layers (presented in the corresponding folders in the ‘src’) from low to high:
 1. Common       - common functions;
