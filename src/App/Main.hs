@@ -22,15 +22,15 @@ main = do
         ["db-restart-force"] -> dbrestartForce_
         ["gen-tokens"] -> genTokens_
         _ -> do
-            putStrLn "Неверные опции командной строки!"
-            putStrLn "Возможные опции:"
-            putStrLn "Запуск без аргументов - запуск сервера"
-            putStrLn "db-init               - применение миграций к локальной базе данных, начиная с нулевой миграции"
-            putStrLn "migrations            - применение миграций к локальной базе данных, начиная с первой невыполненной миграции (той, которой нет в таблице БД migrations)"
-            putStrLn "db-drop               - удаление всех таблиц БД"
-            putStrLn "db-restart            - db-drop + db-init"
-            putStrLn "db-restart-force      - то же принудительно"
-            putStrLn "gen-tokens            - Обновление файла токенов dist/curl/tokens.sh"
+            putStrLn "Wrong command line arguments!"
+            putStrLn "Possible arguments:"
+            putStrLn "start with no arguments   - start the server"
+            putStrLn "db-init                   - применение миграций к локальной базе данных, начиная с нулевой миграции"
+            putStrLn "migrations                - применение миграций к локальной базе данных, начиная с первой невыполненной миграции (той, которой нет в таблице БД migrations)"
+            putStrLn "db-drop                   - удаление всех таблиц БД"
+            putStrLn "db-restart                - db-drop + db-init"
+            putStrLn "db-restart-force          - то же принудительно"
+            putStrLn "gen-tokens                - Обновление файла токенов dist/curl/tokens.sh"
     putStrLn "Нажмите Enter для выхода из приложения..."
     _ <- getLine
     return()
