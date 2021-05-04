@@ -1,6 +1,6 @@
 # server
 
-h1 ORDER OF LAUNCH AND TESTNG (tested only for Windows)
+<h1> ORDER OF LAUNCH AND TESTNG (tested only for Windows) </h1>
 
 1.	Run commands:
     git clone https://github.com/pf03/server.git
