@@ -62,3 +62,10 @@ The server operation logic is divided into the following layers (presented in th
 
 * Lower layers should not import modules from higher layers.
 
+- ul
++ ul
+  + ul - для вложенных списков нужно поставить 2 пробела
+    + ul - третий уровень
+      + ul - четвёртый уровень
+        + ul - пятый и т.д.
+
