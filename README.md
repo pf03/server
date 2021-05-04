@@ -27,16 +27,20 @@ For migrations test:
 <h2>COMMAND LINE ARGUMENTS</h2>
 
 <h3>STARTING THE SERVER:<h3>
-    * start with no arguments - start the server
+  
+* start with no arguments - start the server
 
 <h3>MIGRATION:<h3>
-    * ‘db-init’         - applying migrations to the local database, starting with zero migration
-    * ‘migrations’      - applying migrations to the local database, starting with the first not applied migration(the one that is not in the migrations database table)
-    * ‘db-drop’         - drop all database tables
-    * ‘db-restart’      – ‘db-drop’ + ‘db-init’
-    * ‘db-restart-force’- force ‘db-restart’
+  
+* ‘db-init’         - applying migrations to the local database, starting with zero migration
+* ‘migrations’      - applying migrations to the local database, starting with the first not applied migration(the one that is not in the migrations database table)
+* ‘db-drop’         - drop all database tables
+* ‘db-restart’      – ‘db-drop’ + ‘db-init’
+* ‘db-restart-force’- force ‘db-restart’
+
 <h3>CURL:<h3>
-    * ‘gen-tokens’      - update token file ‘dist/curl/tokens.sh’
+  
+* ‘gen-tokens’      - update token file ‘dist/curl/tokens.sh’
 
 ***
 <h2>MODULES<h2>
