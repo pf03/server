@@ -25,17 +25,15 @@ main = do
             putStrLn "Wrong command line arguments!"
             putStrLn "Possible arguments:"
             putStrLn "start with no arguments   - start the server"
-            putStrLn "db-init                   - применение миграций к локальной базе данных, начиная с нулевой миграции"
-            putStrLn "migrations                - применение миграций к локальной базе данных, начиная с первой невыполненной миграции (той, которой нет в таблице БД migrations)"
-            putStrLn "db-drop                   - удаление всех таблиц БД"
-            putStrLn "db-restart                - db-drop + db-init"
-            putStrLn "db-restart-force          - то же принудительно"
-            putStrLn "gen-tokens                - Обновление файла токенов dist/curl/tokens.sh"
-    putStrLn "Нажмите Enter для выхода из приложения..."
+            putStrLn "db-init                   - applying migrations to the local database, starting with zero migration"
+            putStrLn "migrations                - applying migrations to the local database, starting with the first not applied migration (the one that is not in the migrations database table)"
+            putStrLn "db-drop                   - drop all database tables"
+            putStrLn "db-restart                - ‘db-drop’ + ‘db-init’"
+            putStrLn "db-restart-force          - force ‘db-restart’"
+            putStrLn "gen-tokens                - update token file ‘dist/curl/tokens.sh’"
+    putStrLn "Press Enter for exit..."
     _ <- getLine
     return()
-
-
 
 dbinit_ :: IO ()
 dbinit_ = runT Migrations.dbinit 
@@ -57,5 +55,3 @@ dbrestartForce_ = runT Migrations.dbrestartForce
 
 genTokens_ :: IO()
 genTokens_ = runT Emulate.writeTokens
-
-
