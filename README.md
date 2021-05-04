@@ -71,9 +71,7 @@ The server operation logic is divided into the following layers (presented in th
 
 
 1. ol
-  1. ol
-    1. ol
+   1. ol
       1. ol
-2. ol
-2. ol - всё равно 3
+         1. ol
 
