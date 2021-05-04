@@ -48,17 +48,16 @@ For migrations test:
 The server operation logic is divided into the following layers (presented in the corresponding folders in the ‘src’) from low to high:
 1. Common       - common functions;
 2. Interface    - classes of types that implement abstract access of higher layers to interfaces:
-    2.1 MError  - error handling,
-    2.2.MLog    - logging,
-    2.3 MCache  - working with changing data in pure code,
-    2.4 MDB     - work with PostgreSQL database;
+2.1 MError  - error handling,
+2.2.MLog    - logging,
+2.3 MCache  - working with changing data in pure code,
+2.4 MDB     - work with PostgreSQL database;
 3. Logic        - the main logic of the program, for convenience it is divided into:
-    3.1 Pure    - pure functions,
-    3.2 IO      - IO functions,
-    3.3 DB      - functions for working with the database;
-4. T            - one of the possible implementations of the interface - transformer T;
-5. App          - application layer functions that have access to both the interface 
-                  and its implementation.
+3.1 Pure    - pure functions,
+3.2 IO      - IO functions,
+3.3 DB      - functions for working with the database;
+4. T        - one of the possible implementations of the interface - transformer T;
+5. App      - application layer functions that have access to both the interface and its implementation.
 
 
 * Lower layers should not import modules from higher layers.
