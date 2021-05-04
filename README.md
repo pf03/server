@@ -59,4 +59,4 @@ The server operation logic is divided into the following layers (presented in th
 4. T        - one of the possible implementations of the interface - transformer T;
 5. App      - application layer functions that have access to both the interface and its implementation.
 
-* Lower layers should not import modules from higher layers.
+Lower layers should not import modules from higher layers.
