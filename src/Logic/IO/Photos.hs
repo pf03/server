@@ -18,9 +18,7 @@ import System.Directory
 photosPath :: FilePath
 photosPath = "photos"
 
--- | Загрузка фотографии на сервер
-
---почему в постмане приходит ответ File not found??? но загрузка успешная
+-- | Uploading a photo to the server
 upload :: (MIOError m, MCache m) => Request -> m ()
 upload req = do
     ParamEq (Str name) <- Cache.getParam "name"
@@ -33,6 +31,7 @@ load :: MIOError m => FileName -> m ()
 load name = Error.catch (File.checkExist photosPath name)  $ \e -> do
         Error.throw $ RequestError $ template "Photo {0} is not exist" [name]
 
+-- | Returns photo filenames
 select :: (MIOError m, MCache m) => m [FilePath]
 select = do
     ParamEq (Int page) <- Cache.getParam "page"

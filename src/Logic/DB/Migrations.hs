@@ -1,6 +1,6 @@
 module Logic.DB.Migrations where
 
--- Our Modules
+-- Our modules
 import           Common.Misc
 import           Interface.DB                     as DB hiding (all)
 import           Interface.Error                  as Error
@@ -10,7 +10,7 @@ import           Logic.DB.Row                     as Row
 import           Logic.DB.Select                  as Select
 import qualified Logic.IO.File                    as File
 
--- Other Modules
+-- Other modules
 import           Control.Monad
 import           Database.PostgreSQL.Simple.Types
 import qualified System.Console.ANSI              as Color (Color (..))

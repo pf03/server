@@ -1,6 +1,6 @@
 module Logic.IO.Response where
 
--- Our Modules
+-- Our modules
 import           Common.Misc
 import           Interface.Cache            as Cache hiding (params)
 import           Interface.DB               as DB
@@ -18,7 +18,7 @@ import qualified Logic.Pure.API             as API
 import qualified Logic.Pure.JSON            as JSON
 import qualified Logic.Pure.Params          as Params
 
--- Other Modules
+-- Other modules
 import Data.Aeson ( ToJSON )
 import           Data.Aeson.Encode.Pretty   (encodePretty)
 import qualified Data.ByteString.Lazy.Char8 as LC
@@ -32,12 +32,6 @@ get :: MT m => Request -> m Response
 get req = do
     Log.debugM req
     json <- getJSON req
-    --return $ Wai.responseLBS status200 [(hContentType, "text/plain")] json
-    --return $ Wai.responseLBS status200 [(hContentType, "text/plain")] $ translit json
-    --return $ Wai.responseLBS status200 [(hContentType, "text/plain"), (hContentEncoding , "utf-8")] json
-    --return $ Wai.responseLBS status200 [(hContentType, "text/plain")] testjson
-
-    -- return $ Wai.responseFile status200 [(hContentType, "image/jpg")] "images/cat.jpg" Nothing
     api <- Cache.getAPI 
     case api of 
         API Load [Image fn] -> do
@@ -50,16 +44,10 @@ get req = do
 errorHandler :: E -> Response
 errorHandler e = do
     let status = Error.getStatus e
-    -- let text = if status == internalServerError500
-    --     then convertL ("Внутренняя ошибка сервера" :: String)
-    --     else convertL . show $ e
     let text = if status == internalServerError500
-        then ("Внутренняя ошибка сервера" :: String)
-        else show e
-    --let text2 = "Привет"
-    Wai.responseLBS status [(hContentType, "text/plain")] $ translitStr text
-    --Wai.responseLBS status [(hContentType, "text/plain")] text
-    --Wai.responseLBS status [(hContentType, "text/plain"), (hContentEncoding , "utf-8")] text
+        then "Internal server error"
+        else convertL $ show e
+    Wai.responseLBS status [(hContentType, "text/plain")] text
 
 getJSON :: MT m => Request -> m LC.ByteString
 getJSON req = do
@@ -82,10 +70,10 @@ getJSON req = do
     params <- if apiType `elem` [Auth, Delete, Insert, Update]
         then Error.catch (Log.logM $ Params.parseParams api qsBody) $
             \(RequestError e) -> Error.throw $ RequestError $ template 
-                "{0}.\n Внимание: параметры для данного запроса должны передаваться в теле запроса методом x-www-form-urlencoded" [e]
+                "{0}.\n Attention: parameters for this request must be passed in the request body by the x-www-form-urlencoded method" [e]
         else Error.catch (Log.logM $ Params.parseParams api (qs<>qsBody)) $
             \(RequestError e) -> Error.throw $ RequestError $ template 
-                "{0}.\n Внимание: параметры для данного запроса могут передаваться как в строке запроса, так и в теле запроса методом x-www-form-urlencoded" [e]
+                "{0}.\n Attention: parameters for this request can be passed both in the query string and in the request body by the x-www-form-urlencoded method" [e]
     Cache.setParams params
     evalJSON api req
 
@@ -98,7 +86,7 @@ evalJSON api req = case api of
     API Load [Image fn]             -> encode $ Photos.load fn
     API Select [Photo]              -> encode Photos.select
 
-    -- API, которые возвращают количество измененных сущностей в DB
+    -- API, which returns the number of changed entities in the DB
     API Insert [User]               -> encode Insert.user
     API Insert [Author]             -> encode Insert.author
     API Insert [Category]           -> encode Insert.category
@@ -122,7 +110,7 @@ evalJSON api req = case api of
     API Delete [Draft, Id n]        -> encode $ Delete.draft n
     API Delete [Comment, Id n]      -> encode $ Delete.comment n
 
-    -- DB - API, которые возвращают результат из DB
+    -- API, which returns the json result from DB
     API Select [User]               -> encode Select.users
     API Select [Author]             -> encode $ JSON.evalAuthors <$> Select.authors
     API Select [Category]           -> encode getCategories
@@ -138,7 +126,7 @@ evalJSON api req = case api of
     API SelectById [Post, Id n]     -> encode $ getPost n
     API SelectById [Draft, Id n]    -> encode $ getDraft n
 
-    _ -> Error.throw $ DevError $ template "Неверный шаблон {0} в функции Resonse.evalJSON" [show api]
+    _ -> Error.throw $ patError "Response.evalJSON" api
 
 encode :: MT m => (Typeable a, ToJSON a) => m a -> m LC.ByteString
 encode ta = do
@@ -160,7 +148,6 @@ getPosts = do
 getDrafts :: MT m => m [JSON.Draft]
 getDrafts = do
     categories <- getAllCategories
-    -- _ <- Cache.modifyParamsM $ JSON.evalParams categories это только для posts
     selectDrafts <- Select.drafts
     JSON.evalDrafts categories selectDrafts
 

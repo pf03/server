@@ -9,3 +9,4 @@ migrations/select.sql
 dist/config.json
 dist/server-exe.exe
 dist/response.json
+photos/
