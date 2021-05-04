@@ -13,15 +13,15 @@
 4. API  functions could be tested using ‘curl’ requests in the corresponding folder
 5. To test pure functions run ‘stack test’
 6. Rules for registration of migrations:
-    * file names are in the strict ‘1234_migration_name.sql’ format and in strict order, starting at ‘0000_migration_name.sql’;
-    * the ‘drop.sql’ file is used to drop tables;
-    * files with other names are ignored.
+* file names are in the strict ‘1234_migration_name.sql’ format and in strict order, starting at ‘0000_migration_name.sql’;
+* the ‘drop.sql’ file is used to drop tables;
+* files with other names are ignored.
 For migrations test:
-    * drop the database using the db-drop command,
-    * delete (rename) part of the migration files,
-    * initialize the tables and apply the remaining migrations  in the migration folder with the ‘db-init’ command,
-    * return migrations to the migrations folder
-    * apply all migrations using ‘migrations’ command
+* drop the database using the db-drop command,
+* delete (rename) part of the migration files,
+* initialize the tables and apply the remaining migrations  in the migration folder with the ‘db-init’ command,
+* return migrations to the migrations folder
+* apply all migrations using ‘migrations’ command
 ***
 <h2>COMMAND LINE ARGUMENTS</h2>
 
