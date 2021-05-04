@@ -1,7 +1,7 @@
 # server
 
 ORDER OF LAUNCH AND TESTNG (tested only for Windows)
-***
+
 1.	Run commands:
     git clone https://github.com/pf03/server.git
     cd server
@@ -22,8 +22,8 @@ For migrations test:
     - initialize the tables and apply the remaining migrations  in the migration folder with the ‘db-init’ command,
     - return migrations to the migrations folder
     - apply all migrations using ‘migrations’ command
-
-<!-- COMMAND LINE ARGUMENTS -->
+***
+COMMAND LINE ARGUMENTS
 
 STARTING THE SERVER:
     - start with no arguments - start the server
@@ -37,7 +37,8 @@ MIGRATION:
 CURL:
     - ‘gen-tokens’      - update token file ‘dist/curl/tokens.sh’
 
-<!-- MODULES -->
+***
+MODULES
 
 The server operation logic is divided into the following layers (presented in the corresponding folders in the ‘src’) from low to high:
 1. Common       - common functions;
