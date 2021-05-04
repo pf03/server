@@ -13,12 +13,7 @@ import qualified Data.ByteString      as B
 import           Network.Wai          as Wai
 
 
--- | Загрузка фотографии на сервер
-photo :: (MIOError m, MCache m) => Request -> m ()
-photo req = do
-    ParamEq (Str name) <- Cache.getParam "name"
-    let path = "images/" <> name
-    saveBinary req path
+
 
 -- | Сохранение фотографии
 saveBinary :: (MIOError m, MCache m) => Request -> Path -> m ()

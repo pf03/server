@@ -25,6 +25,7 @@ import           Database.PostgreSQL.Simple.Types
 import           Numeric                          (showHex)
 
 -----------------------------Types---------------------------------------------
+type FileName = String
 type PathInfo = [Text]
 type Path = String
 data Action = Check | Execute --flag
@@ -195,6 +196,15 @@ safeTail x  = tail x
 safeInit :: [a] -> [a]
 safeInit [] = []
 safeInit x  = init x
+
+splitOnFst :: Eq a => a -> [a] -> ([a], [a])
+splitOnFst a [] = ([],[])
+splitOnFst a xs | a `notElem` xs = ([], xs)
+splitOnFst a (x:xs) | a == x = ([], xs)
+splitOnFst a (x:xs) = let (b,c) = splitOnFst a xs in (x:b,c)
+
+splitOnLast :: Eq a => a -> [a] -> ([a], [a])
+splitOnLast a list = let (b,c) = splitOnFst a (reverse list) in (reverse c, reverse b)
 
 _1of3 :: (a,b,c) -> a
 _1of3 (a,b,c) = a

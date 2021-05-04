@@ -61,6 +61,10 @@ possibleParamDescs (API queryType apiType) = M.fromList <$> list where
                 ]
             _ -> Error.throw $ patError "Params.possibleParamDesc" apiType
 
+        Load -> case apiType of
+            [Image _] -> return []
+            _ -> Error.throw $ patError "Params.possibleParamDesc" apiType
+
         Select -> case apiType of
             [Post] -> return $ map ($ False) [
                 param "created_at" [Eq, Lt, Gt, Bt] ParamTypeDate,

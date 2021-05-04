@@ -4,23 +4,22 @@
 {-# LANGUAGE InstanceSigs      #-}
 module T.State where
 
--- Our Modules
+-- Our modules
 import           Interface.Cache            as Cache
 import           Interface.DB               as DB
 import           Interface.Error            as Error
 import           Interface.Log              as Log
 import           Logic.IO.Config            as Config
 
-
--- Other Modules
+-- Other modules
 import           Control.Monad.Except
 import           Control.Monad.State.Lazy
 import           Control.Monad.Trans.Except
 import           Database.PostgreSQL.Simple
 import           GHC.Generics               hiding (S)
 
--- | Данный модуль формирует State для одной из реализаций класса типов MT
--- (и остальных классов) - трансформера T
+-- This module defines State for one of the implementations of the MT type class
+-- (and other types classes) - transformer T
 
 -----------------------------Types---------------------------------------------
 type T = StateT S (ExceptT E IO)
@@ -32,8 +31,6 @@ data S = S {
     cache        :: Cache
 } deriving (Show, Generic)
 
--- | Данный модуль реализует класс типов MT (и остальные классы) с помощью трансформера T
-
 -----------------------------Instances-----------------------------------------
 instance Log.MLog T where
   getSettings = getLogSettings
@@ -43,11 +40,7 @@ instance Log.MLog T where
   message = Log.messageIO
 
 instance MError T where
-    -- throw = throwT
-    -- catch = catchT where
-
     throw :: E -> T a
-    --throw e  = toT (throwE e :: Except E a)
     throw e  = lift $ throwE e
 
     catch :: T a -> (E -> T a) -> T a

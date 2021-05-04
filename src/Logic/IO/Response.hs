@@ -12,6 +12,7 @@ import qualified Logic.DB.Insert            as Insert
 import qualified Logic.DB.Select            as Select
 import qualified Logic.DB.Update            as Update
 import qualified Logic.IO.File              as File
+import qualified Logic.IO.Photos            as Photos
 import qualified Logic.IO.Upload            as Upload
 import qualified Logic.Pure.API             as API
 import qualified Logic.Pure.JSON            as JSON
@@ -32,9 +33,19 @@ get req = do
     Log.debugM req
     json <- getJSON req
     --return $ Wai.responseLBS status200 [(hContentType, "text/plain")] json
-    return $ Wai.responseLBS status200 [(hContentType, "text/plain")] $ translit json
+    --return $ Wai.responseLBS status200 [(hContentType, "text/plain")] $ translit json
     --return $ Wai.responseLBS status200 [(hContentType, "text/plain"), (hContentEncoding , "utf-8")] json
     --return $ Wai.responseLBS status200 [(hContentType, "text/plain")] testjson
+
+    -- return $ Wai.responseFile status200 [(hContentType, "image/jpg")] "images/cat.jpg" Nothing
+    api <- Cache.getAPI 
+    case api of 
+        API Load [Image fn] -> do
+            let (_, extention) = splitOnLast '.' fn
+            return $ Wai.responseFile status200 
+                [(hContentType, "image/" <> convert extention)]
+                (Photos.photosPath <> "/" <> fn) Nothing
+        _ -> return $ Wai.responseLBS status200 [(hContentType, "text/plain")] json
 
 errorHandler :: E -> Response
 errorHandler e = do
@@ -58,6 +69,7 @@ getJSON req = do
     Auth.auth req
     a <- Cache.getAuth
     api@(API apiType _) <- Log.logM $ API.router rpinfo pinfo a
+    Cache.setAPI api
 
     rb <- case apiType of
         Upload  -> return mempty
@@ -81,9 +93,12 @@ evalJSON :: MT m => API -> Request -> m LC.ByteString
 evalJSON api req = case api of
     API Auth [] -> encode Auth.login
 
-    API Upload [Photo] -> encode $ Upload.photo req
+    -- Files
+    API Upload [Photo]              -> encode $ Photos.upload req
+    API Load [Image fn]             -> encode $ Photos.load fn
+    API Select [Photo]              -> encode Photos.select
 
-    -- API, которые возвращают количество измененных сущностей
+    -- API, которые возвращают количество измененных сущностей в DB
     API Insert [User]               -> encode Insert.user
     API Insert [Author]             -> encode Insert.author
     API Insert [Category]           -> encode Insert.category
@@ -107,7 +122,7 @@ evalJSON api req = case api of
     API Delete [Draft, Id n]        -> encode $ Delete.draft n
     API Delete [Comment, Id n]      -> encode $ Delete.comment n
 
-    -- API, которые возвращают результат
+    -- DB - API, которые возвращают результат из DB
     API Select [User]               -> encode Select.users
     API Select [Author]             -> encode $ JSON.evalAuthors <$> Select.authors
     API Select [Category]           -> encode getCategories

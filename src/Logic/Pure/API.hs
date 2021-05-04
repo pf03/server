@@ -16,8 +16,13 @@ import           Text.Read       (readEither)
 router :: MError m => B.ByteString -> PathInfo -> Auth -> m API
 ---AUTH---
 router _ ["login"] _ = return $ API Auth []
----UPLOAD---
+
+ ---FILES---
 router _ ["photos", "upload"] _ = return $ API Upload [Photo]
+router _ ["photos", fn] _ = return $ API Load [Image $ unpack fn]
+router _ ["photos"] _ = return $ API Select [Photo]
+
+---DB---
 ---INSERT---
 router _ ["users", "create"] _ = return $ API Insert [User]
 router _ ["authors", "create"] (AuthAdmin _) = return $ API Insert [Author]
@@ -55,6 +60,7 @@ router _ ["tags"] _ = return $ API Select [Tag]
 router _ ["posts"] _ = return $ API Select [Post]
 router _ ["drafts"] _ = return $ API Select [Draft]
 router _ ["posts", n, "comments"] _ = withInt "post_id" n $ \pid -> API Select [Post, Id pid, Comment]
+
 
 --SELECT BY ID---
 router p ["users", n] (AuthAdmin _) = withInt p n $ \pid -> API SelectById [User, Id pid]

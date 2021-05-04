@@ -15,7 +15,6 @@ import           Database.PostgreSQL.Simple.FromRow
 import           Database.PostgreSQL.Simple.Time
 import           GHC.Generics
 
-type FileName = String
 data Migration = Migration {
     migrationId :: Int,
     migrationName :: FileName

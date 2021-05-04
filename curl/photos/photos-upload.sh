@@ -8,5 +8,3 @@ URL="$HOST$APIPATH"
 
 cd "$(dirname "$0")"
 curl -T zvezdnoe_nebo.png ${URL}
-
-

@@ -17,9 +17,7 @@ import           System.Environment
 
 
 
------------------------------EXTERNAL------------------------------------------
-
-
+-----------------------------External------------------------------------------
 -- | Run and show result of transformer
 showT :: Show a => T a -> IO ()
 showT m = runE_ $ do
@@ -59,19 +57,17 @@ setEnvironment = runE Nothing $ do
     lift $ setEnv "configString" configString
     return $ Just config
 
------------------------------INTERNAL------------------------------------------
---тавтология с readConfig
+-----------------------------Internal------------------------------------------
 _runConfig :: (MIOError m) => m (Config, String)
 _runConfig = do
     let ls = Log.LogSettings Color.Cyan True
-    ---------------------read config---------------------
     (config, configString) <- Error.catch readConfig $ \e -> do
         let dlc = Log.defaultConfig
-        Log.critical dlc ls "Ошибка чтения конфигурации при запуске трансформера: "
+        Log.critical dlc ls "Error config read while run the transfomer: "
         Log.critical dlc ls $ show e
         Error.throw e
     let lc = _log config
-    Log.info lc ls "Конфиг успешно считан..."
+    Log.info lc ls "Config read successfully..."
     return (config, configString)
 
 _runConnection :: (MIOError m) => Config -> m Connection
@@ -79,10 +75,10 @@ _runConnection config = do
     let ls = Log.LogSettings Color.Cyan True
     let lc = _log config
     connection <- Error.catch (DB.connectDB . _db $ config) $ \e -> do
-        Log.critical lc ls "Ошибка соединения с БД при запуске трансформера: "
+        Log.critical lc ls "Error DB connection while start the transformer: "
         Log.critical lc ls $ show e
         Error.throw e
-    Log.info lc ls "БД успешно подключена..."
+    Log.info lc ls "DB connected successfully..."
     return connection
 
 _getValue :: Config -> Connection -> T a -> ExceptT E IO a
@@ -91,7 +87,7 @@ _getValue config connection m = do
     let ls = Log.LogSettings Color.Cyan True
     let lc = _log config
     a <-  Error.catch (runStateT m s) $ \e -> do
-        Log.error lc ls "Ошибка приложения: "
+        Log.error lc ls "Application error: "
         Log.error lc ls $ show e
         Error.throw e
     return $ fst a
@@ -100,7 +96,7 @@ _showValue :: (MonadIO m, Show a) => Config -> a -> m ()
 _showValue config value = do
     let ls = Log.LogSettings Color.Cyan True
     let lc = _log config
-    Log.info lc ls "Результат: "
+    Log.info lc ls "Result: "
     Log.info lc ls $ show value
     return ()
 
@@ -125,17 +121,17 @@ runEwithHandler handler m = do
 runE_ :: ExceptT E IO () -> IO()
 runE_ m = void (runExceptT m)
 
------------------------------CONFIG--------------------------------------------
+-----------------------------Config--------------------------------------------
 getS :: Config -> Connection -> S
 getS Config {_warp = cw, _db = _, _log = cl} connection = S {
     configWarp = cw,
     connectionDB = connection,
     configLog = cl,
     logSettings = Log.defaultSettings,
-    cache = Cache{changed = mempty, auth = AuthNo, params = mempty}
+    cache = Cache.defaultCache
 }
 
------------------------------LOG TEST------------------------------------------
+-----------------------------Log test------------------------------------------
 testLog :: IO()
 testLog = runT $ do
     Log.debugM $ "Debug data value " ++ show [1..10::Int]  :: T()

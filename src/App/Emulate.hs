@@ -586,6 +586,7 @@ getJSONTest rawPathInfo pathInfo qs qsBody headers = do
     Auth.auth req
     auth <- Cache.getAuth
     api@(API apiType queryTypes) <- Log.logM $ API.router rawPathInfo pathInfo auth
+    Cache.setAPI api
     params <- if apiType `elem` [Auth, Delete, Insert, Update]
         then Error.catch (Log.logM $ Params.parseParams api qsBody) $
             \(RequestError e) -> Error.throw $ RequestError $ template "{0}.\n Внимание: параметры для данного запроса должны передаваться в теле запроса методом x-www-form-urlencoded" [e]

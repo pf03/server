@@ -18,7 +18,8 @@ import           GHC.Generics
 data Cache = Cache {
     changed :: Changed,
     auth    :: Auth,
-    params  :: ParamsMap
+    params  :: ParamsMap,
+    api :: API
 } deriving (Show, Generic)
 
 --Changed--
@@ -48,9 +49,8 @@ type BS = ByteString
 
 --API--
 data API = API QueryType [APIType] deriving (Show)
-data QueryType = Select | SelectById | Insert | Update | Delete | Upload | Auth deriving (Show, Read, Eq)
-data APIType = Post | User | Author | Category | Tag | Draft | Comment | Photo | Content | Id Int deriving (Show, Read, Eq)
-
+data QueryType = Select | SelectById | Insert | Update | Delete | Upload | Load | Auth | Empty deriving (Show, Read, Eq)
+data APIType = Post | User | Author | Category | Tag | Draft | Comment | Photo | Content | Id Int | Image String deriving (Show, Read, Eq)
 
 -----------------------------Class---------------------------------------------
 class Monad m => MCache m where
@@ -66,6 +66,7 @@ modifyCache f = do
     setCache $ f cache
 
 -----------------------------Getters&Setters-----------------------------------
+
 addChanged :: MCache m => QueryType -> APIType -> Int64 -> m ()
 addChanged _ _ n |n <= 0 = return ();
 addChanged _ (Id _) _ = return ();
@@ -134,13 +135,22 @@ addStrParam :: MCache m => BSName -> String -> m ParamsMap
 addStrParam name str = modifyParams $ M.insert name (ParamEq (Str str))
 
 resetCache :: MCache m => m ()
-resetCache = modifyCache $ \st -> st {changed = mempty, params = mempty}
+resetCache = setCache defaultCache
+
+defaultCache :: Cache
+defaultCache = Cache{changed = mempty, auth = AuthNo, params = mempty, api = API Empty []}
 
 getAuth :: MCache m => m Auth
 getAuth = getsCache auth
 
 setAuth :: MCache m => Auth -> m ()
 setAuth a = modifyCache $ \s-> s{auth = a}
+
+getAPI :: MCache m => m API
+getAPI = getsCache api
+
+setAPI :: MCache m => API -> m ()
+setAPI a = modifyCache $ \s-> s{api = a}
 
 instance Semigroup Changed where
     (<>) = mappend

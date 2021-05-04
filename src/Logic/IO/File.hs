@@ -14,7 +14,8 @@ import qualified Data.ByteString.Lazy.Char8 as LC
 import qualified System.Console.ANSI        as Color
 import           Control.Monad.IO.Class
 import           System.IO.Error
-
+import System.Directory
+import Control.Monad
 
 read :: MIOError m => String -> m B.ByteString
 read path = B.readFile path `Error.catchEIO` handler where
@@ -32,3 +33,16 @@ writeResponseJSON :: (MonadIO m, MLog m) => LC.ByteString -> m ()
 writeResponseJSON json = do
     Log.warnM "Writing the response to the file for debug..."
     liftIO $ B.writeFile "response.json" $ convert json
+
+getFreeName :: (MIOError m) => FilePath -> FileName -> m FileName
+getFreeName path fileName = do
+    items <- liftEIO $ listDirectory path
+    let (name, extension) = splitOnLast '.' fileName
+    let allNames = filter (`notElem` items) $ fileName : map (\n -> name <> "_" <> show n <> "." <> extension) [1,2..]
+    return $ head allNames
+
+checkExist :: (MIOError m) => FilePath -> FileName -> m ()
+checkExist path fileName = do
+    items <- liftEIO $ listDirectory path
+    when (fileName `notElem` items) $ do
+        Error.throw $ IOError $ template "File {0} is not exist in directory {1}" [fileName, path]
