@@ -1,6 +1,6 @@
 # server
 
-<h1> ORDER OF LAUNCH AND TESTNG (tested only for Windows) </h1>
+<h2> ORDER OF LAUNCH AND TESTNG (tested only for Windows) </h1>
 
 1.	Run commands:
     git clone https://github.com/pf03/server.git
@@ -23,22 +23,22 @@ For migrations test:
     - return migrations to the migrations folder
     - apply all migrations using ‘migrations’ command
 ***
-COMMAND LINE ARGUMENTS
+<h2>COMMAND LINE ARGUMENTS</h2>
 
-STARTING THE SERVER:
+<h3>STARTING THE SERVER:<h3>
     - start with no arguments - start the server
 
-MIGRATION:
+<h3>MIGRATION:<h3>
     - ‘db-init’         - applying migrations to the local database, starting with zero migration
     - ‘migrations’      - applying migrations to the local database, starting with the first not applied migration(the one that is not in the migrations database table)
     - ‘db-drop’         - drop all database tables
     - ‘db-restart’      – ‘db-drop’ + ‘db-init’
     - ‘db-restart-force’- force ‘db-restart’
-CURL:
+<h3>CURL:<h3>
     - ‘gen-tokens’      - update token file ‘dist/curl/tokens.sh’
 
 ***
-MODULES
+<h2>MODULES<h2>
 
 The server operation logic is divided into the following layers (presented in the corresponding folders in the ‘src’) from low to high:
 1. Common       - common functions;
