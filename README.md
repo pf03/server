@@ -16,6 +16,7 @@
 * file names are in the strict ‘1234_migration_name.sql’ format and in strict order, starting at ‘0000_migration_name.sql’;
 * the ‘drop.sql’ file is used to drop tables;
 * files with other names are ignored.
+
 For migrations test:
 * drop the database using the db-drop command,
 * delete (rename) part of the migration files,
