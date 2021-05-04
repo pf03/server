@@ -1,4 +1,4 @@
-# server
+# SERVER
 
 ## ORDER OF LAUNCH AND TESTNG (tested only for Windows)
 
