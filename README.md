@@ -60,5 +60,6 @@ The server operation logic is divided into the following layers (presented in th
 5. App          - application layer functions that have access to both the interface 
                   and its implementation.
 
+
 * Lower layers should not import modules from higher layers.
 
