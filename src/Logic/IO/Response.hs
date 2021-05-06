@@ -2,7 +2,7 @@ module Logic.IO.Response where
 
 -- Our modules
 import           Common.Misc
-import           Interface.Cache            as Cache hiding (params)
+import           Interface.Cache            as Cache hiding (params, api)
 import           Interface.DB               as DB
 import           Interface.Error            as Error
 import           Interface.Log              as Log

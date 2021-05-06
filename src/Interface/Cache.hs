@@ -2,8 +2,9 @@
 {-# LANGUAGE FlexibleInstances #-}
 module Interface.Cache where
 
+import Common.Misc
 import           Data.Aeson
-import           Data.ByteString.Char8           as BC (ByteString)
+-- import           Data.ByteString.Char8           as BC (ByteString)
 import           Data.Char
 import           Data.Int
 import           Data.Map                        as M ((!))
@@ -45,7 +46,6 @@ data Param = ParamEq {paramEq :: Val}
 data Val = Str { valStr :: String} | Int { valInt :: Int} | Date { valDate :: Date} deriving (Show, Eq)
 
 type BSName = BS
-type BS = ByteString
 
 --API--
 data API = API QueryType [APIType] deriving (Show)
@@ -93,6 +93,8 @@ addChanged qt at n = do
     queryType Select = "selected"
     queryType SelectById = "selected"
     queryType Auth = "authorized"
+    queryType Load = "loaded"
+    queryType Empty = "none"
 
 getChanged :: MCache m => m Changed
 getChanged = getsCache changed
@@ -133,6 +135,11 @@ addIdParam_ name pid = do
 
 addStrParam :: MCache m => BSName -> String -> m ParamsMap
 addStrParam name str = modifyParams $ M.insert name (ParamEq (Str str))
+
+addStrParam_ :: MCache m => BSName -> String -> m ()
+addStrParam_ name str = do 
+    _ <- addStrParam name str
+    return ()
 
 resetCache :: MCache m => m ()
 resetCache = setCache defaultCache

@@ -2,7 +2,6 @@ module T.Transformer  where
 
 -- Our Modules
 import           Interface.Cache                  as Cache
-import           Interface.DB                     as DB
 import           Interface.Error                  as Error
 import           Interface.Log                    as Log
 import           T.State                          as S
@@ -14,8 +13,6 @@ import           Control.Monad.State.Lazy
 import           Database.PostgreSQL.Simple
 import qualified System.Console.ANSI              as Color
 import           System.Environment
-
-
 
 -----------------------------External------------------------------------------
 -- | Run and show result of transformer
@@ -74,7 +71,7 @@ _runConnection :: (MIOError m) => Config -> m Connection
 _runConnection config = do
     let ls = Log.LogSettings Color.Cyan True
     let lc = _log config
-    connection <- Error.catch (DB.connectDB . _db $ config) $ \e -> do
+    connection <- Error.catch (connectDB . getConnectInfo . _db $ config) $ \e -> do
         Log.critical lc ls "Error DB connection while start the transformer: "
         Log.critical lc ls $ show e
         Error.throw e
@@ -125,11 +122,17 @@ runE_ m = void (runExceptT m)
 getS :: Config -> Connection -> S
 getS Config {_warp = cw, _db = _, _log = cl} connection = S {
     configWarp = cw,
-    connectionDB = connection,
+    connectionDB = ConnectionDB connection,
     configLog = cl,
     logSettings = Log.defaultSettings,
     cache = Cache.defaultCache
 }
+
+-----------------------------DB------------------------------------------------
+connectDB :: MIOError m => ConnectInfo -> m Connection
+connectDB connectInfo = connect connectInfo `Error.catchEIO` handler where
+    handler :: SqlError -> E
+    handler _ = DBError "Ошибка соединения с базой данных!"
 
 -----------------------------Log test------------------------------------------
 testLog :: IO()

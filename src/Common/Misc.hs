@@ -1,34 +1,31 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE UndecidableInstances #-}
 module Common.Misc where
+  
 import           Control.Monad.Except
-import           Data.Aeson
-import           Data.Aeson.Encode.Pretty         (encodePretty)
-import           Data.Aeson.Types
-import qualified Data.ByteString                  as B
+import           Data.Aeson             as B
 import qualified Data.ByteString.Char8            as BC
-import qualified Data.ByteString.Lazy             as L hiding (pack)
 import qualified Data.ByteString.Lazy.Char8       as LC
 import           Data.Char                        (toLower, toUpper)
 import           Data.List.Split
 import qualified Data.Map                         as M
 import           Data.Maybe
 import           Data.String
-import           Data.Text                        (Text (..))
+import           Data.Text                        (Text)
 import qualified Data.Text                        as T (pack)
 import qualified Data.Text.Encoding               as T
 import qualified Data.Text.Lazy                   as L hiding (unpack)
 import qualified Data.Text.Lazy.Encoding          as L
-import           Data.Word                        (Word8)
 import           Database.PostgreSQL.Simple.Time
 import           Database.PostgreSQL.Simple.Types
-import           Numeric                          (showHex)
 
 -----------------------------Types---------------------------------------------
 type FileName = String
 type PathInfo = [Text]
 type Path = String
 data Action = Check | Execute --flag
+type BS = BC.ByteString
+type LBS = LC.ByteString
 
 -----------------------------Template------------------------------------------
 -- | Substitution in a template
@@ -36,34 +33,34 @@ data Action = Check | Execute --flag
 class Template s where
     template :: s -> [s] -> s
 
-instance Template BC.ByteString where
+instance Template BS where
   template str args = foldl f str $ zip ts args where
-      ts = map (\n -> "{"<> (fromString . show $ n) <>"}") [0,1..]
-      f:: BC.ByteString ->  (BC.ByteString,BC.ByteString) -> BC.ByteString
+      ts = map (\n -> "{"<> (fromString . show $ n) <>"}") [0::Int,1..]
+      f :: BS -> (BS, BS) -> BS
       f acc (t, arg) = replaceB t arg acc where
-        replaceB :: BC.ByteString ->  BC.ByteString -> BC.ByteString ->  BC.ByteString
-        replaceB t s str = let strs = splitOnB t str in
-            mconcat $ init $ foldr (\part acc -> part:s:acc) [] strs
-        splitOnB :: BC.ByteString ->  BC.ByteString -> [BC.ByteString]
-        splitOnB t str = map BC.pack $ splitOn (BC.unpack t) (BC.unpack str)
+        replaceB :: BS -> BS -> BS -> BS
+        replaceB t0 s str0 = let strs = splitOnB t0 str0 in
+            mconcat $ init $ foldr (\part acc0 -> part:s:acc0) [] strs
+        splitOnB :: BS -> BS -> [BS]
+        splitOnB t1 str1 = map BC.pack $ splitOn (BC.unpack t1) (BC.unpack str1)
 
 instance Template String where
   template str args = foldl f str $ zip ts args where
-      ts = map (\n -> ('{':show n)++"}")[0,1..]
+      ts = map (\n -> ('{':show n)++"}")[0::Int,1..]
       f:: String -> (String, String) -> String
       f acc (t, arg) = replace t arg acc where
         replace :: String -> String -> String -> String
-        replace t s str = let strs = splitOn t str in
-            concat $ init $ foldr (\part acc -> part:s:acc) [] strs
+        replace t0 s str0 = let strs = splitOn t0 str0 in
+            concat $ init $ foldr (\part acc0 -> part:s:acc0) [] strs
 
 instance Template Query where
   template (Query str) args = Query $ template str $ map fromQuery args
 
 -----------------------------Convert-------------------------------------------
 class Convert a where
-    convert :: a -> BC.ByteString
+    convert :: a -> BS
 
-instance Convert BC.ByteString where
+instance Convert BS where
   convert = id
 
 -- * EncodeUtf8 for correct Cyrillic encoding
@@ -183,11 +180,8 @@ adjustM kl def k  m = do
 forMap :: M.Map k v -> (k -> w) -> M.Map k w
 forMap mp f = M.mapWithKey (\k _ -> f k) mp
 
-forWithKey :: p -> M.Map k a -> (k -> a -> b) -> M.Map k b
-forWithKey f = flip M.mapWithKey
-
 forMMem :: (Foldable t, Monad m) => t a -> b -> (b -> a -> m b) -> m b
-forMMem cont init f = foldM f init cont
+forMMem cont b f = foldM f b cont
 
 safeTail :: [a] -> [a]
 safeTail [] = []
@@ -198,7 +192,7 @@ safeInit [] = []
 safeInit x  = init x
 
 splitOnFst :: Eq a => a -> [a] -> ([a], [a])
-splitOnFst a [] = ([],[])
+splitOnFst _ [] = ([],[])
 splitOnFst a xs | a `notElem` xs = ([], xs)
 splitOnFst a (x:xs) | a == x = ([], xs)
 splitOnFst a (x:xs) = let (b,c) = splitOnFst a xs in (x:b,c)
@@ -207,22 +201,22 @@ splitOnLast :: Eq a => a -> [a] -> ([a], [a])
 splitOnLast a list = let (b,c) = splitOnFst a (reverse list) in (reverse c, reverse b)
 
 _1of3 :: (a,b,c) -> a
-_1of3 (a,b,c) = a
+_1of3 (a,_,_) = a
 
 _12of3 :: (a,b,c) -> (a,b)
-_12of3 (a,b,c) = (a,b)
+_12of3 (a,b,_) = (a,b)
 
 _2of3 :: (a,b,c) -> b
-_2of3 (a,b,c) = b
+_2of3 (_,b,_) = b
 
 _3of3 :: (a,b,c) -> c
-_3of3 (a,b,c) = c
+_3of3 (_,_,c) = c
 
 -----------------------------Translit------------------------------------------
-translit :: LC.ByteString -> LC.ByteString
+translit :: LBS -> LBS
 translit = LC.pack . translitStrStr . LC.unpack
 
-translitStr :: String -> LC.ByteString
+translitStr :: String -> LBS
 translitStr = LC.pack . translitStrStr
 
 translitStrStr :: String -> String

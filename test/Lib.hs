@@ -1,10 +1,9 @@
 module Lib where
-import Test.Hspec
---import Test.QuickCheck
-import Control.Exception (evaluate)
-import Control.Monad.State.Lazy
-import Interface.Error as Error
-import Data.Either
+import           Test.Hspec
+import           Control.Exception        (evaluate)
+import           Control.Monad.State.Lazy
+import           Data.Either
+import           Interface.Error          as Error
 
 -----------------------------Mutiple cases-------------------------------------
 --ALL of cases SHOULD BE eqaul to one result
@@ -13,7 +12,7 @@ allShouldBe cases result = eachShouldBe cases (replicate (length cases) result)
 
 --EACH of cases SHOULD BE eqaul to each of results
 eachShouldBe :: (HasCallStack, Show a, Eq a) => [a] -> [a] -> Expectation
-eachShouldBe cases results = bimapM_ shouldBe cases results
+eachShouldBe = bimapM_ shouldBe
 
 --ALL of cases SHOULD SATISFY to one predicat
 allShouldSatisfy ::  (HasCallStack, Show a) => [a] -> (a -> Bool) -> Expectation
@@ -27,7 +26,7 @@ allEvalStatesShouldBe states (result, initialState) = eachEvalStateShouldBe stat
 
 --EACH EVAL STATE of cases SHOULD BE eqaul to each of results WITH INITIAL STATE
 eachEvalStateShouldBe :: (HasCallStack, Show a, Eq a) => [State s a] -> ([a], s) -> Expectation
-eachEvalStateShouldBe [] ([], _) = return () 
+eachEvalStateShouldBe [] ([], _) = return ()
 eachEvalStateShouldBe (s:ss) (r:rs, initialState) = do
   let (a, modifiedState) = runState s initialState
   a `shouldBe` r

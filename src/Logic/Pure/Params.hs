@@ -2,7 +2,7 @@ module Logic.Pure.Params where
 
 -- Our modules
 import           Common.Misc
-import           Interface.Cache                 as Cache
+import           Interface.Cache                 as Cache hiding (api)
 import           Interface.Error                 as Error
 
 -- Other modules
@@ -15,7 +15,6 @@ import qualified Data.Text                       as T
 import qualified Data.Text.Encoding              as T
 import           Network.HTTP.Types.URI
 import           Text.Read
-
 
 -----------------------------Types---------------------------------------------
 -- Eq - no suffix
@@ -80,7 +79,6 @@ possibleParamDescs (API queryType apiType) = M.fromList <$> list where
             _ -> return $ map ($ False) [param "page" [Eq] ParamTypePage]
         SelectById -> return []
         Delete -> return []
-
         Insert -> case apiType of
             [User] -> return [
                 param "last_name" [Eq] ParamTypeStr True,
@@ -150,6 +148,7 @@ possibleParamDescs (API queryType apiType) = M.fromList <$> list where
                 param "photos" [All] ParamTypeStr True
                 ]
             _ -> Error.throw $ patError "Params.possibleParamDesc" apiType
+        _ -> Error.throw $ patError "Params.possibleParamDesc" apiType
 
 
 possibleParams :: BSName -> ParamDesc -> [BSKey]

@@ -7,22 +7,21 @@ import           Interface.Error                  as Error
 import           Interface.Log                    as Log
 
 -- Other Modules
-import           Data.Int
-import           Database.PostgreSQL.Simple       hiding (execute, execute_, query_)
-import qualified Database.PostgreSQL.Simple       as SQL (execute_, query_)
-import           Database.PostgreSQL.Simple.SqlQQ
-import           Database.PostgreSQL.Simple.Types
+import           Data.Int                         (Int64)
+import           Database.PostgreSQL.Simple       (FromRow)
+import           Database.PostgreSQL.Simple.SqlQQ (sql)
+import           Database.PostgreSQL.Simple.Types (Query (Query))
+-- import           Data.Aeson
 
 -----------------------------Class---------------------------------------------
 class (Log.MLog m, MIOError m) => MDB m where
-    getConnection :: m Connection
+    dbquery :: FromRow r => Query -> m [r]
+    dbexecute :: Query -> m Int64
+
+-- class (Log.MLog m, MIOError m) => MDB m where
+--     getConnection :: m MyConnection
 
 class (MDB m, MCache m) => MT m
-
-connectDB :: MIOError m => ConnectInfo -> m Connection
-connectDB connectInfo = connect connectInfo `Error.catchEIO` handler where
-    handler :: SqlError -> E
-    handler _ = DBError "Ошибка соединения с базой данных!"
 
 -----------------------------Query functions-----------------------------------
 -- As a rule, queries in this module should be correct, since all queries are checked at the logic level.
@@ -30,28 +29,25 @@ connectDB connectInfo = connect connectInfo `Error.catchEIO` handler where
 -- Ideally, we can give the user an error code or sequence number,
 -- but this is outside the scope of the educational task.
 
+ehandler :: (MError m, MLog m) => Query -> E -> m a
+ehandler qu e = do
+    Log.errorM "An error occurred in the request:"
+    Log.errorM $ show qu
+    Log.errorM $ show e
+    Error.throw dbErrorDefault
+
 -- | Query that returns a value
 query :: (MDB m,  Show r, FromRow r) => Query -> m [r]
 query qu = do
     Log.debugM qu
-    conn <- getConnection
     -- LiftIO cannot be used because error handling is lost
-    Error.catch (liftEIO $ SQL.query_ conn qu ) $ \e -> do
-        Log.errorM "An error occurred in the request:"
-        Log.errorM $ show qu
-        Log.errorM $ show e
-        Error.throw dbErrorDefault
+    Error.catch (dbquery qu) $ ehandler qu
 
 -- | Query that returns the number of changes without automatic recording the number of changed entities
 execute :: MDB m => Query -> [Query] -> m Int64
 execute q0 qs = do
     let qu = template q0 qs
-    conn <- getConnection
-    Error.catch (liftEIO $ SQL.execute_ conn qu) $ \e -> do
-        Log.errorM "An error occurred in the request:"
-        Log.errorM $ show qu
-        Log.errorM $ show e
-        Error.throw dbErrorDefault
+    Error.catch (dbexecute qu) $ ehandler qu
 
 -- | Query without automatic recording of the number of changed entities
 execute_ :: MDB m => Query -> [Query] -> m ()
@@ -64,8 +60,7 @@ _execute :: MT m => QueryType -> APIType -> Query -> [Query] ->  m ()
 _execute queryType apiType q0 qs   = do
     let qu = template q0 qs
     Log.debugM qu
-    conn <- getConnection
-    rows <- liftEIO $ SQL.execute_ conn qu
+    rows <- Error.catch (dbexecute qu) $ ehandler qu
     Cache.addChanged queryType apiType rows
 
 -- | Insert query with automatic recording of the number of changed entities
@@ -97,8 +92,8 @@ all :: [Query] -> Query
 all = Interface.DB.concat Interface.DB.and
 
 concat :: Query -> [Query] -> Query
-concat _ []     = mempty
-concat _ [x]    = x
+concat _ []            = mempty
+concat _ [x]           = x
 concat splitter (x:xs) = concat2 splitter x (Interface.DB.concat splitter xs)
 
 concat2 :: Query -> Query -> Query -> Query

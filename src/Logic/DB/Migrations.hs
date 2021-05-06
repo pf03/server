@@ -13,7 +13,6 @@ import qualified Logic.IO.File                    as File
 -- Other modules
 import           Control.Monad
 import           Database.PostgreSQL.Simple.Types
-import qualified System.Console.ANSI              as Color (Color (..))
 import System.Directory
 import Data.List
 
@@ -65,13 +64,13 @@ getNamesList = do
     items <- liftEIO $ listDirectory pathMigrations
     printT items
     let files = sort $ filter helper items
-    unless (all (uncurry helper2) $ zip [0..] files) $ Error.throw $ IOError "Check the order of numbers in migration files!"
+    unless (all (uncurry helper2) $ zip [0::Int ..] files) $ Error.throw $ IOError "Check the order of numbers in migration files!"
     printT files
     return files
     where
         -- Check format 0000_migration_name.sql
         helper :: FileName -> Bool
-        helper (a:b:c:d:'_':xs)|all (`elem` show[0..9]) [a,b,c,d] && ".sql" `isSuffixOf` xs = True 
+        helper (a:b:c:d:'_':xs)|all (`elem` show[0::Int ..9]) [a,b,c,d] && ".sql" `isSuffixOf` xs = True 
         helper _ = False
 
         -- Check order of file names, n <= 9999
@@ -87,7 +86,8 @@ checkMigrations migrations names = do
     where
         helper migration name = if migrationName migration == name
             then Log.infoM $ template "Migration {0} is already applied..." [name]
-            else Error.throw $ DBError $ template "Database migration name: {0} does not match the file name: {1}" [migrationName migration, name]
+            else Error.throw $ DBError $ 
+                template "Database migration name: {0} does not match the file name: {1}" [migrationName migration, name]
 
 migrate :: MDB m => [FileName] -> m ()
 migrate = mapM_ $ \name -> do
@@ -99,5 +99,5 @@ migrate = mapM_ $ \name -> do
 executeFile :: MDB m => FilePath -> m ()
 executeFile path = do
     queryBS <- File.read path
-    let query = Query queryBS
-    DB.execute_ query []
+    let qu = Query queryBS
+    DB.execute_ qu []

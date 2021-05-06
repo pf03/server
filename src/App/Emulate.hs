@@ -2,11 +2,12 @@ module App.Emulate where
 
 -- Our modules
 import           Common.Misc
-import           Interface.Cache            as Cache
-import           Interface.DB               as DB (MT, MDB)
+import           Interface.Cache            as Cache hiding (api, auth, params)
+import           Interface.DB               as DB (MT)
 import           Interface.Error            as Error
 import           Interface.Log              as Log
-import           Logic.DB.Auth              as Auth
+import           Logic.DB.Auth              as Auth (Token (Token))
+import qualified Logic.DB.Auth              as Auth
 import qualified Logic.DB.Migrations        as Migrations
 import qualified Logic.IO.Response          as Response
 import qualified Logic.Pure.API             as API
@@ -21,9 +22,9 @@ import qualified Data.ByteString.Lazy.Char8 as LC
 import           Network.HTTP.Types
 import qualified Network.Wai                as Wai
 import           Network.Wai.Internal       as Wai
-import           System.Console.ANSI
+import           System.Console.ANSI        (clearScreen)
 import qualified System.Console.ANSI        as Color
-import           Text.Read
+import           Text.Read                  (readEither)
 
 -- | Generate sh script with tokens.
 writeTokens :: MT m => m ()
@@ -52,8 +53,8 @@ writeTokens = do
 
         getToken :: MT m => String -> String -> m Token
         getToken login pass = do
-            Cache.addStrParam "login" login
-            Cache.addStrParam "pass" pass
+            Cache.addStrParam_ "login" login
+            Cache.addStrParam_ "pass" pass
             token <- Auth.login
             Log.debugM token
             return token
@@ -61,10 +62,8 @@ writeTokens = do
         templ :: String -> Token -> String
         templ pname (Token t) = template "{0}=\"Authorization: {1}\"" [pname, t]
 
-        fakeToken :: Token -> Token 
+        fakeToken :: Token -> Token
         fakeToken (Token t) = if last t == '0' then Token $ init t <> "1" else Token $ init t <> "0"
-
-
 
 -------------------------------------------------------------------------------
 -- This part of module is for debug, but not review
@@ -545,7 +544,8 @@ logins = [
     ]
 
 casesWithAuth :: (String, [(PathInfo, Query)]) -> (String, [(PathInfo, Query)])
-casesWithAuth cases = (,) (fst cases) $ concat $ for (snd cases) $ \c -> concat $ for logins $ \login -> [(["login"], login), c]
+casesWithAuth cs = (,) (fst cs) $ concat $ for (snd cs) $
+    \c -> concat $ for logins $ \login -> [(["login"], login), c]
 
 
 cases :: [(String, [(PathInfo, Query)])]
@@ -580,12 +580,12 @@ emul = runT $ do
 
 --эта обертка для удобства тестированияб аналог функции Resonse.getJSON
 getJSONTest :: MT m => BC.ByteString -> PathInfo -> Query -> Query -> RequestHeaders -> m LC.ByteString
-getJSONTest rawPathInfo pathInfo qs qsBody headers = do
+getJSONTest rpi pinfo qs qsBody headers = do
     Cache.resetCache --это нужно только для тестов, в сервере и так трансформер возрождается заново при каждом запросе
     let req  = Wai.defaultRequest {requestHeaders = headers}
     Auth.auth req
     auth <- Cache.getAuth
-    api@(API apiType queryTypes) <- Log.logM $ API.router rawPathInfo pathInfo auth
+    api@(API apiType _) <- Log.logM $ API.router rpi pinfo auth
     Cache.setAPI api
     params <- if apiType `elem` [Auth, Delete, Insert, Update]
         then Error.catch (Log.logM $ Params.parseParams api qsBody) $
@@ -599,26 +599,26 @@ getJSONTest rawPathInfo pathInfo qs qsBody headers = do
 listOfTestCasesByOne :: MT m => String -> [(PathInfo, Query)] -> m (Maybe Token, Maybe Int)
 listOfTestCasesByOne name qs = do
     Log.infoCM Color.Yellow  " Нажмите Enter для начала теста..."
-    readLnT
-    forMMem (zip [1,2..] qs) (Nothing, Nothing) $ \(mt, mn) (n, (pathInfo, query)) -> do
+    _ <- readLnT
+    forMMem (zip [1::Int,2..] qs) (Nothing, Nothing) $ \(mt, mn) (n, (pinfo, query)) -> do
         Error.catch (do
 
             liftEIO clearScreen
             --Log.debugT (mt, mn)
             Log.infoCM Color.Blue  $ template "Проверка {1}, тестовый случай {0}: " [show n, name]
-            Log.debugM (pathInfo, query)
+            Log.debugM (pinfo, query)
             Log.infoCM Color.Cyan $ template "Token: {0}" [show mt]
 
             --query в тестах для простоты дублируется и в строке запроса и в теле запроса.
             headers <- case mt of
                 Nothing        -> return []
                 Just (Token t) -> return [("Authorization", convert t)]
-            newmt <- case pathInfo of
+            newmt <- case pinfo of
                 ["login"] -> do
                     Log.debugOff
-                    --str <- Error.catch (DB.getJSONTest (convert $ show pathInfo) pathInfo query query headers) (\e -> return "")
+                    --str <- Error.catch (DB.getJSONTest (convert $ show pinfo) pinfo query query headers) (\e -> return "")
                     Error.catch (do
-                        str <- getJSONTest (convert $ show pathInfo) pathInfo query query headers
+                        str <- getJSONTest (convert $ show pinfo) pinfo query query headers
                         --tmp <- toT . (Just <$>) . typeError ParseError . eitherDecode $ str
                         tmp <- Just <$> Error.catchEither (eitherDecode str) ParseError
                         Log.debugOn
@@ -630,7 +630,7 @@ listOfTestCasesByOne name qs = do
                         Log.infoCM Color.Yellow $ show e
                         return Nothing)
                 _ -> do
-                    getJSONTest (convert $ show pathInfo) pathInfo query query headers
+                    _ <- getJSONTest (convert $ show pinfo) pinfo query query headers
                     Log.infoCM Color.Green "Запрос успешно завершен. Нажмите Enter для следующего теста, q + Enter для выхода или номер_теста + Enter..."
 
                     return mt
@@ -656,5 +656,46 @@ listOfTestCasesByOne name qs = do
                 _          -> return Nothing
 
 
+selectPostWrongCases :: [Either E ParamsMap]
+selectPostWrongCases = Params.parseParams (API Select [Post]) <$> map simpleQueryToQuery [
+        --Ошибка веб-запроса: Параметр запроса "created_at" должен быть датой в формате YYYY-MM-DD ...
+        [("created_at", "1")],
+        [("created_at", "foo")],
+        [("created_at", "2020.12.12")],
+        [("created_at", "2020_12_12")],
+        [("created_at", "2020-18-12")],
+        [("created_at", "[2020-12-12]")],
+        [("created_at__lt", "2020-18-12")],
+        [("created_at__lt", "(2020-12-12, 2020-12-12)")],
+        [("created_at__lt", "(2020-12-12,2020-12-12)")],
+        [("created_at__gt", "2020-18-12")],
+        [("created_at__gt", "(2020-12-12,2020-12-12)")],
+        [("created_at__bt", "2020-12-12")],
+        [("created_at__bt", "[2020-12-12,2020-12-13]")],
+        --Ошибка веб-запроса: Недопустимый параметр запроса: "created_at__like" ...
+        [("created_at__like", "2020-12-12")],
+        [("created_at__in", "[2020-12-12,2020-12-13]")],
+        [("created_at__all", "[2020-12-12,2020-12-13]")],
+        [("author_name__eq", "foo")],
+        [("author_name__gt", "2")],
+        -- Ошибка веб-запроса: Параметр запроса "category_id" должен быть целым числом ...
+        [("category_id", "foo")],
+        -- Ошибка веб-запроса: Недопустимый параметр запроса: "category_id__all" ...
+        [("category_id__all", "[2,3]")],
+        -- Ошибка веб-запроса: Параметр запроса "category_id__in" должен быть массивом, состоящим из целых чисел в формате [x,y,z] ...
+        [("category_id__in", "(2,3)")],
+        -- Ошибка веб-запроса: Недопустимый параметр запроса: "category_id__lt" ...
+        [("category_id__lt", "3")],
+        [("category_id__gt", "3")],
+        [("category_id__bt", "(2,3)")],
+        [("tag_id__lt", "2")],
+        [("tag_id__bt", "(2,3)")],
+        [("text", "foo")],
+        [("contains", "Vasya")],
+        [("order_by__like", "created_at")],
+        [("order_by__lt", "created_at")],
+        [("order_by", "tag_id")],
+        [("page__bt", "(2,3)")]
+    ]
 
 

@@ -1,11 +1,10 @@
 module App.Main where
 
 -- Our modules
+import           App.Emulate         as Emulate
 import qualified App.Server          as Server
 import qualified Logic.DB.Migrations as Migrations
-import           T.State             (T)
 import           T.Transformer       (runT)
-import App.Emulate as Emulate
 
 -- Other modules
 import           System.Environment  (getArgs)
@@ -36,10 +35,10 @@ main = do
     return()
 
 dbinit_ :: IO ()
-dbinit_ = runT Migrations.dbinit 
+dbinit_ = runT Migrations.dbinit
 
 migrations_ :: IO ()
-migrations_ = runT Migrations.run 
+migrations_ = runT Migrations.run
 
 dbdrop_ :: IO ()
 dbdrop_ = runT Migrations.dbdrop
@@ -51,7 +50,7 @@ dbrestart_ :: IO ()
 dbrestart_ = dbdrop_ >> dbinit_
 
 dbrestartForce_ :: IO ()
-dbrestartForce_ = runT Migrations.dbrestartForce 
+dbrestartForce_ = runT Migrations.dbrestartForce
 
 genTokens_ :: IO()
 genTokens_ = runT Emulate.writeTokens

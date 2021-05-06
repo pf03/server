@@ -7,8 +7,7 @@ INSERT into users (
 	creation_date,
 	is_admin
 ) values
-    --в идеале можно было каждому юзеру добавить флажок deleted, тогда его можно безопасно забанить и разбанить. Но такого в тз нет. В тз именно удаление, а не бан.
-    ('DELETED_USER', 'DELETED_USER', 'DELETED_USER.jpg', 'DELETED_USER', 'DELETED_USER', '2000-01-01', False),  --       этот юзер привязывается вместо удаленных юзеров
+    ('DELETED_USER', 'DELETED_USER', 'DELETED_USER.jpg', 'DELETED_USER', 'DELETED_USER', '2000-01-01', False),
 	('Ivanov', 'Petr', 'Petr.jpg', 'admin', '123456', '2020-01-01', True),
 	('Petrov', 'Ivan', 'Ivan.jpg', 'pivan', 'equalpass', '2000-01-01', False),
 	('Yuryev', 'Sergey', 'Sergey.jpg', 'ysergey', 'equalpass', '2015-01-01', False),

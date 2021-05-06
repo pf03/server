@@ -1,41 +1,41 @@
--- Our Modules
-import qualified Logic.Pure.API as API
-import qualified Logic.Pure.Params as Params
-import Interface.Cache
-import Lib (allShouldSatisfy)
+-- Our modules
 import           Common.Misc
-import Interface.Error as Error
+import           Interface.Cache
+import           Interface.Error        as Error
+import           Lib                    (allShouldSatisfy)
+import qualified Logic.Pure.API         as API
+import qualified Logic.Pure.Params      as Params
 
--- Other Modules
-import Test.Hspec
-import Test.QuickCheck
-import           Network.HTTP.Types.URI     as HTTP
-import Data.Either
-import qualified Data.ByteString as B
+-- Other modules
+import qualified Data.ByteString        as B
+import           Data.Either
+import           Network.HTTP.Types.URI as HTTP
+import           Test.Hspec
+import           Test.QuickCheck
 
--- | Тестирование чистых функций производится в монаде Either E - простейшем представителе класса MError
+-- | Pure functions are tested in the Either E monad, the simplest implementation of the MError class
 main :: IO ()
-main = do 
+main = do
     hspec testParseParams
     hspec testRouter
 
 -- Predicats
-isRequestError :: Either E a -> Bool 
-isRequestError ma = case ma of 
-    Left (RequestError _ ) -> True 
-    _ -> False
+isRequestError :: Either E a -> Bool
+isRequestError ma = case ma of
+    Left (RequestError _ ) -> True
+    _                      -> False
 
-isAuthError :: Either E a -> Bool 
-isAuthError ma = case ma of 
-    Left (AuthError _ ) -> True 
-    _ -> False
+isAuthError :: Either E a -> Bool
+isAuthError ma = case ma of
+    Left (AuthError _ ) -> True
+    _                   -> False
 
 -----------------------------Params.parseParams--------------------------------------------
 parseParams :: API -> Query -> Either E ParamsMap
 parseParams = Params.parseParams
 
 testParseParams :: Spec
-testParseParams = describe "Logic.parseParams" $ do 
+testParseParams = describe "Logic.parseParams" $ do
         it "throws request error" $ do
             nothingCase `shouldSatisfy` isRequestError
             insertAuthorWrongCases `allShouldSatisfy` isRequestError
@@ -48,38 +48,38 @@ testParseParams = describe "Logic.parseParams" $ do
             withParamRightCase `shouldSatisfy` isRight
 
 --Ошибка веб-запроса: Не указано значение обязательного параметра "description"
-nothingCase :: Either E ParamsMap 
+nothingCase :: Either E ParamsMap
 nothingCase = parseParams (API Insert [Author]) [("user_id", Just "1"), ("description", Nothing)]
 
 showTest = showCases (router "path" <$> wrongRouterCases <*> return AuthNo)
 
 showCases :: Show a => [Either E a] -> IO ()
 showCases = mapM_ $ \c -> do
-    case c of 
-        Left e -> print e
+    case c of
+        Left e  -> print e
         Right a -> putStrLn "right!"
-    
+
 
 insertAuthorWrongCases :: [Either E ParamsMap]
 insertAuthorWrongCases = parseParams (API Insert [Author]) <$> map simpleQueryToQuery [
-        --Ошибка веб-запроса: Не указан обязательный параметр "description"
+        -- Request error: Required parameter "description" not specified
         [],
-        --Ошибка веб-запроса: Недопустимый параметр запроса: "foo"
+        -- Request error: Unsupported request parameter: "foo"
         [("user_id", "1"), ("foo", "bar")],
-        -- Ошибка веб-запроса: В списке параметров запроса должно быть не более одного 
-        -- значения из списка ["user_id"], а их 2: [(Eq,"user_id",Just "1"),(Eq,"user_id",Just "2")]
+        -- Request error: The list of query parameters must contain no more than one value 
+        -- from the list ["user_id"], but there are 2: [(Eq,"user_id",Just "1"),(Eq,"user_id",Just "2")]
         [("user_id", "1"), ("user_id", "2"), ("description", "bar")],
-        -- Ошибка веб-запроса: Недопустимый параметр запроса: "user_id__all"
+        -- Request error: Unsupported request parameter: "user_id__all"
         [("user_id", "1"), ("user_id__all", "[2,3,5]"), ("description", "bar")],
-        --Ошибка веб-запроса: Параметр запроса "user_id" должен быть целым числом
+        -- Request error: The query parameter "user_id" must be an integer
         [("user_id", "bar"), ("description", "bar")],
-        --Ошибка веб-запроса: Недопустимый параметр запроса: "foo"
+        -- Request error: Unsupported request parameter: "foo"
         [("user_id", "1"), ("description", "1"), ("foo", "bar")]
     ]
 
 selectPostWrongCases :: [Either E ParamsMap]
 selectPostWrongCases = parseParams (API Select [Post]) <$> map simpleQueryToQuery [
-        --Ошибка веб-запроса: Параметр запроса "created_at" должен быть датой в формате YYYY-MM-DD ...
+        --Request error: The query parameter "created_at" must be a date in the format YYYY-MM-DD ...
         [("created_at", "1")],
         [("created_at", "foo")],
         [("created_at", "2020.12.12")],
@@ -93,19 +93,19 @@ selectPostWrongCases = parseParams (API Select [Post]) <$> map simpleQueryToQuer
         [("created_at__gt", "(2020-12-12,2020-12-12)")],
         [("created_at__bt", "2020-12-12")],
         [("created_at__bt", "[2020-12-12,2020-12-13]")],
-        --Ошибка веб-запроса: Недопустимый параметр запроса: "created_at__like" ...
+        --Request error: Unsupported request parameter: "created_at__like" ...
         [("created_at__like", "2020-12-12")],
         [("created_at__in", "[2020-12-12,2020-12-13]")],
         [("created_at__all", "[2020-12-12,2020-12-13]")],
         [("author_name__eq", "foo")],
         [("author_name__gt", "2")],
-        -- Ошибка веб-запроса: Параметр запроса "category_id" должен быть целым числом ...
+        -- Request error: The query parameter "category_id" must be an integer ...
         [("category_id", "foo")],
-        -- Ошибка веб-запроса: Недопустимый параметр запроса: "category_id__all" ...
+        -- Request error: Unsupported request parameter: "category_id__all" ...
         [("category_id__all", "[2,3]")],
-        -- Ошибка веб-запроса: Параметр запроса "category_id__in" должен быть массивом, состоящим из целых чисел в формате [x,y,z] ...
+        -- Request error: The query parameter "category_id__in" must be a list of integers in the format [x,y,z] ...
         [("category_id__in", "(2,3)")],
-        -- Ошибка веб-запроса: Недопустимый параметр запроса: "category_id__lt" ...
+        -- Request error: Unsupported request parameter: "category_id__lt" ...
         [("category_id__lt", "3")],
         [("category_id__gt", "3")],
         [("category_id__bt", "(2,3)")],
@@ -141,42 +141,42 @@ selectPostRightCases = parseParams (API Select [Post]) <$> map simpleQueryToQuer
         [("order_by", "photos")],
         [("page", "2")],
         [
-            ("created_at__bt", "(2020-12-12,2020-12-13)"), 
-            ("author_name__like", "foo"), 
+            ("created_at__bt", "(2020-12-12,2020-12-13)"),
+            ("author_name__like", "foo"),
             ("category_id__in", "[2,3]"),
             ("tag_id", "2"),
             ("name", "bar"),
             ("text__like", "foo"),
             ("contains__like", "Vasya"),
             ("order_by", "created_at"),
-            ("page", "2") 
+            ("page", "2")
             ]
     ]
 
--- Функция без параметров
-noParamsWrongCase :: Either E ParamsMap 
+-- API function without params
+noParamsWrongCase :: Either E ParamsMap
 noParamsWrongCase = parseParams (API Insert [Post]) [("draft_id", Just "1")]
 
-noParamsRightCase :: Either E ParamsMap 
+noParamsRightCase :: Either E ParamsMap
 noParamsRightCase = parseParams (API Insert [Post]) []
 
--- Функция, требующая хотя бы один из параметров
-withParamWrongCase :: Either E ParamsMap 
+-- API function that requires at least one of the parameters
+withParamWrongCase :: Either E ParamsMap
 withParamWrongCase = parseParams (API Update [Draft]) []
 
-withParamRightCase :: Either E ParamsMap 
+withParamRightCase :: Either E ParamsMap
 withParamRightCase = parseParams (API Update [Draft]) [("category_id", Just "1")]
 
 -----------------------------API.router----------------------------------------
 
 testRouter :: Spec
-testRouter = describe "API.router" $ do 
+testRouter = describe "API.router" $ do
         it "throws request error" $ do
             (router "path" <$> wrongRouterCases <*> return AuthNo) `allShouldSatisfy` isRequestError
             (router "path" <$> wrongRouterCases <*> return (AuthUser 3)) `allShouldSatisfy` isRequestError
             (router "path" <$> wrongRouterCases <*> return (AuthAdmin 1)) `allShouldSatisfy` isRequestError
             (router "path" <$> forAdminRouterCases <*> return AuthNo) `allShouldSatisfy` isRequestError
-            (router "path" <$> forAdminRouterCases <*> return (AuthUser 3)) `allShouldSatisfy` isRequestError  
+            (router "path" <$> forAdminRouterCases <*> return (AuthUser 3)) `allShouldSatisfy` isRequestError
         it "throws auth error" $ do
             (router "path" <$> forUserRouterCases <*> return AuthNo) `allShouldSatisfy` isAuthError
         it "returns result" $ do

@@ -1,18 +1,15 @@
 module Logic.IO.Photos where
 
-
 -- Our Modules
 import           Common.Misc
-import           Interface.Cache      as Cache
-import           Interface.Error      as Error
-import Logic.IO.Upload as Upload
-import Logic.IO.File as File
+import           Interface.Cache  as Cache
+import           Interface.Error  as Error
+import           Logic.IO.File    as File
+import           Logic.IO.Upload  as Upload
 
 -- Other Modules
-import           Control.Monad.Except (MonadIO (..))
-import qualified Data.ByteString      as B
-import           Network.Wai          as Wai
-import System.Directory
+import           Network.Wai      as Wai (Request)
+import           System.Directory (listDirectory)
 
 
 photosPath :: FilePath
@@ -28,7 +25,7 @@ upload req = do
 
 -- | View photo (only error handling)
 load :: MIOError m => FileName -> m ()
-load name = Error.catch (File.checkExist photosPath name)  $ \e -> do
+load name = Error.catch (File.checkExist photosPath name)  $ \_ -> do
         Error.throw $ RequestError $ template "Photo {0} is not exist" [name]
 
 -- | Returns photo filenames
@@ -37,6 +34,6 @@ select = do
     ParamEq (Int page) <- Cache.getParam "page"
     items <- liftEIO $ listDirectory photosPath
     let quantity = 20
-    return $ take quantity . drop ((page-1) * quantity) $ 
+    return $ take quantity . drop ((page-1) * quantity) $
         map (\item -> photosPath <> "/" <> item) items
-    
+

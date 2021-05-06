@@ -17,7 +17,7 @@ import           Data.Aeson
 import qualified Data.Map                        as M
 import           Data.Text                       (Text)
 import           Database.PostgreSQL.Simple
-import           Database.PostgreSQL.Simple.Time
+-- import           Database.PostgreSQL.Simple.Time
 import           GHC.Generics
 
 data Post = Post {
@@ -41,7 +41,7 @@ data Content = Content {
     contentId           :: Int,
     contentAuthor       :: Author,
     contentName         :: String,
-    contentCreationDate :: Date,
+    contentCreationDate :: Row.Date,
     contentCategory     :: Category,
     contentText         :: Text,
     contentPhoto        :: Path,
@@ -73,7 +73,7 @@ instance Identifiable Category where
 data Comment = Comment {
     commentId           :: Int,
     commentUser         :: User,
-    commentCreationDate :: Date,
+    commentCreationDate :: Row.Date,
     commentText         :: Text
 } deriving (Show, Generic)
 instance ToJSON Comment

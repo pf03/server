@@ -17,6 +17,7 @@ import           Control.Monad.State.Lazy
 import           Control.Monad.Trans.Except
 import           Database.PostgreSQL.Simple
 import           GHC.Generics               hiding (S)
+import qualified Database.PostgreSQL.Simple       as SQL (execute_, query_)
 
 -- This module defines State for one of the implementations of the MT type class
 -- (and other types classes) - transformer T
@@ -25,11 +26,15 @@ import           GHC.Generics               hiding (S)
 type T = StateT S (ExceptT E IO)
 data S = S {
     configWarp   :: ConfigWarp,
-    connectionDB :: Connection,
+    connectionDB :: ConnectionDB,
     configLog    :: LogConfig,
     logSettings  :: LogSettings,
     cache        :: Cache
 } deriving (Show, Generic)
+
+newtype ConnectionDB = ConnectionDB Connection
+instance Show ConnectionDB where
+    show _ = "connected"
 
 -----------------------------Instances-----------------------------------------
 instance Log.MLog T where
@@ -53,7 +58,12 @@ instance MCache T where
     setCache c = modify (\st -> st {cache = c})
 
 instance MDB T where
-    getConnection = gets connectionDB
+    dbquery qu = do
+      ConnectionDB conn <- gets connectionDB
+      liftEIO $ SQL.query_ conn qu 
+    dbexecute qu = do
+      ConnectionDB conn <- gets connectionDB
+      liftEIO $ SQL.execute_ conn qu
 
 instance MT T
 
@@ -73,7 +83,7 @@ getLogConfig = gets configLog
 getWarpPort :: MonadState S m => m ConfigWarp
 getWarpPort = gets configWarp
 
-getConnection:: MonadState S m => m Connection
+getConnection:: MonadState S m => m ConnectionDB
 getConnection = gets connectionDB
 
 

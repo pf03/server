@@ -11,35 +11,40 @@ import           Data.Aeson
 import qualified Data.ByteString.Lazy       as L
 import           Database.PostgreSQL.Simple
 import           GHC.Generics               (Generic)
+import           Network.Wai.Handler.Warp   as Warp (Port)
 import           System.IO.Error            (isDoesNotExistError)
-import Network.Wai.Handler.Warp as Warp ( Port )
 
 -----------------------------Types---------------------------------------------
 data Config = Config {
     _warp :: ConfigWarp,
-    _db   :: ConnectInfo,
+    _db   :: DBConnectInfo,
     _log  :: LogConfig
 } deriving (Show, Generic)
+
+newtype DBConnectInfo = DBConnectInfo {getConnectInfo :: ConnectInfo}
+
+instance Show DBConnectInfo where
+    show (DBConnectInfo ci) = show ci
+
+instance FromJSON DBConnectInfo where
+    parseJSON  = withObject "object" $ \o -> do
+        ci <- ConnectInfo
+            <$> o .: "connectHost"
+            <*> o .: "connectPort"
+            <*> o .: "connectUser"
+            <*> o .: "connectPassword"
+            <*> o .: "connectDatabase"
+        return $ DBConnectInfo ci
 
 newtype ConfigWarp = ConfigWarp{
     warpPort:: Port
 } deriving (Show, Generic)
 
-instance ToJSON Config where
-    toJSON = genericToJSON defaultOptions {
-        fieldLabelModifier = drop 1 }
+instance FromJSON ConfigWarp
 
 instance FromJSON Config where
     parseJSON = genericParseJSON defaultOptions {
         fieldLabelModifier = drop 1 }
-
-instance Show Connection where
-    show c = "connected"
-
-instance FromJSON ConfigWarp
-instance ToJSON ConfigWarp
-instance FromJSON ConnectInfo
-instance ToJSON ConnectInfo
 
 -----------------------------Functions-----------------------------------------
 -- | Read config as both object and string

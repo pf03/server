@@ -16,7 +16,7 @@ import           Logic.DB.Select                  (p)
 
 -- Other modules
 import           Control.Monad.Identity           (when)
-import qualified Crypto.Hash.MD5 as MD5               (hash)
+import qualified Crypto.Hash.MD5 as MD5           (hash)
 import           Data.Aeson                       (FromJSON, ToJSON)
 import qualified Data.ByteString                  as B
 import qualified Data.ByteString.Char8            as BC
@@ -30,7 +30,6 @@ import           GHC.Generics                     (Generic)
 import qualified Network.Wai                      as Wai
 import           Numeric                          (showHex)
 import           Text.Read                        (readEither)
-import           System.Environment  (getArgs)
 
 -----------------------------Types---------------------------------------------
 newtype Token = Token {token :: String}  deriving (Show, Generic, Eq)
@@ -64,9 +63,6 @@ auth req  = do
         Just a -> do
             date <- liftEIO getCurrentTime
             checkAuth date (Token $ BC.unpack a)
-
-debugDate :: UTCTime
-debugDate = UTCTime (fromGregorian 2021 04 24) (secondsToDiffTime 0)
 
 -----------------------------Private functions---------------------------------
 checkAuth :: (MError m, MCache m) => UTCTime -> Token -> m ()

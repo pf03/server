@@ -2,7 +2,7 @@ module Logic.Pure.API where
 
 -- Our modules
 import           Common.Misc
-import           Interface.Cache as Cache
+import           Interface.Cache as Cache hiding (api)
 import           Interface.Error as Error
 
 -- Other modules
@@ -10,7 +10,7 @@ import qualified Data.ByteString as B
 import           Data.Text       (Text, unpack)
 import           Text.Read       (readEither)
 
--- * The router only checks the roles, sometimes the id, BUT the router does not use the database 
+-- * The router only checks the roles, sometimes the id, BUT the router does not use the database
 -- (it does not even have access to the connection)
 -- The use of the database is within the competence of API functions.
 router :: MError m => B.ByteString -> PathInfo -> Auth -> m API

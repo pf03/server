@@ -8,7 +8,7 @@ import           Common.Misc
 --Other modules
 import           Control.Monad
 import           Control.Monad.IO.Class (MonadIO (..))
-import           Data.Aeson             (encode, Value (String))
+import           Data.Aeson             (encode)
 import           Data.Aeson.Types       (FromJSON, ToJSON)
 import qualified Data.ByteString        as B
 import           GHC.Generics           (Generic)
@@ -50,17 +50,17 @@ class Monad m => MLog m where
 -----------------------------MLog----------------------------------------------
 debugOff :: MLog m => m ()
 debugOff = do
-    LogSettings cs le  <- getSettings
+    LogSettings cs _  <- getSettings
     setSettings cs False
 
 debugOn :: MLog m => m ()
 debugOn = do
-    LogSettings cs le  <- getSettings
+    LogSettings cs _  <- getSettings
     setSettings cs True
 
 setColorScheme :: MLog m => ColorScheme -> m ()
 setColorScheme newcs = do
-    LogSettings cs le  <- getSettings
+    LogSettings _ le  <- getSettings
     setSettings newcs le
 
 getConfigSettings :: MLog m => m (LogConfig, LogSettings)
@@ -135,10 +135,10 @@ critical lc ls = messageIO lc ls Critical
 -- for example based on writerT, or empty return () implementation
 -- Info can be shown in different color schemes, and for other levels the color corresponds to the level
 messageIO :: MonadIO m => LogConfig -> LogSettings -> LogLevel -> String -> m ()
-messageIO (LogConfig ecolor eterminal efile minLevel) (LogSettings colorScheme debugMode) level text = do
-    if level < toEnum minLevel && not debugMode then return () else do
+messageIO (LogConfig ecolor eterminal efile ml) (LogSettings cs dm) level text = do
+    if level < toEnum ml && not dm then return () else do
         when (ecolor && eterminal ) $ do
-            if level == Info then Color.setSchemeT colorScheme
+            if level == Info then Color.setSchemeT cs
                 else Color.setColorT $ getColor level
         when eterminal $ putStrLnT logText
         when efile $ file logText
