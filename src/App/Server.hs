@@ -2,6 +2,7 @@ module App.Server where
 
 -- Our modules
 import           Common.Misc
+import           Interface.Log            as Log
 import           Logic.IO.Config
 import qualified Logic.IO.Response        as Response
 import           T.Transformer
@@ -11,7 +12,7 @@ import qualified Data.ByteString          as B
 import           Network.Wai              (Application)
 import           Network.Wai.Handler.Warp as Warp
 import           Network.Wai.Internal     (getRequestBodyChunk)
-import           System.Environment       (getEnv)
+import qualified System.Console.ANSI              as Color
 
 run :: IO()
 run = do
@@ -20,7 +21,8 @@ run = do
         Nothing -> return ()
         Just config -> do
             let port = warpPort . _warp $ config
-            putStrLn $ template "Listen to port {0}" [show port]
+            let lc = _log config
+            Log.infoC lc Color.Green $ template "Start server. Listen to port {0}..." [show port]
             Warp.run port $ app config
 
 app :: Config -> Application

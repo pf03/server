@@ -75,7 +75,7 @@ resetSettings = do
     setSettings cs e
 
 defaultSettings :: LogSettings
-defaultSettings = LogSettings Black True
+defaultSettings = LogSettings Black False
 
 defaultConfig :: LogConfig
 defaultConfig = LogConfig {colorEnable = False, terminalEnable = True, fileEnable = False, minLevel = 0}
@@ -120,6 +120,9 @@ debug lc ls a = messageIO lc ls Debug (show a)
 info :: MonadIO m => LogConfig -> LogSettings -> String -> m ()
 info lc ls = messageIO lc ls Info
 
+infoC :: MonadIO m => LogConfig -> ColorScheme -> String -> m ()
+infoC lc cs = messageIO lc (LogSettings cs False) Info
+
 warn :: MonadIO m => LogConfig -> LogSettings -> String -> m ()
 warn lc ls = messageIO lc ls Warn
 
@@ -154,7 +157,7 @@ messageIO (LogConfig ecolor eterminal efile ml) (LogSettings cs dm) level text =
             getColor  Error    = Yellow
             getColor  Critical = Red
 
-            file :: (MonadIO m, ToJSON a) => a -> m()
+            file :: MonadIO m => String -> m ()
             file str = do
-                liftIO $ B.appendFile "log.txt" $ convert . encode $ str
-                liftIO $ B.appendFile "log.txt" $ convert ("\n" :: String)
+                liftIO $ B.appendFile "log.txt" $ convert str
+                liftIO $ B.appendFile "log.txt" "\n"

@@ -12,7 +12,6 @@ import           Control.Monad.Except
 import           Control.Monad.State.Lazy
 import           Database.PostgreSQL.Simple
 import qualified System.Console.ANSI              as Color
-import           System.Environment
 
 -----------------------------External------------------------------------------
 -- | Run and show result of transformer
@@ -112,7 +111,7 @@ exceptToMaybe :: ExceptT E IO a -> IO (Maybe a)
 exceptToMaybe  m = do
     ea <- runExceptT m
     case ea of
-        Left e  -> return Nothing
+        Left _  -> return Nothing
         Right a -> return $ Just a
 
 -----------------------------Config--------------------------------------------
