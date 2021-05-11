@@ -15,18 +15,17 @@ import           System.Environment       (getEnv)
 
 run :: IO()
 run = do
-    mconfig <- setEnvironment
+    mconfig <- exceptToMaybe runConfig
     case mconfig of
         Nothing -> return ()
         Just config -> do
             let port = warpPort . _warp $ config
             putStrLn $ template "Listen to port {0}" [show port]
-            Warp.run port app
+            Warp.run port $ app config
 
-app :: Application
-app req f = do
-    configString <- getEnv "configString"
-    response <- evalTwithHandler  (Response.get req) Response.errorHandler configString
+app :: Config -> Application
+app config req f = do
+    response <- evalTwithHandler  (Response.get req) Response.errorHandler config
     emptyBody 0 (getRequestBodyChunk req)
     f response
 
@@ -40,3 +39,6 @@ emptyBody n str = do
             putStrLn $ template "Successfully read {0} parts of the request body" [show n]
         else do
             emptyBody (n+1) str
+
+
+

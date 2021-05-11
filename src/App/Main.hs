@@ -1,15 +1,15 @@
 module App.Main where
 
 -- Our modules
-import           App.Emulate         as Emulate
 import qualified App.Server          as Server
 import qualified Logic.DB.Migrations as Migrations
+import qualified Logic.IO.Emulate       as Emulate
 import           T.Transformer       (runT)
 
 -- Other modules
 import           System.Environment  (getArgs)
 
-main :: IO()
+main :: IO ()
 main = do
     args <- getArgs
     case args of

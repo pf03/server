@@ -1,4 +1,4 @@
-module App.Emulate where
+module Logic.IO.Emulate where
 
 -- Our modules
 import           Common.Misc

@@ -48,11 +48,10 @@ instance FromJSON Config where
 
 -----------------------------Functions-----------------------------------------
 -- | Read config as both object and string
-readConfig :: MIOError m => m (Config, String)
+readConfig :: MIOError m => m Config
 readConfig = do
     bs <- L.readFile pathConfig `Error.catchEIO` handler
-    fileConfig <- eDecode bs
-    return (fileConfig, show bs) where
+    eDecode bs where
         handler :: IOException -> E
         handler e
             | isDoesNotExistError e = ConfigError "Configuration file not found!"

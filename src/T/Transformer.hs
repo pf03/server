@@ -18,57 +18,47 @@ import           System.Environment
 -- | Run and show result of transformer
 showT :: Show a => T a -> IO ()
 showT m = runE_ $ do
-    (config, _) <- _runConfig
-    connection <- _runConnection config
-    value <-_getValue config connection m
-    _showValue config value
+    config <- runConfig
+    connection <- runConnection config
+    value <- getValue config connection m
+    showValue config value
 
 -- | Run transformer without showing
 runT :: T a -> IO ()
 runT m = runE_ $ do
-    (config, _) <- _runConfig
-    connection <- _runConnection config
-    _ <- _getValue config connection m
+    config <- runConfig
+    connection <- runConnection config
+    _ <- getValue config connection m
     return ()
 
 -- | Evaluate value of transformer with default value in error case
--- * ConfigString red from Environment
-evalT :: T a -> a -> String -> IO a
-evalT m def configString = runE def $ do
-    config <- eDecode  $ read configString
-    connection <- _runConnection config
-    _getValue config connection m
+evalT :: T a -> a -> Config -> IO a
+evalT m def config = runE def $ do
+    connection <- runConnection config
+    getValue config connection m
 
--- | Evaluate value of transformer with default value in error case
--- * ConfigString red from Environment
-evalTwithHandler :: T a -> (E -> a) -> String -> IO a
-evalTwithHandler m handler configString = runEwithHandler handler $ do
-    config <- eDecode  $ read configString
-    connection <- _runConnection config
-    _getValue config connection m
-
--- | Set config as string to the environment, return True if success
-setEnvironment :: IO (Maybe Config)
-setEnvironment = runE Nothing $ do
-    (config, configString) <- _runConfig
-    lift $ setEnv "configString" configString
-    return $ Just config
+-- | Evaluate value of transformer with error handler
+evalTwithHandler :: T a -> (E -> a) -> Config -> IO a
+evalTwithHandler m handler config = runEwithHandler handler $ do
+    connection <- runConnection config
+    getValue config connection m
 
 -----------------------------Internal------------------------------------------
-_runConfig :: (MIOError m) => m (Config, String)
-_runConfig = do
+
+runConfig :: (MIOError m) => m Config
+runConfig = do
     let ls = Log.LogSettings Color.Cyan True
-    (config, configString) <- Error.catch readConfig $ \e -> do
+    config <- Error.catch readConfig $ \e -> do
         let dlc = Log.defaultConfig
         Log.critical dlc ls "Error config read while run the transfomer:"
         Log.critical dlc ls $ show e
         Error.throw e
     let lc = _log config
     Log.info lc ls "Config read successfully..."
-    return (config, configString)
+    return config
 
-_runConnection :: (MIOError m) => Config -> m Connection
-_runConnection config = do
+runConnection :: (MIOError m) => Config -> m Connection
+runConnection config = do
     let ls = Log.LogSettings Color.Cyan True
     let lc = _log config
     connection <- Error.catch (connectDB . getConnectInfo . _db $ config) $ \e -> do
@@ -78,8 +68,8 @@ _runConnection config = do
     Log.info lc ls "DB connected successfully..."
     return connection
 
-_getValue :: Config -> Connection -> T a -> ExceptT E IO a
-_getValue config connection m = do
+getValue :: Config -> Connection -> T a -> ExceptT E IO a
+getValue config connection m = do
     let s = getS config connection
     let ls = Log.LogSettings Color.Cyan True
     let lc = _log config
@@ -89,8 +79,8 @@ _getValue config connection m = do
         Error.throw e
     return $ fst a
 
-_showValue :: (MonadIO m, Show a) => Config -> a -> m ()
-_showValue config value = do
+showValue :: (MonadIO m, Show a) => Config -> a -> m ()
+showValue config value = do
     let ls = Log.LogSettings Color.Cyan True
     let lc = _log config
     Log.info lc ls "Result: "
@@ -118,6 +108,13 @@ runEwithHandler handler m = do
 runE_ :: ExceptT E IO () -> IO()
 runE_ m = void (runExceptT m)
 
+exceptToMaybe :: ExceptT E IO a -> IO (Maybe a)
+exceptToMaybe  m = do
+    ea <- runExceptT m
+    case ea of
+        Left e  -> return Nothing
+        Right a -> return $ Just a
+
 -----------------------------Config--------------------------------------------
 getS :: Config -> Connection -> S
 getS Config {_warp = cw, _db = _, _log = cl} connection = S {
@@ -132,7 +129,7 @@ getS Config {_warp = cw, _db = _, _log = cl} connection = S {
 connectDB :: MIOError m => ConnectInfo -> m Connection
 connectDB connectInfo = connect connectInfo `Error.catchEIO` handler where
     handler :: SqlError -> E
-    handler _ = DBError "Ошибка соединения с базой данных!"
+    handler _ = DBError "Error DB Connection!"
 
 -----------------------------Log test------------------------------------------
 testLog :: IO()
