@@ -60,7 +60,7 @@ _runConfig = do
     let ls = Log.LogSettings Color.Cyan True
     (config, configString) <- Error.catch readConfig $ \e -> do
         let dlc = Log.defaultConfig
-        Log.critical dlc ls "Error config read while run the transfomer: "
+        Log.critical dlc ls "Error config read while run the transfomer:"
         Log.critical dlc ls $ show e
         Error.throw e
     let lc = _log config

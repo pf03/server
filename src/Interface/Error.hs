@@ -9,7 +9,6 @@ import qualified Control.Exception          as E
 import           Control.Monad.Except
 import           Control.Monad.Trans.Except (catchE, throwE)
 import           Data.Aeson
-import qualified Data.ByteString.Lazy.Char8 as LC
 import qualified Data.Text                  as T
 import qualified Data.Text.Encoding         as T
 import           Database.PostgreSQL.Simple
@@ -123,5 +122,5 @@ instance MError (ExceptT E IO) where
 instance MIOError (ExceptT E IO)
 
 -----------------------------Decode--------------------------------------------
-eDecode :: (MError m, FromJSON a) => LC.ByteString -> m a
+eDecode :: (MError m, FromJSON a) => LBS -> m a
 eDecode bs = catchEither (eitherDecode bs) ParseError

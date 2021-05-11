@@ -96,7 +96,7 @@ class ConvertL a where
     convertL :: a -> LC.ByteString
 
 instance ConvertL String where
-    convertL = L.encodeUtf8 . L.pack  --encodeUtf8 для корректной кодировки кирилицы
+    convertL = L.encodeUtf8 . L.pack  -- encodeUtf8 for correct cyrillic encoding
 
 instance ConvertL BC.ByteString where
   convertL = LC.pack . BC.unpack

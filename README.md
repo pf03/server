@@ -6,17 +6,20 @@
    * git clone https://github.com/pf03/server.git
    * cd server
    * stack build
-2. Move the resulting binary file (in the case of Windows server-exe.exe) to the ‘dist’ folder of the repository, which contains all the necessary additional files
+3. To run the binary file successfully, copy the following files and folders from repository into the same folder with the binary file:
+* curl
+* migrations
+* photos
+* config-example.json
 3. Rename the config-example.json file to config.json and, if necessary, edit it
 4. To initialize DB tables and bring them up to date, start the server with the ‘db-init’ flag. The rest of the command line options that might be useful for testing are listed below.
 3. To update the token file ‘dist/curl/tokens.sh’, start the server with the ‘gen-tokens’ flag
-4. API  functions could be tested using ‘curl’ requests in the corresponding folder
+4. API functions could be tested using ‘curl’ requests in the corresponding folder
 5. To test pure functions run ‘stack test’
 6. Rules for registration of migrations:
 * file names are in the strict ‘1234_migration_name.sql’ format and in strict order, starting at ‘0000_migration_name.sql’;
 * the ‘drop.sql’ file is used to drop tables;
 * files with other names are ignored.
-
 For migrations test:
 * drop the database using the db-drop command,
 * delete (rename) part of the migration files,

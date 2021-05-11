@@ -158,8 +158,3 @@ messageIO (LogConfig ecolor eterminal efile ml) (LogSettings cs dm) level text =
             file str = do
                 liftIO $ B.appendFile "log.txt" $ convert . encode $ str
                 liftIO $ B.appendFile "log.txt" $ convert ("\n" :: String)
-
-
-
-
-

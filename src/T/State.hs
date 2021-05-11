@@ -86,4 +86,6 @@ getWarpPort = gets configWarp
 getConnection:: MonadState S m => m ConnectionDB
 getConnection = gets connectionDB
 
-
+-- data App = VK | Telegram deriving (Show, Generic)  
+-- instance FromJSON App
+-- instance ToJSON App

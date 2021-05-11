@@ -1,7 +1,0 @@
-FAKEUSER="Authorization: 2_admin_2021-05-01_1f0f296437a2deccb5bf40e10653f420"
-ADMIN="Authorization: 2_admin_2021-05-01_1f0f296437a2deccb5bf40e10653f42f"
-USER3="Authorization: 3_user_2021-05-01_bb57701b88b87efd21cb2f947c1ce63a"
-USER4="Authorization: 4_user_2021-05-01_ed1bfa466bf05172d03da446d14f8ea9"
-USER5="Authorization: 5_user_2021-05-01_0163c2e8e2a3399ac01478cefe89a997"
-USER6="Authorization: 6_user_2021-05-01_2d5e7f91e378740c3304ef1b525c9a65"
-USER7="Authorization: 7_user_2021-05-01_e8ca07ee98a98d7ff5a00257bf9b9a08"
