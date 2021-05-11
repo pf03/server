@@ -8,7 +8,6 @@ import           Common.Misc
 --Other modules
 import           Control.Monad
 import           Control.Monad.IO.Class (MonadIO (..))
-import           Data.Aeson             (encode)
 import           Data.Aeson.Types       (FromJSON, ToJSON)
 import qualified Data.ByteString        as B
 import           GHC.Generics           (Generic)
