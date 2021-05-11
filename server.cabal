@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 22509fe80debc477dfe24fb5ab67320733841ac61015686d707294c1a5caf9b1
+-- hash: c0b79b2b7ffb80207ce78417ae83c4e621ffc4c0bf0f6a38f55f22843e344f54
 
 name:           server
 version:        0.1.0.0
@@ -27,7 +27,6 @@ source-repository head
 
 library
   exposed-modules:
-      App.Emulate
       App.Main
       App.Server
       Common.Color
@@ -45,6 +44,7 @@ library
       Logic.DB.Select
       Logic.DB.Update
       Logic.IO.Config
+      Logic.IO.Emulate
       Logic.IO.File
       Logic.IO.Photos
       Logic.IO.Response
