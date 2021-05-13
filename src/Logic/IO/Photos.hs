@@ -36,4 +36,3 @@ select = do
     let quantity = 20
     return $ take quantity . drop ((page-1) * quantity) $
         map (\item -> photosPath <> "/" <> item) items
-

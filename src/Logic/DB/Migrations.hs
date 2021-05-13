@@ -64,7 +64,8 @@ getNamesList = do
     items <- liftEIO $ listDirectory pathMigrations
     printT items
     let files = sort $ filter helper items
-    unless (all (uncurry helper2) $ zip [0::Int ..] files) $ Error.throw $ IOError "Check the order of numbers in migration files!"
+    unless (all (uncurry helper2) $ zip [0::Int ..] files) $ 
+        Error.throw $ IOError "Check the order of numbers in migration files!"
     printT files
     return files
     where

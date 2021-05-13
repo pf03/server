@@ -59,4 +59,3 @@ readConfig = do
 
 pathConfig :: FilePath
 pathConfig = "config.json"
-

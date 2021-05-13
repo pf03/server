@@ -253,5 +253,3 @@ addAuthUserIdParam = do
         AuthAdmin userId -> Cache.addIdParam "user_id" userId
         AuthUser userId  -> Cache.addIdParam "user_id" userId
         _                -> Error.throw authErrorDefault
-
-
