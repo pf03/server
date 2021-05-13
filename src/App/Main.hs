@@ -9,8 +9,8 @@ import           T.Transformer       (runT)
 -- Other modules
 import           System.Environment  (getArgs)
 
-main :: IO ()
-main = do
+main_ :: IO ()
+main_ = do
     args <- getArgs
     case args of
         [] -> server_
