@@ -2,10 +2,17 @@ module Interface.MError.Exports (module Class, module Functions, module Types) w
 
 import Interface.MError.Class as Class (MError (..), MIOError)
 import Interface.MError.Functions as Functions
-  ( catchEIO,
+  ( authErrorDefault,
+    authErrorWrong,
+    catchEIO,
     catchEither,
+    dbErrorDefault,
+    eDecode,
+    errorDefault,
+    getStatus,
     liftE,
     liftEIO,
+    patError,
     toEither,
   )
 import Interface.MError.Types as Types (Error (..))

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 5c915e45e57da36215a3a0808c671934f788afebd9d44a57bccbf64c0d4b4bd2
+-- hash: da41d00fe17c1ad2eb1d72a7021ca9736bb768f6e45cba5845caa2a67ba6e6a1
 
 name:           server
 version:        0.1.0.0
@@ -36,6 +36,9 @@ library
       Interface.MCache.Exports
       Interface.MCache.Functions
       Interface.MCache.Types
+      Interface.MDB.Class
+      Interface.MDB.Exports
+      Interface.MDB.Functions
       Interface.MError.Class
       Interface.MError.Exports
       Interface.MError.Functions
