@@ -31,12 +31,12 @@ addChanged _ _ n | n <= 0 = return ()
 addChanged _ (Id _) _ = return ()
 addChanged Select _ _ = return ()
 addChanged SelectById _ _ = return ()
-addChanged qt at n = do
-  let newChange = Changed $ M.fromList [(queryType qt, M.fromList [(apiTypes at, n)])]
+addChanged queryType apiType n = do
+  let newChange = Changed $ M.fromList [(queryTypeHelper queryType, M.fromList [(apiTypeHelper apiType, n)])]
   modifyCache $ \cache -> cache {changed = changed cache <> newChange}
   where
-    apiTypes :: APIType -> String
-    apiTypes = plural . lower . show
+    apiTypeHelper :: APIType -> String
+    apiTypeHelper = plural . lower . show
       where
         plural :: String -> String
         plural str = case str of
@@ -45,52 +45,52 @@ addChanged qt at n = do
         lower (x : xs) = toLower x : xs
         lower [] = []
 
-    queryType :: QueryType -> String
-    queryType Insert = "created"
-    queryType Update = "edited"
-    queryType Delete = "deleted"
-    queryType Upload = "uploaded"
-    queryType Select = "selected"
-    queryType SelectById = "selected"
-    queryType Auth = "authorized"
-    queryType Load = "loaded"
-    queryType Empty = "none"
+    queryTypeHelper :: QueryType -> String
+    queryTypeHelper Insert = "created"
+    queryTypeHelper Update = "edited"
+    queryTypeHelper Delete = "deleted"
+    queryTypeHelper Upload = "uploaded"
+    queryTypeHelper Select = "selected"
+    queryTypeHelper SelectById = "selected"
+    queryTypeHelper Auth = "authorized"
+    queryTypeHelper Load = "loaded"
+    queryTypeHelper Empty = "none"
 
 getChanged :: MCache m => m Changed
 getChanged = getsCache changed
 
 resetChanged :: MCache m => m ()
-resetChanged = modifyCache $ \st -> st {changed = mempty}
+resetChanged = modifyCache $ \cache -> cache {changed = mempty}
 
 setParams :: MCache m => ParamsMap -> m ()
-setParams p = modifyCache $ \s -> s {params = p}
+setParams params0 = modifyCache $ \cache -> cache {params = params0}
 
 getParams :: MCache m => m ParamsMap
 getParams = getsCache params
 
 modifyParams :: MCache m => (ParamsMap -> ParamsMap) -> m ParamsMap
 modifyParams f = do
-  p <- getParams
-  setParams $ f p
+  params0 <- getParams
+  setParams $ f params0
   getParams
 
 modifyParamsM :: MCache m => (ParamsMap -> m ParamsMap) -> m ParamsMap
 modifyParamsM f = do
-  p <- getParams
-  newp <- f p
-  setParams newp
+  params0 <- getParams
+  newParams <- f params0
+  setParams newParams
   getParams
 
 getParam :: MCache m => BSName -> m Param
-getParam name = getsCache (\st -> params st M.! name)
+getParam name = getsCache (\cache -> params cache M.! name)
 
 -- | For example "user_id", "tag_id"
 addIdParam :: MCache m => BSName -> Int -> m ParamsMap
-addIdParam name pid = modifyParams $ M.insert name (ParamEq (Int pid))
+addIdParam name paramId = modifyParams $ M.insert name (ParamEq (Int paramId))
 
 addIdParam_ :: MCache m => BSName -> Int -> m ()
-addIdParam_ name pid = do
-  _ <- addIdParam name pid
+addIdParam_ name paramId = do
+  _ <- addIdParam name paramId
   return ()
 
 addStrParam :: MCache m => BSName -> String -> m ParamsMap
@@ -111,10 +111,10 @@ getAuth :: MCache m => m Auth
 getAuth = getsCache auth
 
 setAuth :: MCache m => Auth -> m ()
-setAuth a = modifyCache $ \s -> s {auth = a}
+setAuth auth0 = modifyCache $ \cache -> cache {auth = auth0}
 
 getAPI :: MCache m => m API
 getAPI = getsCache api
 
 setAPI :: MCache m => API -> m ()
-setAPI a = modifyCache $ \s -> s {api = a}
+setAPI api0 = modifyCache $ \state -> state {api = api0}
