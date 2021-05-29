@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: da41d00fe17c1ad2eb1d72a7021ca9736bb768f6e45cba5845caa2a67ba6e6a1
+-- hash: 7eb4d41297cfbc6f11c0c1a0132f70c93b1d3ebf3d98084fe3208c2985b1198c
 
 name:           server
 version:        0.1.0.0
@@ -32,6 +32,7 @@ library
       Common.Functions
       Common.Identifiable
       Common.Types
+      Interface.Class
       Interface.MCache.Class
       Interface.MCache.Exports
       Interface.MCache.Functions
@@ -39,6 +40,7 @@ library
       Interface.MDB.Class
       Interface.MDB.Exports
       Interface.MDB.Functions
+      Interface.MDB.Templates
       Interface.MError.Class
       Interface.MError.Exports
       Interface.MError.Functions
@@ -47,6 +49,11 @@ library
       Interface.MLog.Exports
       Interface.MLog.Functions
       Interface.MLog.Types
+      Logic.DB.Row
+      Logic.DB.Select.Exports
+      Logic.DB.Select.Functions
+      Logic.DB.Select.Internal
+      Logic.DB.Select.Types
   other-modules:
       Paths_server
   hs-source-dirs:
