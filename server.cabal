@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: c0b79b2b7ffb80207ce78417ae83c4e621ffc4c0bf0f6a38f55f22843e344f54
+-- hash: 35df78d8b9eba6b296f82027aa81be5ca3a30c6abd858f9f02f5d8588058dee7
 
 name:           server
 version:        0.1.0.0
@@ -27,33 +27,11 @@ source-repository head
 
 library
   exposed-modules:
-      App.Main
-      App.Server
       Common.Color
+      Common.Convert
+      Common.Functions
       Common.Identifiable
-      Common.Misc
-      Interface.Cache
-      Interface.DB
-      Interface.Error
-      Interface.Log
-      Logic.DB.Auth
-      Logic.DB.Delete
-      Logic.DB.Insert
-      Logic.DB.Migrations
-      Logic.DB.Row
-      Logic.DB.Select
-      Logic.DB.Update
-      Logic.IO.Config
-      Logic.IO.Emulate
-      Logic.IO.File
-      Logic.IO.Photos
-      Logic.IO.Response
-      Logic.IO.Upload
-      Logic.Pure.API
-      Logic.Pure.JSON
-      Logic.Pure.Params
-      T.State
-      T.Transformer
+      Common.Types
   other-modules:
       Paths_server
   hs-source-dirs:
