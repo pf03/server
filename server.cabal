@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: f5a98f7382b03701a3a01387589291faee9195e056be64d43d24fc409460775c
+-- hash: 5e6633933683df6e7b0a101f982d586d6555b3f1ce4774be26891cc9edf3d935
 
 name:           server
 version:        0.1.0.0
@@ -36,6 +36,10 @@ library
       Interface.MError.Exports
       Interface.MError.Functions
       Interface.MError.Types
+      Interface.MLog.Class
+      Interface.MLog.Exports
+      Interface.MLog.Functions
+      Interface.MLog.Types
   other-modules:
       Paths_server
   hs-source-dirs:
