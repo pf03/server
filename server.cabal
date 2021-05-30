@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: d6593fa8d04a53e869c876da2fb9f36fb4cd49cd50e735119e07bf31a17a8111
+-- hash: a1800f0609e91469a23bee36d4e1f4a0dcec6ddc2c15fe2376ebfa2499f379d5
 
 name:           server
 version:        0.1.0.0
@@ -52,7 +52,8 @@ library
       Logic.DB.Auth
       Logic.DB.Delete
       Logic.DB.Insert
-      Logic.DB.Migrations
+      Logic.DB.Migrations.Functions
+      Logic.DB.Migrations.Internal
       Logic.DB.Row
       Logic.DB.Select.Exports
       Logic.DB.Select.Functions

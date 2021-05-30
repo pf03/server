@@ -1,8 +1,8 @@
-module Logic.DB.Migrations where
+module Logic.DB.Migrations.Internal where
 
 import Common.Types ( FileName )
 import Interface.Class ( MIOError, MError, MLog, MDB )
-import Common.Functions ( Template(template), printT, readLnT )
+import Common.Functions ( Template(template), printT)
 import Control.Monad ( unless, zipWithM_ )
 import Data.List ( sort, isPrefixOf, isSuffixOf )
 import Database.PostgreSQL.Simple.Types ( Query(Query) )
@@ -15,43 +15,6 @@ import qualified Logic.DB.Select.Exports as Select
 import qualified Logic.IO.File as File
 import System.Directory ( listDirectory )
 
------------------------------External--------------------------------
-dbinit :: MDB m => m ()
-dbinit = do
-  Log.warnM "Database initialization and migrations in progress..."
-  namesList <- getNamesList
-  migrate namesList
-  Log.warnM "Database initialization and all migrations completed successfully"
-
-run :: MDB m => m ()
-run = do
-  Log.warnM "Migrations in progress..."
-  migrations <- Select.allMigrations
-  namesList <- getNamesList
-  namesTodo <- checkMigrations migrations namesList
-  migrate namesTodo
-  Log.warnM "All migrations completed successfully"
-
-dbdrop :: MDB m => m ()
-dbdrop = do
-  Log.warnM "Warning! All database tables will be dropped Y/N"
-  answer <- readLnT
-  case answer of
-    "N" -> Log.infoM "Exit from the migration program"
-    "Y" -> dbdropForce
-    _ -> Log.infoM "Wrong choice. Try again"
-
-dbdropForce :: MDB m => m ()
-dbdropForce = do
-  executeFile $ pathMigration "drop.sql"
-  Log.warnM "All database tables are dropped by user choice"
-
-dbrestartForce :: MDB m => m ()
-dbrestartForce = do
-  dbdropForce
-  dbinit
-
------------------------------Internal------------------------------------------
 pathMigrations :: FilePath
 pathMigrations = "migrations"
 
