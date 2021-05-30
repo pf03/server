@@ -27,7 +27,6 @@ import Interface.MCache.Types as Types
   ( API (..),
     APIType (..),
     Auth (..),
-    BSName,
     Cache (..),
     Changed (..),
     Param (..),

@@ -47,6 +47,9 @@ instance Template String where
 instance Template Query where
   template (Query str) args = Query $ template str $ map fromQuery args
 
+templateM :: (Template s, Monad m) => s -> [m s] -> m s
+templateM str margs = return . template str <$$> margs
+
 -----------------------------Monadic and simple functions----------------------
 ifJust :: Monad m => Maybe a -> m () -> m ()
 ifJust ma m = case ma of

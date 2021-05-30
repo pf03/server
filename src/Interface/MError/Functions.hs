@@ -5,7 +5,7 @@ import Common.Types ( LBS )
 import qualified Control.Exception as E
 import Control.Monad.Except ( MonadIO(liftIO) ) 
 import Interface.MError.Class ( MError(..), MIOError ) 
-import Interface.MError.Types --( Error(..) )
+import Interface.MError.Types ( Error(..) ) 
 import qualified Data.Text                  as T
 import qualified Data.Text.Encoding         as T
 import Network.HTTP.Types
@@ -79,3 +79,6 @@ authErrorWrong = AuthError "Wrong authorization"
 
 patError :: Show a => String -> a -> Error 
 patError func pat = DevError $ template "Wrong pattern in function \"{0}\": {1}" [func, show pat]
+
+throwDB :: (MError m) => String -> [String] -> m a
+throwDB str args = throw $ DBError $ template str args

@@ -1,5 +1,6 @@
 module Logic.DB.Select.Functions where
 
+import Logic.DB.Select.Templates ( paramToCondition )
 import Common.Functions (Template (template))
 import Data.Maybe (listToMaybe)
 import Database.PostgreSQL.Simple.SqlQQ (sql)
@@ -22,8 +23,7 @@ import Logic.DB.Select.Internal
       pagination,
       usersQuery,
       selectUsersQuery,
-      selectMigrationsQuery,
-      paramToCondition )
+      selectMigrationsQuery)
 import Logic.DB.Select.Types
     ( Author, Category, Comment, Draft, Migration, Post, Tag, User )
 

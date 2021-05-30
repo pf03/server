@@ -2,7 +2,7 @@
 
 module Interface.MCache.Types where
 
-import Common.Types (BS)
+import Common.Types ( BSName )
 import Data.Aeson (ToJSON)
 import Data.Int (Int64)
 import qualified Data.Map as M
@@ -48,8 +48,6 @@ data Param
   deriving (Show, Eq)
 
 data Val = Str {valStr :: String} | Int {valInt :: Int} | Date {valDate :: Date} deriving (Show, Eq)
-
-type BSName = BS
 
 --API--
 data API = API QueryType [APIType] deriving (Show)

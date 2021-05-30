@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 7eb4d41297cfbc6f11c0c1a0132f70c93b1d3ebf3d98084fe3208c2985b1198c
+-- hash: f542546e1b172523bcacff7e423ea768f38ba124509566760123f6ddc2766c64
 
 name:           server
 version:        0.1.0.0
@@ -49,10 +49,12 @@ library
       Interface.MLog.Exports
       Interface.MLog.Functions
       Interface.MLog.Types
+      Logic.DB.Insert
       Logic.DB.Row
       Logic.DB.Select.Exports
       Logic.DB.Select.Functions
       Logic.DB.Select.Internal
+      Logic.DB.Select.Templates
       Logic.DB.Select.Types
   other-modules:
       Paths_server

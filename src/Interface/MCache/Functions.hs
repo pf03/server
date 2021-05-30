@@ -1,5 +1,6 @@
 module Interface.MCache.Functions where
 
+import Common.Types ( BSName )
 import Data.Char (toLower)
 import Data.Int (Int64)
 import qualified Data.Map as M
@@ -8,7 +9,6 @@ import Interface.MCache.Types
   ( API (..),
     APIType (Id),
     Auth (AuthNo),
-    BSName,
     Cache (..),
     Changed (..),
     Param (ParamEq),

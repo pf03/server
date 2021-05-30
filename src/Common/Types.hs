@@ -17,4 +17,6 @@ data Action = Check | Execute --flag
 
 type BS = BC.ByteString
 
+type BSName = BS
+
 type LBS = LC.ByteString
