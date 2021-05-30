@@ -82,3 +82,6 @@ patError func pat = DevError $ template "Wrong pattern in function \"{0}\": {1}"
 
 throwDB :: (MError m) => String -> [String] -> m a
 throwDB str args = throw $ DBError $ template str args
+
+throwAuth :: (MError m) => String -> [String] -> m a
+throwAuth str args = throw $ AuthError $ template str args

@@ -1,6 +1,6 @@
 module Logic.DB.Update where
 
-import Common.Functions (Template (template), mapMaybeM, (<$$>))
+import Common.Functions (Template (template), mapMaybeM)
 import Common.Types (Action (..), BSName)
 import Control.Monad.Identity (when)
 import Data.Map as M ((!))
@@ -34,8 +34,8 @@ user paramId = do
   -- Login is required to generate new password
   [Only login] <- DB.query $ template [sql|SELECT users.login FROM users WHERE users.id = {0}|] [toQuery paramId]
   params <- Cache.addStrParam "login" login
-  DB.update User [sql|UPDATE users SET {0} WHERE id = {1}|]
-    <$$> [updates params ["first_name", "last_name", "avatar", "pass"], return $ toQuery paramId]
+  DB.updateM User [sql|UPDATE users SET {0} WHERE id = {1}|]
+    [updates params ["first_name", "last_name", "avatar", "pass"], return $ toQuery paramId]
 
 ----------------------------------Author---------------------------------------
 author :: MTrans m => Int -> m ()
@@ -43,8 +43,8 @@ author paramId = do
   params <- Cache.addIdParam "id" paramId
   checkExist "id" [sql|SELECT 1 FROM authors WHERE authors.id = {0}|]
   checkExist "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
-  DB.update Author [sql|UPDATE authors SET {0} WHERE id = {1}|]
-    <$$> [updates params ["user_id", "description"], return $ toQuery paramId]
+  DB.updateM Author [sql|UPDATE authors SET {0} WHERE id = {1}|]
+    [updates params ["user_id", "description"], return $ toQuery paramId]
 
 ----------------------------------Category-------------------------------------
 category :: MTrans m => Int -> m ()
@@ -52,16 +52,16 @@ category paramId = do
   params <- Cache.addIdParam "id" paramId
   checkExist "id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
   checkExist "parent_id" [sql|SELECT 1 FROM categories WHERE categories.parent_id = {0}|]
-  DB.update Category [sql|UPDATE categories SET {0} WHERE id = {1}|]
-    <$$> [updates params ["parent_id", "category_name"], return $ toQuery paramId]
+  DB.updateM Category [sql|UPDATE categories SET {0} WHERE id = {1}|]
+    [updates params ["parent_id", "category_name"], return $ toQuery paramId]
 
 ----------------------------------Tag------------------------------------------
 tag :: MTrans m => Int -> m ()
 tag paramId = do
   params <- Cache.addIdParam "id" paramId
   checkExist "id" [sql|SELECT 1 FROM tags WHERE tags.id = {0}|]
-  DB.update Tag [sql|UPDATE tags SET name = {0} WHERE id = {1}|]
-    <$$> [paramToQuery $ params ! "name", return $ toQuery paramId]
+  DB.updateM Tag [sql|UPDATE tags SET name = {0} WHERE id = {1}|]
+    [paramToQuery $ params ! "name", return $ toQuery paramId]
 
 tagToContent :: MTrans m => Action -> m ()
 tagToContent Check = withParam "tag_id" $ Insert.tagToContent Check
@@ -78,8 +78,8 @@ draft paramId = do
   checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
   Logic.DB.Update.tagToContent Check
   ParamEq (Int contentId) <- Cache.getParam "content_id"
-  DB.update Content [sql|UPDATE contents SET {0} WHERE id = {1}|]
-    <$$> [updates params ["name", "category_id", "text", "photo"], return $ toQuery contentId]
+  DB.updateM Content [sql|UPDATE contents SET {0} WHERE id = {1}|]
+    [updates params ["name", "category_id", "text", "photo"], return $ toQuery contentId]
   Logic.DB.Update.tagToContent Execute
   Logic.DB.Update.photos
 
@@ -109,10 +109,9 @@ post paramId = do
   checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
   Insert.tagToContent Check
   [Only contentId] <-
-    DB.query
-      . template
-        [sql|INSERT into contents (author_id, name, creation_date, category_id, text, photo) values {0} RETURNING id|]
-      <$$> [rowEither params [Left "author_id", Left "name", Right [sql|current_date|], Left "category_id", Left "text", Left "photo"]]
+    DB.queryM
+      [sql|INSERT into contents (author_id, name, creation_date, category_id, text, photo) values {0} RETURNING id|]
+      [rowEither params [Left "author_id", Left "name", Right [sql|current_date|], Left "category_id", Left "text", Left "photo"]]
   Cache.addChanged Insert Content 1
   DB.insert
     Draft

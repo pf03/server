@@ -1,6 +1,6 @@
 module Logic.DB.Insert where
 
-import Common.Functions (Template (template), templateM, (<$$>), (<<$>>))
+import Common.Functions (Template (template), templateM, (<<$>>))
 import Common.Types (Action (..), BSName)
 import Control.Monad.Identity (unless, when)
 import Data.Map ((!))
@@ -42,23 +42,21 @@ user :: MTrans m => m ()
 user = do
   params <- Cache.getParams
   checkNotExist "user" "login" [sql|SELECT 1 FROM users WHERE users.login = {0}|]
-  passQuery <-
-    (return . template [sql|md5 (CONCAT_WS(' ', {0}, {1}))|])
-      <$$> [cell (params ! "login"), cell (params ! "pass")]
-  DB.insert
+  passQuery <- templateM [sql|md5 (CONCAT_WS(' ', {0}, {1}))|] [cell (params ! "login"), cell (params ! "pass")]
+  DB.insertM
     User
     [sql|INSERT into users (last_name, first_name, avatar, login, pass, creation_date, is_admin) values {0}|]
-    <$$> [ rowEither
-             params
-             [ Left "last_name",
-               Left "first_name",
-               Left "avatar",
-               Left "login",
-               Right passQuery,
-               Right [sql|current_date|],
-               Right [sql|False|]
-             ]
-         ]
+    [ rowEither
+        params
+        [ Left "last_name",
+          Left "first_name",
+          Left "avatar",
+          Left "login",
+          Right passQuery,
+          Right [sql|current_date|],
+          Right [sql|False|]
+        ]
+    ]
 
 ----------------------------------Author---------------------------------------
 author :: MTrans m => m ()
@@ -66,8 +64,10 @@ author = do
   params <- Cache.getParams
   checkExist "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
   checkNotExist "author" "user_id" [sql|SELECT 1 FROM authors WHERE authors.user_id = {0}|]
-  DB.insert Author [sql|INSERT into authors (user_id, description)  values {0}|]
-    <$$> [row params ["user_id", "description"]]
+  DB.insertM
+    Author
+    [sql|INSERT into authors (user_id, description)  values {0}|]
+    [row params ["user_id", "description"]]
 
 ----------------------------------Category-------------------------------------
 
@@ -78,15 +78,20 @@ category :: MTrans m => m ()
 category = do
   params <- Cache.getParams
   checkExist "parent_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
-  DB.insert Category [sql|INSERT into categories (parent_id, category_name) values {0}|]
-    <$$> [row params ["parent_id", "category_name"]]
+  DB.insertM
+    Category
+    [sql|INSERT into categories (parent_id, category_name) values {0}|]
+    [row params ["parent_id", "category_name"]]
 
 ----------------------------------Tag------------------------------------------
 tag :: MTrans m => m ()
 tag = do
   params <- Cache.getParams
   checkNotExist "tag" "name" [sql|SELECT 1 FROM tags WHERE tags.name = {0}|]
-  DB.insert Cache.Tag [sql|INSERT into tags (name)  values ({0})|] <$$> [paramToQuery $ params ! "name"]
+  DB.insertM
+    Cache.Tag
+    [sql|INSERT into tags (name)  values ({0})|]
+    [paramToQuery $ params ! "name"]
 
 -- Check and execute parts for right sequence
 tagToContent :: MTrans m => Action -> m ()
@@ -98,8 +103,9 @@ tagToContent Check = do
 tagToContent Execute = do
   params <- Cache.getParams
   unless (emptyParam $ params ! "tag_id") $ do
-    DB.execute_ [sql|INSERT into tags_to_contents (tag_id, content_id) values {0}|]
-      <$$> [rows params ["tag_id", "content_id"]]
+    DB.executeM_
+      [sql|INSERT into tags_to_contents (tag_id, content_id) values {0}|]
+      [rows params ["tag_id", "content_id"]]
 
 ----------------------------------Draft----------------------------------------
 draft :: MTrans m => m ()
@@ -111,25 +117,28 @@ draft = do
         "Unable to create draft from deleted author with id = 1"
   checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
   tagToContent Check
-  query <-
-    templateM
+  [Only contentId] <-
+    DB.queryM
       [sql|INSERT into contents (author_id, name, creation_date, category_id, text, photo) values {0} RETURNING id|]
       [rowEither params [Left "author_id", Left "name", Right [sql|current_date|], Left "category_id", Left "text", Left "photo"]]
-  [Only contentId] <- DB.query query
   Cache.addChanged Insert Content 1
   _ <- Cache.addIdParam "content_id" contentId
   tagToContent Execute
   photos
-  DB.insert Draft [sql|INSERT into drafts (content_id) values ({0})|]
-    <$$> [cell $ ParamEq (Int contentId)]
+  DB.insertM
+    Draft
+    [sql|INSERT into drafts (content_id) values ({0})|]
+    [cell $ ParamEq (Int contentId)]
 
 ----------------------------------Post-----------------------------------------
 publish :: MTrans m => Int -> m ()
 publish paramId = do
   params <- Cache.addIdParam "draft_id" paramId
   checkExist "draft_id" [sql|SELECT 1 FROM drafts WHERE drafts.id = {0}|]
-  query <- templateM [sql|SELECT content_id, post_id FROM drafts WHERE drafts.id = {0}|] [paramToQuery $ params ! "draft_id"]
-  [(contentId, mpostId)] <- DB.query query
+  [(contentId, mpostId)] <-
+    DB.queryM
+      [sql|SELECT content_id, post_id FROM drafts WHERE drafts.id = {0}|]
+      [paramToQuery $ params ! "draft_id"]
   case mpostId :: Maybe Int of
     Nothing -> do
       DB.insert
@@ -147,7 +156,7 @@ publish paramId = do
       DB.delete Content [sql|DELETE FROM contents WHERE contents.id = {0} |] [toQuery (oldContentId :: Int)]
       DB.execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [toQuery oldContentId]
       DB.delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [toQuery oldContentId]
-  DB.delete Draft [sql|DELETE FROM drafts WHERE drafts.id = {0}|] <$$> [paramToQuery $ params ! "draft_id"]
+  DB.deleteM Draft [sql|DELETE FROM drafts WHERE drafts.id = {0}|] [paramToQuery $ params ! "draft_id"]
 
 ----------------------------------Comment--------------------------------------
 comment :: MTrans m => Int -> m ()
@@ -160,16 +169,20 @@ comment postId = do
         "Unable to create comment from deleted author with id = 1"
   checkExist "post_id" [sql|SELECT 1 FROM posts WHERE posts.id = {0}|]
   checkExist "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
-  DB.insert Comment [sql|INSERT into comments (post_id, user_id, creation_date, text) values {0}|]
-    <$$> [rowEither params [Left "post_id", Left "user_id", Right [sql|current_date|], Left "text"]]
+  DB.insertM
+    Comment
+    [sql|INSERT into comments (post_id, user_id, creation_date, text) values {0}|]
+    [rowEither params [Left "post_id", Left "user_id", Right [sql|current_date|], Left "text"]]
 
 ----------------------------------Photo----------------------------------------
 photos :: MTrans m => m ()
 photos = do
   params <- Cache.getParams
   unless (emptyParam $ params ! "photos") $ do
-    DB.insert Photo [sql|INSERT into photos (photo, content_id) values {0}|]
-      <$$> [rows params ["photos", "content_id"]]
+    DB.insertM
+      Photo
+      [sql|INSERT into photos (photo, content_id) values {0}|]
+      [rows params ["photos", "content_id"]]
 
 ----------------------------------Common---------------------------------------
 
@@ -262,7 +275,7 @@ addAuthAuthorIdParam = do
   query <-
     templateM
       [sql|
-      SELECT authors.id FROM authors
+        SELECT authors.id FROM authors
           LEFT JOIN users
           ON authors.user_id = users.id
           WHERE users.id = {0}
