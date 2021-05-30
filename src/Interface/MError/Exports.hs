@@ -15,5 +15,6 @@ import Interface.MError.Functions as Functions
       authErrorWrong,
       patError,
       throwDB,
-      throwAuth )
+      throwAuth,
+      throwIO )
 import Interface.MError.Types as Types (Error (..))

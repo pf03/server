@@ -85,3 +85,6 @@ throwDB str args = throw $ DBError $ template str args
 
 throwAuth :: (MError m) => String -> [String] -> m a
 throwAuth str args = throw $ AuthError $ template str args
+
+throwIO :: (MError m) => String -> [String] -> m a
+throwIO str args = throw $ IOError $ template str args
