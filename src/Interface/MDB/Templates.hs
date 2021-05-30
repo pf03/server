@@ -2,14 +2,14 @@ module Interface.MDB.Templates where
 
 import Common.Convert (Convert (..))
 import Common.Functions (Template (template), (<$$>))
-import Data.Int (Int64)
-import Database.PostgreSQL.Simple (FromRow)
+-- import Data.Int (Int64)
+-- import Database.PostgreSQL.Simple (FromRow)
 import Database.PostgreSQL.Simple.SqlQQ (sql)
 import Database.PostgreSQL.Simple.Types (Query (Query))
-import qualified Interface.MCache.Exports as Cache
-import Interface.MDB.Class (MDB (..), MTrans)
-import qualified Interface.MError.Exports as Error
-import qualified Interface.MLog.Exports as Log
+-- import qualified Interface.MCache.Exports as Cache
+-- import Interface.MDB.Class (MDB (..), MTrans)
+-- import qualified Interface.MError.Exports as Error
+-- import qualified Interface.MLog.Exports as Log
 
 
 -- Various templates for composing complex queries from simple pieces
@@ -17,7 +17,7 @@ import qualified Interface.MLog.Exports as Log
 whereAll :: Query -> [Query] -> Query
 whereAll query0 conditions = concat2 [sql|WHERE|] query0 $ concatWithAND conditions
 
-whereAllM :: Error.MError m => Query -> [m Query] -> m Query
+whereAllM ::Monad m => Query -> [m Query] -> m Query
 whereAllM query0 mconditions = do
   (return . concat2 [sql|WHERE|] query0 . concatWithAND) <$$> mconditions
 
@@ -40,7 +40,7 @@ concat2 splitter query1 query2 = query1 <+> splitter <+> query2
 (<+>) :: Query -> Query -> Query
 (<+>) = concat2 " "
 
-(<<+>>) :: Error.MError m => m Query -> m Query -> m Query
+(<<+>>) :: Monad m => m Query -> m Query -> m Query
 (<<+>>) mquery1 mquery2 = (<+>) <$> mquery1 <*> mquery2
 
 inList :: Convert a => Query -> [a] -> Query
@@ -50,7 +50,7 @@ inList field values = template [sql|{0} IN ({1})|] [field, concatWith "," $ map 
 inSubquery :: Query -> Query -> Query
 inSubquery field subquery = template [sql|{0} IN ({1})|] [field, subquery]
 
-inSubqueryM :: Error.MError m => Query -> m Query -> m Query
+inSubqueryM :: Monad m => Query -> m Query -> m Query
 inSubqueryM field subquery = return . template [sql|{0} IN ({1})|] <$$> [return field, subquery]
 
 exists :: Query -> Query

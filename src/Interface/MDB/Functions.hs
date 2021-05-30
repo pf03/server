@@ -1,11 +1,9 @@
 module Interface.MDB.Functions where
 
-import Common.Convert (Convert (..))
-import Common.Functions (Template (template), (<$$>))
+import Common.Functions (Template (template))
 import Data.Int (Int64)
 import Database.PostgreSQL.Simple (FromRow)
-import Database.PostgreSQL.Simple.SqlQQ (sql)
-import Database.PostgreSQL.Simple.Types (Query (Query))
+import Database.PostgreSQL.Simple.Types (Query)
 import qualified Interface.MCache.Exports as Cache
 import Interface.MDB.Class (MDB (..), MTrans)
 import qualified Interface.MError.Exports as Error
