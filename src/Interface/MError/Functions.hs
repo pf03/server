@@ -88,3 +88,6 @@ throwAuth str args = throw $ AuthError $ template str args
 
 throwIO :: (MError m) => String -> [String] -> m a
 throwIO str args = throw $ IOError $ template str args
+
+throwRequest :: (MError m) => String -> [String] -> m a
+throwRequest str args = throw $ RequestError $ template str args
