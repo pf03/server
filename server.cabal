@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: d45a17bab90766d42b9d83fefba80e62953bc38ac3511f02d0ebcd2b76c44937
+-- hash: e1a28302c15c4acd7d0e86374e7e6852ab852513b53ce525c833b4a80aaebb84
 
 name:           server
 version:        0.1.0.0
@@ -67,6 +67,7 @@ library
       Logic.IO.Photos
       Logic.IO.Upload
       Logic.Pure.API
+      Logic.Pure.Params
   other-modules:
       Paths_server
   hs-source-dirs:
