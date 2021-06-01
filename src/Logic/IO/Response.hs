@@ -14,7 +14,6 @@ import Interface.MCache.Types as Cache
     APIType (Author, Category, Comment, Draft, Id, Image, Photo, Post, Tag, User),
     QueryType (Auth, Delete, Insert, Load, Select, SelectById, Update, Upload),
   )
-import qualified Interface.MDB.Exports as DB
 import qualified Interface.MError.Exports as Error
 import qualified Interface.MLog.Exports as Log
 import qualified Logic.DB.Auth as Auth
