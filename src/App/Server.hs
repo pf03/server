@@ -19,14 +19,14 @@ run = do
     Nothing -> return ()
     Just config -> do
       let port = warpPort . Config.warp $ config
-      let lc = Config.log config
-      Log.infoColor lc Color.Green $ template "Start server. Listen to port {0}..." [show port]
+      let logConfig = Config.log config
+      Log.infoColor logConfig Color.Green $ template "Start server. Listen to port {0}..." [show port]
       Warp.run port $ app config
 
 app :: Config -> Application
-app config req f = do
-  response <- Transformer.evalTwithHandler (Response.get req) Response.errorHandler config
-  emptyBody 0 (getRequestBodyChunk req)
+app config request f = do
+  response <- Transformer.evalTwithHandler (Response.get request) Response.errorHandler config
+  emptyBody 0 (getRequestBodyChunk request)
   f response
 
 -- * If you do not read the request body (for example, when there is a wrong user request), then the error occurs "Error: write ECONNRESET"

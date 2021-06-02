@@ -21,52 +21,51 @@ import Transformer.Types
 -----------------------------Run------------------------------------------
 runConfig :: (MIOError m) => m Config.Config
 runConfig = do
-  let ls = Log.Settings Color.Cyan True
   config <- Error.catch Config.readConfig $ \err -> do
-    Log.critical Log.defaultConfig ls "Error config read while run the transfomer:"
-    Log.critical Log.defaultConfig ls $ show err
+    Log.critical Log.defaultConfig logSettings0 "Error config read while run the transfomer:"
+    Log.critical Log.defaultConfig logSettings0 $ show err
     Error.throw err
-  let lc = Config.log config
-  Log.info lc ls "Config read successfully..."
+  let logConfig0 = Config.log config
+  Log.info logConfig0 logSettings0 "Config read successfully..."
   return config
 
 runConnection :: (MIOError m) => Config.Config -> m Connection
 runConnection config = do
-  let ls = Log.Settings Color.Cyan True
-  let lc = Config.log config
-  connection <- Error.catch (connectDB . Config.getConnectInfo . Config.db $ config) $ \e -> do
-    Log.critical lc ls "Error DB connection while start the transformer: "
-    Log.critical lc ls $ show e
-    Error.throw e
-  Log.info lc ls "DB connected successfully..."
+  let logConfig0 = Config.log config
+  connection <- Error.catch (connectDB . Config.getConnectInfo . Config.db $ config) $ \err -> do
+    Log.critical logConfig0 logSettings0 "Error DB connection while start the transformer: "
+    Log.critical logConfig0 logSettings0 $ show err
+    Error.throw err
+  Log.info logConfig0 logSettings0 "DB connected successfully..."
   return connection
 
 getValue :: Config.Config -> Connection -> Transformer a -> ExceptT Error.Error IO a
 getValue config connection m = do
-  let s = configToState config connection
-  let ls = Log.Settings Color.Cyan True
-  let lc = Config.log config
-  a <- Error.catch (runStateT (getTransformer m) s) $ \e -> do
-    Log.error lc ls "Application error: "
-    Log.error lc ls $ show e
-    Error.throw e
-  return $ fst a
+  let state = configToState config connection
+  let logConfig0 = Config.log config
+  (a, _) <- Error.catch (runStateT (getTransformer m) state) $ \err -> do
+    Log.error logConfig0 logSettings0 "Application error: "
+    Log.error logConfig0 logSettings0 $ show err
+    Error.throw err
+  return a
 
 showValue :: (MonadIO m, Show a) => Config.Config -> a -> m ()
 showValue config value = do
-  let ls = Log.Settings Color.Cyan True
-  let lc = Config.log config
-  Log.info lc ls "Result: "
-  Log.info lc ls $ show value
+  let logConfig0 = Config.log config
+  Log.info logConfig0 logSettings0 "Result: "
+  Log.info logConfig0 logSettings0 $ show value
   return ()
+
+logSettings0 :: Log.Settings
+logSettings0 = Log.Settings Color.Cyan True
 
 -----------------------------Config--------------------------------------------
 configToState :: Config.Config -> Connection -> State
-configToState Config.Config {Config.warp = cw, Config.db = _, Config.log = cl} connection =
+configToState Config.Config {Config.warp = configWarp0, Config.db = _, Config.log = logConfig0} connection =
   State
-    { configWarp = cw,
+    { configWarp = configWarp0,
       connectionDB = ConnectionDB connection,
-      configLog = cl,
+      configLog = logConfig0,
       logSettings = Log.defaultSettings,
       cache = Cache.defaultCache
     }
@@ -82,19 +81,19 @@ connectDB connectInfo = connect connectInfo `Error.catchEIO` handler
 
 -- | Run ExceptT transformer without error handling with default value
 runE :: a -> ExceptT Error.Error IO a -> IO a
-runE a m = do
-  eb <- runExceptT m
-  case eb of
-    Left _ -> return a
-    Right b -> return b
+runE defaultValue m = do
+  evalue <- runExceptT m
+  case evalue of
+    Left _ -> return defaultValue
+    Right value -> return value
 
 -- | Run ExceptT transformer with error handling
 runEwithHandler :: (Error.Error -> a) -> ExceptT Error.Error IO a -> IO a
 runEwithHandler handler m = do
-  eb <- runExceptT m
-  case eb of
-    Left e -> return $ handler e
-    Right b -> return b
+  evalue <- runExceptT m
+  case evalue of
+    Left err -> return $ handler err
+    Right value -> return value
 
 -- | Value doesn't matter
 runE_ :: ExceptT Error.Error IO () -> IO ()
@@ -102,7 +101,7 @@ runE_ m = void (runExceptT m)
 
 exceptToMaybe :: ExceptT Error.Error IO a -> IO (Maybe a)
 exceptToMaybe m = do
-  ea <- runExceptT m
-  case ea of
+  evalue <- runExceptT m
+  case evalue of
     Left _ -> return Nothing
-    Right a -> return $ Just a
+    Right value -> return $ Just value

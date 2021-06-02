@@ -31,7 +31,7 @@ runT m = runE_ $ do
 
 -- | Evaluate value of transformer with default value in error case
 evalT :: Transformer a -> a -> Config.Config -> IO a
-evalT m def config = runE def $ do
+evalT m defaultValue config = runE defaultValue $ do
   connection <- runConnection config
   getValue config connection m
 
