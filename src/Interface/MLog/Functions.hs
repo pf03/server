@@ -15,7 +15,7 @@ import Interface.MLog.Types
     Settings (Settings),
   )
 import System.Console.ANSI (Color (Black, Blue, Green, Magenta, Red, Yellow))
-import Prelude hiding (error)
+--import Prelude hiding (error)
 
 -----------------------------MLog----------------------------------------------
 debugOff :: MLog m => m ()

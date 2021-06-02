@@ -63,8 +63,7 @@ streamOne = helper (0 :: Int)
         then do
           liftIO $ putStrLn $ template "Successfully read {0} parts of the request body" [show n]
           return a
-        else
-          if n >= 1
+        else if n >= 1
             then Error.throwRequest "The request body is too long. The request body should consist of no more than one chunk" []
             else (a <>) <$> helper (n + 1) source
 

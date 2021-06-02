@@ -31,7 +31,9 @@ concat2 _ query1 query2 | query2 == mempty = query1
 concat2 splitter query1 query2 = query1 <+> splitter <+> query2
 
 (<+>) :: Query -> Query -> Query
-(<+>) = concat2 " "
+(<+>) q1 q2|q1 == mempty    = q2
+(<+>) q1 q2|q2 == mempty    = q1
+(<+>) q1 q2                 = q1 <> " " <> q2
 
 (<<+>>) :: Monad m => m Query -> m Query -> m Query
 (<<+>>) mquery1 mquery2 = (<+>) <$> mquery1 <*> mquery2

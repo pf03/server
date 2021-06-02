@@ -64,20 +64,17 @@ getJSON :: MTrans m => Request -> m LC.ByteString
 getJSON req = do
   Cache.resetChanged
   let (rpinfo, pinfo, qs) = (Wai.rawPathInfo req, Wai.pathInfo req, Wai.queryString req)
-
   Auth.auth req
   a <- Cache.getAuth
   api@(API apiType _) <- Log.logM $ API.router rpinfo pinfo a
   Cache.setAPI api
-
   rb <- case apiType of
     Upload -> return mempty
     _ -> Upload.streamOne (getRequestBodyChunk req)
-  Log.debugM rb
   qsBody <- case apiType of
     Upload -> return []
     _ -> return $ parseQuery rb
-
+  Log.debugM rb
   params <-
     if apiType `elem` [Auth, Delete, Insert, Update]
       then Error.catch (Log.logM $ Params.parseParams api qsBody) $

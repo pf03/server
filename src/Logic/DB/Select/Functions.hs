@@ -33,7 +33,8 @@ allMigrations = DB.query selectMigrationsQuery
 
 -----------------------------User----------------------------------------------
 user :: MDB m => Int -> m (Maybe User)
-user paramId = listToMaybe <$> DB.query query
+user paramId = do
+  listToMaybe <$> DB.query query
   where
     query = selectUsersQuery <+> template [sql|WHERE users.id = {0}|] [toQuery paramId]
 

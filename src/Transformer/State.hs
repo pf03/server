@@ -40,10 +40,9 @@ instance Show ConnectionDB where
 
 -----------------------------Instances-----------------------------------------
 instance Log.MLog Transformer where
-  getSettings = Log.getSettings
-  setSettings = Log.setSettings
-  getConfig = Log.getConfig
-
+  getSettings = getLogSettings
+  setSettings = setLogSettings
+  getConfig = getLogConfig
   --   setConfig = S.setLogConfig
   message = Log.messageIO
 
@@ -75,7 +74,7 @@ getLogSettings :: MonadState State m => m Log.Settings
 getLogSettings = gets logSettings
 
 setLogSettings :: MonadState State m => Log.ColorScheme -> Log.Enable -> m ()
-setLogSettings colorScheme err = modify $ \state -> state {logSettings = Log.Settings colorScheme err}
+setLogSettings colorScheme enable = modify $ \state -> state {logSettings = Log.Settings colorScheme enable}
 
 getLogConfig :: MonadState State m => m Log.Config
 getLogConfig = gets configLog

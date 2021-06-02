@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 5958f062e5ac0655e65a722a64b690599ad0b6645b5ccc7c17b5d88f38e48bd3
+-- hash: 696d81df34621985e420b719cd8bf366799b56d72c3753b92d401de6ebcf5ff5
 
 name:           server
 version:        0.1.0.0
@@ -27,6 +27,8 @@ source-repository head
 
 library
   exposed-modules:
+      App.Main
+      App.Server
       Common.Color
       Common.Convert
       Common.Functions

@@ -1,6 +1,6 @@
 module Interface.MDB.Functions where
 
-import Common.Functions ( Template(template), templateM )
+import Common.Functions --( Template(template), templateM )
 import Data.Int (Int64)
 import Database.PostgreSQL.Simple (FromRow)
 import Database.PostgreSQL.Simple.Types (Query)
