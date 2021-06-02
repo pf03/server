@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 696d81df34621985e420b719cd8bf366799b56d72c3753b92d401de6ebcf5ff5
+-- hash: 69854c421ff2e321409dd9d9fae773081e83c9f42811aac7b131daf6acd44918
 
 name:           server
 version:        0.1.0.0
@@ -72,8 +72,10 @@ library
       Logic.Pure.API
       Logic.Pure.JSON
       Logic.Pure.Params
-      Transformer.State
-      Transformer.Transformer
+      Transformer.Exports
+      Transformer.Functions
+      Transformer.Internal
+      Transformer.Types
   other-modules:
       Paths_server
   hs-source-dirs:

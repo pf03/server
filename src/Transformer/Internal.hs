@@ -1,4 +1,7 @@
-module Transformer.Transformer where
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+
+module Transformer.Internal where
 
 import Control.Monad.Except (ExceptT, MonadIO, runExceptT, void)
 import Control.Monad.State.Lazy (StateT (runStateT))
@@ -9,39 +12,13 @@ import qualified Interface.MError.Exports as Error
 import qualified Interface.MLog.Exports as Log
 import qualified Logic.IO.Config as Config
 import qualified System.Console.ANSI as Color
-import Transformer.State as S (ConnectionDB (ConnectionDB), State (..), Transformer)
+import Transformer.Types
+  ( ConnectionDB (ConnectionDB),
+    State (..),
+    Transformer (getTransformer),
+  )
 
------------------------------External------------------------------------------
-
--- | Run and show result of transformer
-showT :: Show a => Transformer a -> IO ()
-showT m = runE_ $ do
-  config <- runConfig
-  connection <- runConnection config
-  value <- getValue config connection m
-  showValue config value
-
--- | Run transformer without showing
-runT :: Transformer a -> IO ()
-runT m = runE_ $ do
-  config <- runConfig
-  connection <- runConnection config
-  _ <- getValue config connection m
-  return ()
-
--- | Evaluate value of transformer with default value in error case
-evalT :: Transformer a -> a -> Config.Config -> IO a
-evalT m def config = runE def $ do
-  connection <- runConnection config
-  getValue config connection m
-
--- | Evaluate value of transformer with error handler
-evalTwithHandler :: Transformer a -> (Error.Error -> a) -> Config.Config -> IO a
-evalTwithHandler m handler config = runEwithHandler handler $ do
-  connection <- runConnection config
-  getValue config connection m
-
------------------------------Internal------------------------------------------
+-----------------------------Run------------------------------------------
 runConfig :: (MIOError m) => m Config.Config
 runConfig = do
   let ls = Log.Settings Color.Cyan True
@@ -66,10 +43,10 @@ runConnection config = do
 
 getValue :: Config.Config -> Connection -> Transformer a -> ExceptT Error.Error IO a
 getValue config connection m = do
-  let s = getS config connection
+  let s = configToState config connection
   let ls = Log.Settings Color.Cyan True
   let lc = Config.log config
-  a <- Error.catch (runStateT m s) $ \e -> do
+  a <- Error.catch (runStateT (getTransformer m) s) $ \e -> do
     Log.error lc ls "Application error: "
     Log.error lc ls $ show e
     Error.throw e
@@ -82,6 +59,24 @@ showValue config value = do
   Log.info lc ls "Result: "
   Log.info lc ls $ show value
   return ()
+
+-----------------------------Config--------------------------------------------
+configToState :: Config.Config -> Connection -> State
+configToState Config.Config {Config.warp = cw, Config.db = _, Config.log = cl} connection =
+  State
+    { configWarp = cw,
+      connectionDB = ConnectionDB connection,
+      configLog = cl,
+      logSettings = Log.defaultSettings,
+      cache = Cache.defaultCache
+    }
+
+-----------------------------DB------------------------------------------------
+connectDB :: MIOError m => ConnectInfo -> m Connection
+connectDB connectInfo = connect connectInfo `Error.catchEIO` handler
+  where
+    handler :: SqlError -> Error.Error
+    handler _ = Error.DBError "Error DB Connection!"
 
 -----------------------------ExceptT E IO a------------------------------------
 
@@ -111,21 +106,3 @@ exceptToMaybe m = do
   case ea of
     Left _ -> return Nothing
     Right a -> return $ Just a
-
------------------------------Config--------------------------------------------
-getS :: Config.Config -> Connection -> State
-getS Config.Config {Config.warp = cw, Config.db = _, Config.log = cl} connection =
-  State
-    { configWarp = cw,
-      connectionDB = ConnectionDB connection,
-      configLog = cl,
-      logSettings = Log.defaultSettings,
-      cache = Cache.defaultCache
-    }
-
------------------------------DB------------------------------------------------
-connectDB :: MIOError m => ConnectInfo -> m Connection
-connectDB connectInfo = connect connectInfo `Error.catchEIO` handler
-  where
-    handler :: SqlError -> Error.Error
-    handler _ = Error.DBError "Error DB Connection!"

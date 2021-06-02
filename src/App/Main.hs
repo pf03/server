@@ -1,35 +1,35 @@
 module App.Main where
 
-import qualified App.Server          as Server
+import qualified App.Server as Server
 import qualified Logic.DB.Migrations.Functions as Migrations
-import qualified Logic.IO.Emulate       as Emulate
-import qualified          Transformer.Transformer as Transformer
-import           System.Environment  (getArgs)
+import qualified Logic.IO.Emulate as Emulate
+import System.Environment (getArgs)
+import qualified Transformer.Exports as Transformer
 
 main_ :: IO ()
 main_ = do
-    args <- getArgs
-    case args of
-      [] -> server_
-      ["db-init"] -> dbinit_
-      ["migrations"] -> migrations_
-      ["db-drop"] -> dbdrop_
-      ["db-restart"] -> dbrestart_
-      ["db-restart-force"] -> dbrestartForce_
-      ["gen-tokens"] -> genTokens_
-      _ -> do
-        putStrLn "Wrong command line arguments!"
-        putStrLn "Possible arguments:"
-        putStrLn "start with no arguments   - start the server"
-        putStrLn "db-init                   - applying migrations to the local database, starting with zero migration"
-        putStrLn "migrations                - applying migrations to the local database, starting with the first not applied migration (the one that is not in the migrations database table)"
-        putStrLn "db-drop                   - drop all database tables"
-        putStrLn "db-restart                - ‘db-drop’ + ‘db-init’"
-        putStrLn "db-restart-force          - force ‘db-restart’"
-        putStrLn "gen-tokens                - update token file ‘dist/curl/tokens.sh’"
-    putStrLn "Press Enter for exit..."
-    _ <- getLine
-    return()
+  args <- getArgs
+  case args of
+    [] -> server_
+    ["db-init"] -> dbinit_
+    ["migrations"] -> migrations_
+    ["db-drop"] -> dbdrop_
+    ["db-restart"] -> dbrestart_
+    ["db-restart-force"] -> dbrestartForce_
+    ["gen-tokens"] -> genTokens_
+    _ -> do
+      putStrLn "Wrong command line arguments!"
+      putStrLn "Possible arguments:"
+      putStrLn "start with no arguments   - start the server"
+      putStrLn "db-init                   - applying migrations to the local database, starting with zero migration"
+      putStrLn "migrations                - applying migrations to the local database, starting with the first not applied migration (the one that is not in the migrations database table)"
+      putStrLn "db-drop                   - drop all database tables"
+      putStrLn "db-restart                - ‘db-drop’ + ‘db-init’"
+      putStrLn "db-restart-force          - force ‘db-restart’"
+      putStrLn "gen-tokens                - update token file ‘dist/curl/tokens.sh’"
+  putStrLn "Press Enter for exit..."
+  _ <- getLine
+  return ()
 
 dbinit_ :: IO ()
 dbinit_ = Transformer.runT Migrations.dbinit
@@ -49,5 +49,5 @@ dbrestart_ = dbdrop_ >> dbinit_
 dbrestartForce_ :: IO ()
 dbrestartForce_ = Transformer.runT Migrations.dbrestartForce
 
-genTokens_ :: IO()
+genTokens_ :: IO ()
 genTokens_ = Transformer.runT Emulate.writeTokens
