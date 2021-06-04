@@ -25,7 +25,7 @@ import qualified Logic.IO.File as File
 import qualified Logic.IO.Photos as Photos
 import qualified Logic.IO.Upload as Upload
 import qualified Logic.Pure.API as API
-import qualified Logic.Pure.JSON as JSON
+import qualified Logic.Pure.JSON.Exports as JSON
 import qualified Logic.Pure.Params as Params
 import Network.HTTP.Types (hContentType, internalServerError500, parseQuery, status200)
 import qualified Network.Wai as Wai

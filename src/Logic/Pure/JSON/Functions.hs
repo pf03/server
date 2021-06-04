@@ -1,11 +1,30 @@
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ExplicitNamespaces #-}
-{-# LANGUAGE FlexibleInstances #-}
 
-module Logic.Pure.JSON where
+module Logic.Pure.JSON.Functions where
 
-import Common.Functions (Template (template), adjustM)
+import Logic.Pure.JSON.Types ( Comment, Category(Category), Author, Draft, Post )
+import Logic.Pure.JSON.Internal
+    ( turnContent,
+      turnAuthor,
+      turnComment,
+      turnPost,
+      turnDraft,
+      getPostTags,
+      getPostPhotos,
+      getDraftTags,
+      getDraftPhotos,
+      setPostTags,
+      setPostPhotos,
+      modifyPostTags,
+      modifyPostPhotos,
+      setDraftTags,
+      setDraftPhotos,
+      modifyDraftTags,
+      modifyDraftPhotos,
+      getChildCategories,
+      unite )
 import Common.Identifiable (Identifiable (..), filterById, findById, updateInsertById)
+import Common.Functions ( adjustM, Template(template), maybeToList )
 import Common.Types (Path)
 import Control.Monad.Except (when)
 import Data.Aeson (ToJSON)
@@ -22,90 +41,6 @@ import Interface.MCache.Types
 import qualified Interface.MError.Exports as Error
 import qualified Logic.DB.Row as Row
 import qualified Logic.DB.Select.Exports as Select
-
-data Post = Post
-  { postId :: Int,
-    postContent :: Content
-  }
-  deriving (Show, Generic)
-
-instance ToJSON Post
-
-instance Identifiable Post where
-  getId = postId
-
-data Draft = Draft
-  { draftId :: Int,
-    draftContent :: Content,
-    draftPostId :: Maybe Int
-  }
-  deriving (Show, Generic)
-
-instance ToJSON Draft
-
-instance Identifiable Draft where
-  getId = draftId
-
-data Content = Content
-  { contentId :: Int,
-    contentAuthor :: Author,
-    contentName :: String,
-    contentCreationDate :: Row.Date,
-    contentCategory :: Category,
-    contentText :: Text,
-    contentPhoto :: Path,
-    contentTags :: [Tag],
-    contentPhotos :: [Photo]
-  }
-  deriving (Show, Generic)
-
-instance ToJSON Content
-
-instance Identifiable Content where
-  getId = contentId
-
-data Author = Author
-  { authorId :: Int,
-    authorUser :: Row.User,
-    authorDescription :: String
-  }
-  deriving (Show, Generic)
-
-instance ToJSON Author
-
-instance Identifiable Author where
-  getId = authorId
-
-data Category = Category
-  { categoryId :: Int,
-    parent :: Maybe Category,
-    categoryName :: String
-  }
-  deriving (Show, Generic)
-
-instance ToJSON Category
-
-instance Identifiable Category where
-  getId = categoryId
-
-data Comment = Comment
-  { commentId :: Int,
-    commentUser :: User,
-    commentCreationDate :: Row.Date,
-    commentText :: Text
-  }
-  deriving (Show, Generic)
-
-instance ToJSON Comment
-
-instance Identifiable Comment where
-  getId = commentId
-
-type User = Row.User
-
-type Tag = Row.Tag
-
-type Photo = Row.Photo
 
 -----------------------------Evaluate------------------------------------------
 -- Evaluate from 'Select' types to 'JSON' types
@@ -233,105 +168,8 @@ evalComments = map evalComment
 evalComment :: Select.Comment -> Comment
 evalComment (comment :. _ :. user) = turnComment comment user
 
-maybeToList :: Maybe a -> [a]
-maybeToList Nothing = []
-maybeToList (Just a) = [a]
-
------------------------------Turn----------------------------------------------
--- Turn from 'Row' types to 'JSON' types
-
-turnContent :: Row.Content -> Author -> Category -> [Tag] -> [Photo] -> Content
-turnContent (Row.Content a _ c d _ f g) author category = Content a author c d category f g --tags photos
-
-turnAuthor :: Row.Author -> User -> Author
-turnAuthor (Row.Author a _ c) user = Author a user c
-
-turnComment :: Row.Comment -> User -> Comment
-turnComment (Row.Comment a _ _ d e) user = Comment a user d e
-
-turnPost :: Row.Post -> Content -> Post
-turnPost (Row.Post a _) = Post a
-
-turnDraft :: Row.Draft -> Content -> Draft
-turnDraft (Row.Draft a _ c) content = Draft a content c
-
------------------------------Getters-------------------------------------------
-getPostTags :: Post -> [Tag]
-getPostTags = contentTags . postContent
-
-getPostPhotos :: Post -> [Photo]
-getPostPhotos = contentPhotos . postContent
-
-getDraftTags :: Draft -> [Tag]
-getDraftTags = contentTags . draftContent
-
-getDraftPhotos :: Draft -> [Photo]
-getDraftPhotos = contentPhotos . draftContent
-
------------------------------Setters-------------------------------------------
-setPostTags :: [Tag] -> Post -> Post
-setPostTags tags post = post {postContent = newContent}
-  where
-    content = postContent post
-    newContent = content {contentTags = tags}
-
-setPostPhotos :: [Photo] -> Post -> Post
-setPostPhotos photos post = post {postContent = newContent}
-  where
-    content = postContent post
-    newContent = content {contentPhotos = photos}
-
-modifyPostTags :: ([Tag] -> [Tag]) -> Post -> Post
-modifyPostTags f post = setPostTags (f $ getPostTags post) post
-
-modifyPostPhotos :: ([Photo] -> [Photo]) -> Post -> Post
-modifyPostPhotos f post = setPostPhotos (f $ getPostPhotos post) post
-
-setDraftTags :: [Tag] -> Draft -> Draft
-setDraftTags tags draft = draft {draftContent = newContent}
-  where
-    content = draftContent draft
-    newContent = content {contentTags = tags}
-
-setDraftPhotos :: [Photo] -> Draft -> Draft
-setDraftPhotos photos draft = draft {draftContent = newContent}
-  where
-    content = draftContent draft
-    newContent = content {contentPhotos = photos}
-
-modifyDraftTags :: ([Tag] -> [Tag]) -> Draft -> Draft
-modifyDraftTags f draft = setDraftTags (f $ getDraftTags draft) draft
-
-modifyDraftPhotos :: ([Photo] -> [Photo]) -> Draft -> Draft
-modifyDraftPhotos f draft = setDraftPhotos (f $ getDraftPhotos draft) draft
-
-setContentTags :: Content -> [Tag] -> Content
-setContentTags content tags = content {contentTags = tags}
-
-setPostContent :: Post -> Content -> Post
-setPostContent post content = post {postContent = content}
-
 -----------------------------Data manipulation----------------------------------
 -- Here the JSON.Category type is used, which has already been checked for cyclicity and correctness in JSON.evalCategory
 
 evalParams :: MError m => [Category] -> ParamsMap -> m ParamsMap
 evalParams categories = adjustM (`getChildCategories` categories) ParamNo "category_id"
-
-getChildCategories :: MError m => Param -> [Category] -> m Param
-getChildCategories (ParamIn vals) cs =
-  if length filtered == length cs
-    then return ParamNo
-    else return . ParamIn . map (Int . getId) $ filtered
-  where
-    cids = map (\(Int cid) -> cid) vals
-    filtered = filter helper cs
-    helper :: Category -> Bool
-    helper c = (getId c `elem` cids) || maybe False helper (parent c)
-getChildCategories ParamNo _ = return ParamNo
-getChildCategories param _ = Error.throw $ Error.patError "JSON.getChildCategories" param
-
--- | Universal function for concatenating rows
-unite :: (Identifiable a) => (a -> a -> a) -> [a] -> [a]
-unite f = foldl helper []
-  where
-    helper acc a = updateInsertById (f a) a acc

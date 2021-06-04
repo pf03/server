@@ -81,6 +81,10 @@ mapMaybeM f list = do
   mb <- forM list f
   return $ catMaybes mb
 
+maybeToList :: Maybe a -> [a]
+maybeToList Nothing = []
+maybeToList (Just a) = [a]
+
 jlookup :: Eq a => a -> [(a, b)] -> b
 jlookup key list = fromJust $ lookup key list
 

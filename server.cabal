@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 69854c421ff2e321409dd9d9fae773081e83c9f42811aac7b131daf6acd44918
+-- hash: 57777624e1fc6d37856fb763c26218f85b25608bc69d3381ee2f8823b4da354f
 
 name:           server
 version:        0.1.0.0
@@ -70,7 +70,10 @@ library
       Logic.IO.Response
       Logic.IO.Upload
       Logic.Pure.API
-      Logic.Pure.JSON
+      Logic.Pure.JSON.Exports
+      Logic.Pure.JSON.Functions
+      Logic.Pure.JSON.Internal
+      Logic.Pure.JSON.Types
       Logic.Pure.Params
       Transformer.Exports
       Transformer.Functions
