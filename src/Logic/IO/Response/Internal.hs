@@ -1,7 +1,5 @@
-module Logic.IO.Response where
+module Logic.IO.Response.Internal where
 
-import Common.Convert (Convert (convert), ConvertL (convertL))
-import Common.Functions (splitOnLast)
 import Data.Aeson (ToJSON)
 import Data.Aeson.Encode.Pretty (encodePretty)
 import qualified Data.ByteString.Lazy.Char8 as LC
@@ -27,38 +25,8 @@ import qualified Logic.IO.Upload as Upload
 import qualified Logic.Pure.API as API
 import qualified Logic.Pure.JSON.Exports as JSON
 import qualified Logic.Pure.Params as Params
-import Network.HTTP.Types (hContentType, internalServerError500, parseQuery, status200)
-import qualified Network.Wai as Wai
+import Network.HTTP.Types ( parseQuery )
 import Network.Wai.Internal as Wai
-  ( Request (pathInfo, queryString, rawPathInfo),
-    Response,
-    getRequestBodyChunk,
-  )
-
-get :: MTrans m => Request -> m Response
-get req = do
-  Log.debugM req
-  json <- getJSON req
-  api <- Cache.getAPI
-  case api of
-    API Load [Image fn] -> do
-      let (_, extention) = splitOnLast '.' fn
-      return $
-        Wai.responseFile
-          status200
-          [(hContentType, "image/" <> convert extention)]
-          (Photos.photosPath <> "/" <> fn)
-          Nothing
-    _ -> return $ Wai.responseLBS status200 [(hContentType, "text/plain")] json
-
-errorHandler :: Error.Error -> Response
-errorHandler e = do
-  let status = Error.getStatus e
-  let text =
-        if status == internalServerError500
-          then "Internal server error"
-          else convertL $ show e
-  Wai.responseLBS status [(hContentType, "text/plain")] text
 
 getJSON :: MTrans m => Request -> m LC.ByteString
 getJSON req = do

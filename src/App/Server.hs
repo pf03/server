@@ -5,7 +5,7 @@ import qualified Data.ByteString as B
 import qualified Interface.MLog.Exports as Log
 import Logic.IO.Config (Config, ConfigWarp (warpPort))
 import qualified Logic.IO.Config as Config
-import qualified Logic.IO.Response as Response
+import qualified Logic.IO.Response.Functions as Response
 import Network.Wai (Application)
 import qualified Network.Wai.Handler.Warp as Warp
 import Network.Wai.Internal (getRequestBodyChunk)

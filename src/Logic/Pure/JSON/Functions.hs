@@ -23,18 +23,14 @@ import Logic.Pure.JSON.Internal
       modifyDraftPhotos,
       getChildCategories,
       unite )
-import Common.Identifiable (Identifiable (..), filterById, findById, updateInsertById)
+import Common.Identifiable ( filterById, findById )
 import Common.Functions ( adjustM, Template(template), maybeToList )
-import Common.Types (Path)
 import Control.Monad.Except (when)
-import Data.Aeson (ToJSON)
 import qualified Data.Map as M
-import Data.Text (Text)
 import Database.PostgreSQL.Simple (type (:.) ((:.)))
-import GHC.Generics (Generic)
 import Interface.Class (MError)
 import Interface.MCache.Types
-  ( Param (ParamEq, ParamIn, ParamNo, ParamNull),
+  ( Param (ParamEq, ParamNo, ParamNull),
     ParamsMap,
     Val (Int),
   )
@@ -45,7 +41,7 @@ import qualified Logic.DB.Select.Exports as Select
 -----------------------------Evaluate------------------------------------------
 -- Evaluate from 'Select' types to 'JSON' types
 
--- * This answer seems redundant, but according to the terms of the TRAINING project, required exactly nested entities.
+-- * This response seems redundant, but according to the terms of the TRAINING project, required exactly nested entities.
 
 evalCategories :: MError m => [Select.Category] -> [Select.Category] -> m [Category]
 evalCategories allCategories = mapM (_evalCategory [] allCategories . Row.categoryId)
