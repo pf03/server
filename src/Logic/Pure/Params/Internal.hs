@@ -180,8 +180,8 @@ checkParams api queries paramDesc = do
 
 parseParam :: MError m => Query -> BSName -> ParamDesc -> m Param
 parseParam queries bsname paramDesc@(ParamDesc _ paramType0 _ nullable0) = do
-  mtuple <- findTemplate queries bsname paramDesc
-  readParamAny paramType0 mtuple nullable0
+  mTuple <- findTemplate queries bsname paramDesc
+  readParamAny paramType0 mTuple nullable0
 
 -- Checking the entire query string
 -- Check for duplicate, mutually exclusive, required parameters and parameters without value
@@ -216,53 +216,53 @@ readParamAny :: MError m => ParamType -> Maybe (Templ, BSKey, BSValue) -> Bool -
 readParamAny _ (Just (_, _, "null")) True = return ParamNull
 readParamAny _ (Just (_, key, "null")) False =
   Error.throwRequest "Value \"null\" is not allowed for parameter {0}" [show key]
-readParamAny pt mtuple _ = do
-  case pt of
-    ParamTypePage -> readParamPage mtuple
-    ParamTypeInt -> readParamInt mtuple
-    ParamTypeStr -> readParamStr mtuple
-    ParamTypeDate -> readParamDate mtuple
-    ParamTypeSort list -> readParamSort list mtuple
-    ParamTypeFileName list -> readParamFileName list mtuple
+readParamAny paramType mTuple _ = do
+  case paramType of
+    ParamTypePage -> readParamPage mTuple
+    ParamTypeInt -> readParamInt mTuple
+    ParamTypeStr -> readParamStr mTuple
+    ParamTypeDate -> readParamDate mTuple
+    ParamTypeSort list -> readParamSort list mTuple
+    ParamTypeFileName list -> readParamFileName list mTuple
 
 readParamPage :: MError m => Maybe (Templ, BSKey, BSValue) -> m Param
-readParamPage mtuple = case mtuple of
+readParamPage mTuple = case mTuple of
   Nothing -> return $ ParamEq (Int 1)
-  _ -> readParam Int "Int" mtuple
+  _ -> readParam Int "Int" mTuple
 
 readParamInt :: MError m => Maybe (Templ, BSKey, BSValue) -> m Param
-readParamInt mtuple = case mtuple of
+readParamInt mTuple = case mTuple of
   Just (Like, param, _) ->
     Error.throwRequest "The \"param__like\" template is only valid for string parameters: {0}" [show param]
-  _ -> readParam Int "Int" mtuple
+  _ -> readParam Int "Int" mTuple
 
 readParamStr :: MError m => Maybe (Templ, BSKey, BSValue) -> m Param
 readParamStr = readParam Str "String"
 
 readParamDate :: MError m => Maybe (Templ, BSKey, BSValue) -> m Param
-readParamDate mtuple = case mtuple of
+readParamDate mTuple = case mTuple of
   Just (Like, param, _) ->
     Error.throwRequest "The \"param__like\" template is only valid for string parameters: {0}" [show param]
-  _ -> readParam Date "Date" mtuple
+  _ -> readParam Date "Date" mTuple
 
 readParamSort :: MError m => [BSName] -> Maybe (Templ, BSKey, BSValue) -> m Param
-readParamSort list mtuple = do
-  case mtuple of
+readParamSort list mTuple = do
+  case mTuple of
     Just (Eq, param, bs) ->
       if bs `elem` list
-        then readParam Str "String" mtuple
+        then readParam Str "String" mTuple
         else Error.throwRequest "The parameter {0} must be an element of the list {1}" [show param, show list]
     Just (_, param, _) ->
       Error.throwRequest "Only template \"eq\" is valid for collation: {0}" [show param]
-    Nothing -> readParam Str "String" mtuple
+    Nothing -> readParam Str "String" mTuple
 
 readParamFileName :: MError m => [BSName] -> Maybe (Templ, BSKey, BSValue) -> m Param
-readParamFileName list mtuple = case mtuple of
+readParamFileName list mTuple = case mTuple of
   Just (Eq, param, bs) ->
     if any (helper bs) list
-      then readParam Str "String" mtuple
+      then readParam Str "String" mTuple
       else Error.throwRequest "Parameter {0} must be a filename with one of the following extensions: {1}, in the format \"foo.png\"" [show param, show list]
-  _ -> Error.throw $ Error.patError "Params.readParamFileName" mtuple
+  _ -> Error.throw $ Error.patError "Params.readParamFileName" mTuple
   where
     --check the file format, for example "foo.png"
     helper :: ByteString -> ByteString -> Bool
@@ -271,26 +271,26 @@ readParamFileName list mtuple = case mtuple of
     helper _ _ = False
 
 readParam :: (MError m, Read a) => (a -> Val) -> String -> Maybe (Templ, BSKey, BSValue) -> m Param
-readParam cons consStr mtuple = do
-  let pt = consStr
-  let listType = template "[{0}]" [pt]
-  let tupleType = template "({0},{0})" [pt]
-  case mtuple of
+readParam constructor constructorStr mTuple = do
+  let paramType = constructorStr
+  let listType = template "[{0}]" [paramType]
+  let tupleType = template "({0},{0})" [paramType]
+  case mTuple of
     Nothing -> return ParamNo
     Just (templ, param, bs) -> case templ of
-      Eq -> ParamEq . cons <$> ereadMap pt bs param
-      In -> ParamIn <$> (cons <<$>> ereadMap listType bs param)
-      All -> ParamAll <$> (cons <<$>> ereadMap listType bs param)
-      Lt -> ParamLt . cons <$> ereadMap pt bs param
-      Gt -> ParamGt . cons <$> ereadMap pt bs param
+      Eq -> ParamEq . constructor <$> ereadMap paramType bs param
+      In -> ParamIn <$> (constructor <<$>> ereadMap listType bs param)
+      All -> ParamAll <$> (constructor <<$>> ereadMap listType bs param)
+      Lt -> ParamLt . constructor <$> ereadMap paramType bs param
+      Gt -> ParamGt . constructor <$> ereadMap paramType bs param
       Bt -> do
         (val1, val2) <- ereadMap tupleType bs param
-        return $ ParamBt (cons val1, cons val2)
-      Like -> ParamLike . cons <$> ereadMap pt bs param
+        return $ ParamBt (constructor val1, constructor val2)
+      Like -> ParamLike . constructor <$> ereadMap paramType bs param
 
 -----------------------------Decoding------------------------------------------
 ereadMap :: (MError m, Read a) => String -> BS -> BS -> m a
-ereadMap t bs param = case t of
+ereadMap paramType bs param = case paramType of
   "Int" -> eread bs $ template "{0}an integer" [mustBe]
   "[Int]" -> eread bs $ template "{0}a list of integers in the format [x,y,z]" [mustBe]
   "(Int,Int)" -> eread bs $ template "{0}a pair of integers in the format (x,y)" [mustBe]
@@ -304,7 +304,7 @@ ereadMap t bs param = case t of
   "Date" -> eread bs $ template "{0}a date in the format YYYY-MM-DD" [mustBe]
   "[Date]" -> eread bs $ template "{0}a list of dates in the format [YYYY-MM-DD,YYYY-MM-DD,YYYY-MM-DD]" [mustBe]
   "(Date,Date)" -> eread bs $ template "{0}a pair of dates in the format (YYYY-MM-DD,YYYY-MM-DD)" [mustBe]
-  _ -> Error.throwRequest "Unknown parameter type {1}: {0}" [t, show param]
+  _ -> Error.throwRequest "Unknown parameter type {1}: {0}" [paramType, show param]
   where
     mustBe = template "The query parameter {0} must be " [show param]
 
