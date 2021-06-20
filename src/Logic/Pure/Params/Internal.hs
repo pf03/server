@@ -1,6 +1,13 @@
-module Logic.Pure.Params where
+module Logic.Pure.Params.Internal where
 
-import Common.Functions (Template (template), for, forMapWithKeyM, forMaybe, jlookup, (<<$>>))
+import Logic.Pure.Params.Types
+    ( BSTempl,
+      BSValue,
+      BSKey,
+      ParamDesc(ParamDesc),
+      ParamType(..),
+      Templ(..) )
+import Common.Functions( (<<$>>), jlookup, forMaybe, for, Template(template) )
 import Common.Types (BS, BSName)
 import Control.Monad.Except (forM_, when)
 import qualified Data.ByteString as B
@@ -11,43 +18,14 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import Interface.Class (MError)
 import Interface.MCache.Types
-  ( API (..),
-    APIType (Author, Category, Comment, Draft, Id, Image, Photo, Post, Tag, User),
-    Param (ParamAll, ParamBt, ParamEq, ParamGt, ParamIn, ParamLike, ParamLt, ParamNo, ParamNull),
-    ParamsMap,
-    QueryType (Auth, Delete, Insert, Load, Select, SelectById, Update, Upload),
-    Val (Date, Int, Str),
-  )
+    ( Val(Str, Int, Date),
+      Param(ParamLike, ParamNull, ParamNo, ParamEq, ParamIn, ParamAll, ParamLt, ParamGt, ParamBt),
+      APIType(Id, Photo, Image, User, Author, Category, Tag, Draft,Comment, Post),
+      QueryType(Update, Auth, Upload, Load, Select, SelectById, Delete,Insert),
+      API(..) )
 import qualified Interface.MError.Exports as Error
 import Network.HTTP.Types.URI (Query)
 import Text.Read (readEither)
-
------------------------------Types---------------------------------------------
--- Eq - no suffix
-data Templ = Eq | In | All | Lt | Gt | Bt | Like deriving (Show, Eq)
-
-data ParamType
-  = ParamTypePage
-  | ParamTypeStr
-  | ParamTypeInt
-  | ParamTypeDate
-  | ParamTypeSort [BSName]
-  | ParamTypeFileName [BSName]
-  deriving (Show)
-
-data ParamDesc = ParamDesc
-  { templs :: [Templ],
-    paramType :: ParamType,
-    must :: Bool,
-    nullable :: Bool
-  }
-
---type BSName = BS    --created_at --Cache.hs
-type BSKey = BS --created_at__lt
-
-type BSValue = BS --"2021-01-01"
-
-type BSTempl = BS --"__lt"
 
 -----------------------------Params map----------------------------------------
 
@@ -181,12 +159,6 @@ concatParams :: M.Map BSName ParamDesc -> [BSKey]
 concatParams = concat . M.mapWithKey possibleParams
 
 -----------------------------Parse params--------------------------------------
-parseParams :: MError m => API -> Query -> m ParamsMap
-parseParams api queries = do
-  paramDescs <- possibleParamDescs api
-  checkParams api queries paramDescs
-  forMapWithKeyM paramDescs $ parseParam queries
-
 checkParams :: MError m => API -> Query -> M.Map BSName ParamDesc -> m ()
 checkParams api queries paramDesc = do
   -- Update must have at least one parameter, otherwise it doesn't make sense

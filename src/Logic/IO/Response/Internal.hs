@@ -24,7 +24,7 @@ import qualified Logic.IO.Photos as Photos
 import qualified Logic.IO.Upload as Upload
 import qualified Logic.Pure.API as API
 import qualified Logic.Pure.JSON.Exports as JSON
-import qualified Logic.Pure.Params as Params
+import qualified Logic.Pure.Params.Functions as Params
 import Network.HTTP.Types ( parseQuery )
 import Network.Wai.Internal as Wai
 
