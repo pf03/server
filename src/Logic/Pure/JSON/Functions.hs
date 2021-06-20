@@ -49,56 +49,56 @@ evalCategories allCategories = mapM (_evalCategory [] allCategories . Row.catego
 evalCategory :: MError m => [Select.Category] -> Select.Category -> m Category
 evalCategory allCategories category = _evalCategory [] allCategories (Row.categoryId category)
 
--- intenal
+-- internal
 _evalCategory :: MError m => [Int] -> [Select.Category] -> Int -> m Category
-_evalCategory childs rcs cid = do
-  if cid `elem` childs
+_evalCategory childs categories categoryId = do
+  if categoryId `elem` childs
     then do
       -- The cyclic category will froze our server when generating json, so let's throw out the error
-      Error.throwDB "Cyclic category {0} found, which is its own parent" [show cid]
+      Error.throwDB "Cyclic category {0} found, which is its own parent" [show categoryId]
     else do
-      let mrc = findById cid rcs -- There can't be two categories with the same primary key. But it can be no one
-      case mrc of
-        Nothing -> Error.throwDB "Отсутствует категория {0}" [show cid]
-        Just (Row.Category _ mparentId name) -> do
-          case mparentId of
-            Nothing -> return $ Category cid Nothing name
+      let mCategory = findById categoryId categories -- There can't be two categories with the same primary key. But it can be no one
+      case mCategory of
+        Nothing -> Error.throwDB "Отсутствует категория {0}" [show categoryId]
+        Just (Row.Category _ mParentId name) -> do
+          case mParentId of
+            Nothing -> return $ Category categoryId Nothing name
             Just parentId -> do
-              parentCategory <- _evalCategory (cid : childs) rcs parentId
-              return $ Category cid (Just parentCategory) name
+              parentCategory <- _evalCategory (categoryId : childs) categories parentId
+              return $ Category categoryId (Just parentCategory) name
 
 -- Category should not be its own parent
 checkCyclicCategory :: MError m => Int -> ParamsMap -> [Select.Category] -> m ()
-checkCyclicCategory cid params rcs = do
+checkCyclicCategory categoryId params categories = do
   case params M.! "parent_id" of
     ParamNo -> return ()
     ParamNull -> return () -- root category
     ParamEq (Int parentId) -> do
-      grandParents <- getParents parentId rcs
-      when (cid `elem` grandParents) $
+      grandParents <- getParents parentId categories
+      when (categoryId `elem` grandParents) $
         Error.throwDB
           "Category {0} has category {2} in the parent list {1}. Unable to create cyclic category"
-          [show parentId, show grandParents, show cid]
-    par -> Error.throw $ Error.patError "JSON.checkCyclicCategory" par
+          [show parentId, show grandParents, show categoryId]
+    param -> Error.throw $ Error.patError "JSON.checkCyclicCategory" param
 
 getParents :: MError m => Int -> [Select.Category] -> m [Int]
 getParents = helper []
   where
     helper :: MError m => [Int] -> Int -> [Select.Category] -> m [Int]
-    helper acc cid rcs = do
-      let mrc = findById cid rcs
+    helper acc categoryId categories = do
+      let mrc = findById categoryId categories
       case mrc of
-        Nothing -> Error.throwDB "Category missing {0}" [show cid]
+        Nothing -> Error.throwDB "Category missing {0}" [show categoryId]
         Just (Row.Category _ mparentId _) -> case mparentId of
           Nothing -> return acc
           Just parentId -> do
             when (parentId `elem` acc) $
               Error.throwDB "Category {0} is its own parent" [show parentId]
-            helper ([parentId] <> acc) parentId rcs
+            helper ([parentId] <> acc) parentId categories
 
 getCategoryById :: MError m => Int -> [Category] -> String -> m Category
-getCategoryById cid cs err =
-  let mcategory = findById cid cs
+getCategoryById categoryId categories err =
+  let mcategory = findById categoryId categories
    in case mcategory of
         Nothing -> do
           Error.throwDB err []
@@ -138,19 +138,19 @@ unitePosts :: [Post] -> [Post]
 unitePosts = map (modifyPostTags filterById . modifyPostPhotos filterById) . unite appendPost
   where
     appendPost :: Post -> Post -> Post
-    appendPost p1 p2 = setPostTags tags . setPostPhotos photos $ p1
+    appendPost post1 post2 = setPostTags tags . setPostPhotos photos $ post1
       where
-        tags = getPostTags p1 <> getPostTags p2
-        photos = getPostPhotos p1 <> getPostPhotos p2
+        tags = getPostTags post1 <> getPostTags post2
+        photos = getPostPhotos post1 <> getPostPhotos post2
 
 uniteDrafts :: [Draft] -> [Draft]
 uniteDrafts = map (modifyDraftTags filterById . modifyDraftPhotos filterById) . unite appendDraft
   where
     appendDraft :: Draft -> Draft -> Draft
-    appendDraft p1 p2 = setDraftTags tags . setDraftPhotos photos $ p1
+    appendDraft draft1 draft2 = setDraftTags tags . setDraftPhotos photos $ draft1
       where
-        tags = getDraftTags p1 <> getDraftTags p2
-        photos = getDraftPhotos p1 <> getDraftPhotos p2
+        tags = getDraftTags draft1 <> getDraftTags draft2
+        photos = getDraftPhotos draft1 <> getDraftPhotos draft2
 
 evalAuthor :: Select.Author -> Author
 evalAuthor (author :. user) = turnAuthor author user

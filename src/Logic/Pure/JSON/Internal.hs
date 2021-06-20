@@ -94,15 +94,15 @@ setPostContent post content = post {postContent = content}
 -- Here the JSON.Category type is used, which has already been checked for cyclicity and correctness in JSON.evalCategory
 
 getChildCategories :: MError m => Param -> [Category] -> m Param
-getChildCategories (ParamIn vals) cs =
-  if length filtered == length cs
+getChildCategories (ParamIn vals) categories =
+  if length filtered == length categories
     then return ParamNo
     else return . ParamIn . map (Int . getId) $ filtered
   where
-    cids = map (\(Int cid) -> cid) vals
-    filtered = filter helper cs
+    categoryIds = map (\(Int categoryId) -> categoryId) vals
+    filtered = filter helper categories
     helper :: Category -> Bool
-    helper c = (getId c `elem` cids) || maybe False helper (parent c)
+    helper category = (getId category `elem` categoryIds) || maybe False helper (parent category)
 getChildCategories ParamNo _ = return ParamNo
 getChildCategories param _ = Error.throw $ Error.patError "JSON.getChildCategories" param
 
