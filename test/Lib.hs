@@ -1,9 +1,6 @@
 module Lib where
 
-import Control.Exception (evaluate)
 import Control.Monad.State.Lazy (State, runState)
-import Data.Either ()
-import Interface.Error as Error ()
 import Test.Hspec
   ( Expectation,
     HasCallStack,
@@ -48,8 +45,8 @@ withInitialState = (,)
 
 -- This is not equal to base Data.Bifoldable.bimapM_
 bimapM_ :: Monad m => (a -> b -> m c) -> [a] -> [b] -> m ()
-bimapM_ f [] [] = return ()
+bimapM_ _ [] [] = return ()
 bimapM_ f (x : xs) (y : ys) = do
-  f x y
+  _ <- f x y
   bimapM_ f xs ys
 bimapM_ _ _ _ = return ()

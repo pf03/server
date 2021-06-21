@@ -1,72 +1,78 @@
--- Our modules
-import           Common.Misc
-import           Interface.Cache
-import           Interface.Error        as Error
-import           Lib                    (allShouldSatisfy)
-import qualified Logic.Pure.API         as API
-import qualified Logic.Pure.Params      as Params
+import Common.Types (PathInfo)
+import qualified Data.ByteString as B
+import Data.Either (isRight)
+import Interface.MCache.Types
+  ( API (..),
+    APIType (Author, Draft, Post),
+    Auth (..),
+    ParamsMap,
+    QueryType (Insert, Select, Update),
+  )
+import qualified Interface.MError.Exports as Error
+import Lib (allShouldSatisfy)
+import qualified Logic.Pure.API as API
+import qualified Logic.Pure.Params.Functions as Params
+import Network.HTTP.Types.URI as HTTP (Query, simpleQueryToQuery)
+import Test.Hspec (Spec, describe, hspec, it, shouldSatisfy)
 
--- Other modules
-import qualified Data.ByteString        as B
-import           Data.Either
-import           Network.HTTP.Types.URI as HTTP
-import           Test.Hspec
-import           Test.QuickCheck
-
--- | Pure functions are tested in the Either E monad, the simplest implementation of the MError class
+-- | Pure functions are tested in the Either Error.Error monad, the simplest implementation of the MError class
 main :: IO ()
 main = do
-    hspec testParseParams
-    hspec testRouter
+  hspec testParseParams
+  hspec testRouter
 
 -- Predicats
-isRequestError :: Either E a -> Bool
+isRequestError :: Either Error.Error a -> Bool
 isRequestError ma = case ma of
-    Left (RequestError _ ) -> True
-    _                      -> False
+  Left (Error.RequestError _) -> True
+  _ -> False
 
-isAuthError :: Either E a -> Bool
+isAuthError :: Either Error.Error a -> Bool
 isAuthError ma = case ma of
-    Left (AuthError _ ) -> True
-    _                   -> False
+  Left (Error.AuthError _) -> True
+  _ -> False
 
 -----------------------------Params.parseParams--------------------------------------------
-parseParams :: API -> Query -> Either E ParamsMap
+parseParams :: API -> Query -> Either Error.Error ParamsMap
 parseParams = Params.parseParams
 
 testParseParams :: Spec
 testParseParams = describe "Logic.parseParams" $ do
-        it "throws request error" $ do
-            nothingCase `shouldSatisfy` isRequestError
-            insertAuthorWrongCases `allShouldSatisfy` isRequestError
-            selectPostWrongCases `allShouldSatisfy` isRequestError
-            noParamsWrongCase `shouldSatisfy` isRequestError
-            withParamWrongCase `shouldSatisfy` isRequestError
-        it "returns result" $ do
-            selectPostRightCases `allShouldSatisfy` isRight
-            noParamsRightCase `shouldSatisfy` isRight
-            withParamRightCase `shouldSatisfy` isRight
+  it "throws request error" $ do
+    nothingCase `shouldSatisfy` isRequestError
+    insertAuthorWrongCases `allShouldSatisfy` isRequestError
+    selectPostWrongCases `allShouldSatisfy` isRequestError
+    noParamsWrongCase `shouldSatisfy` isRequestError
+    withParamWrongCase `shouldSatisfy` isRequestError
+  it "returns result" $ do
+    selectPostRightCases `allShouldSatisfy` isRight
+    noParamsRightCase `shouldSatisfy` isRight
+    withParamRightCase `shouldSatisfy` isRight
 
---Ошибка веб-запроса: Не указано значение обязательного параметра "description"
-nothingCase :: Either E ParamsMap
+-- Request error: Required parameter "description" is not specified  
+nothingCase :: Either Error.Error ParamsMap
 nothingCase = parseParams (API Insert [Author]) [("user_id", Just "1"), ("description", Nothing)]
 
-showTest = showCases (router "path" <$> wrongRouterCases <*> return AuthNo)
+-- for debug only
+-- showTest :: IO ()
+-- showTest = showCases (router "path" <$> wrongRouterCases <*> return AuthNo)
 
-showCases :: Show a => [Either E a] -> IO ()
-showCases = mapM_ $ \c -> do
-    case c of
-        Left e  -> print e
-        Right a -> putStrLn "right!"
+-- showCases :: Show a => [Either Error.Error a] -> IO ()
+-- showCases = mapM_ $ \case0 -> do
+--   case case0 of
+--     Left err -> print err
+--     Right _ -> putStrLn "right!"
 
-
-insertAuthorWrongCases :: [Either E ParamsMap]
-insertAuthorWrongCases = parseParams (API Insert [Author]) <$> map simpleQueryToQuery [
-        -- Request error: Required parameter "description" not specified
+insertAuthorWrongCases :: [Either Error.Error ParamsMap]
+insertAuthorWrongCases =
+  parseParams (API Insert [Author])
+    <$> map
+      simpleQueryToQuery
+      [ -- Request error: Required parameter "description" not specified
         [],
         -- Request error: Unsupported request parameter: "foo"
         [("user_id", "1"), ("foo", "bar")],
-        -- Request error: The list of query parameters must contain no more than one value 
+        -- Request error: The list of query parameters must contain no more than one value
         -- from the list ["user_id"], but there are 2: [(Eq,"user_id",Just "1"),(Eq,"user_id",Just "2")]
         [("user_id", "1"), ("user_id", "2"), ("description", "bar")],
         -- Request error: Unsupported request parameter: "user_id__all"
@@ -75,11 +81,14 @@ insertAuthorWrongCases = parseParams (API Insert [Author]) <$> map simpleQueryTo
         [("user_id", "bar"), ("description", "bar")],
         -- Request error: Unsupported request parameter: "foo"
         [("user_id", "1"), ("description", "1"), ("foo", "bar")]
-    ]
+      ]
 
-selectPostWrongCases :: [Either E ParamsMap]
-selectPostWrongCases = parseParams (API Select [Post]) <$> map simpleQueryToQuery [
-        --Request error: The query parameter "created_at" must be a date in the format YYYY-MM-DD ...
+selectPostWrongCases :: [Either Error.Error ParamsMap]
+selectPostWrongCases =
+  parseParams (API Select [Post])
+    <$> map
+      simpleQueryToQuery
+      [ --Request error: The query parameter "created_at" must be a date in the format YYYY-MM-DD ...
         [("created_at", "1")],
         [("created_at", "foo")],
         [("created_at", "2020.12.12")],
@@ -117,11 +126,14 @@ selectPostWrongCases = parseParams (API Select [Post]) <$> map simpleQueryToQuer
         [("order_by__lt", "created_at")],
         [("order_by", "tag_id")],
         [("page__bt", "(2,3)")]
-    ]
+      ]
 
-selectPostRightCases :: [Either E ParamsMap]
-selectPostRightCases = parseParams (API Select [Post]) <$> map simpleQueryToQuery [
-        [("created_at", "2020-12-18")],
+selectPostRightCases :: [Either Error.Error ParamsMap]
+selectPostRightCases =
+  parseParams (API Select [Post])
+    <$> map
+      simpleQueryToQuery
+      [ [("created_at", "2020-12-18")],
         [("created_at__lt", "2020-12-18")],
         [("created_at__gt", "2020-12-18")],
         [("created_at__bt", "(2020-12-12,2020-12-13)")],
@@ -140,79 +152,78 @@ selectPostRightCases = parseParams (API Select [Post]) <$> map simpleQueryToQuer
         [("order_by", "category_id")],
         [("order_by", "photos")],
         [("page", "2")],
-        [
-            ("created_at__bt", "(2020-12-12,2020-12-13)"),
-            ("author_name__like", "foo"),
-            ("category_id__in", "[2,3]"),
-            ("tag_id", "2"),
-            ("name", "bar"),
-            ("text__like", "foo"),
-            ("contains__like", "Vasya"),
-            ("order_by", "created_at"),
-            ("page", "2")
-            ]
-    ]
+        [ ("created_at__bt", "(2020-12-12,2020-12-13)"),
+          ("author_name__like", "foo"),
+          ("category_id__in", "[2,3]"),
+          ("tag_id", "2"),
+          ("name", "bar"),
+          ("text__like", "foo"),
+          ("contains__like", "Vasya"),
+          ("order_by", "created_at"),
+          ("page", "2")
+        ]
+      ]
 
 -- API function without params
-noParamsWrongCase :: Either E ParamsMap
+noParamsWrongCase :: Either Error.Error ParamsMap
 noParamsWrongCase = parseParams (API Insert [Post]) [("draft_id", Just "1")]
 
-noParamsRightCase :: Either E ParamsMap
+noParamsRightCase :: Either Error.Error ParamsMap
 noParamsRightCase = parseParams (API Insert [Post]) []
 
 -- API function that requires at least one of the parameters
-withParamWrongCase :: Either E ParamsMap
+withParamWrongCase :: Either Error.Error ParamsMap
 withParamWrongCase = parseParams (API Update [Draft]) []
 
-withParamRightCase :: Either E ParamsMap
+withParamRightCase :: Either Error.Error ParamsMap
 withParamRightCase = parseParams (API Update [Draft]) [("category_id", Just "1")]
 
 -----------------------------API.router----------------------------------------
 
 testRouter :: Spec
 testRouter = describe "API.router" $ do
-        it "throws request error" $ do
-            (router "path" <$> wrongRouterCases <*> return AuthNo) `allShouldSatisfy` isRequestError
-            (router "path" <$> wrongRouterCases <*> return (AuthUser 3)) `allShouldSatisfy` isRequestError
-            (router "path" <$> wrongRouterCases <*> return (AuthAdmin 1)) `allShouldSatisfy` isRequestError
-            (router "path" <$> forAdminRouterCases <*> return AuthNo) `allShouldSatisfy` isRequestError
-            (router "path" <$> forAdminRouterCases <*> return (AuthUser 3)) `allShouldSatisfy` isRequestError
-        it "throws auth error" $ do
-            (router "path" <$> forUserRouterCases <*> return AuthNo) `allShouldSatisfy` isAuthError
-        it "returns result" $ do
-            (router "path" <$> forAllRouterCases <*> return AuthNo) `allShouldSatisfy` isRight
-            (router "path" <$> forAllRouterCases <*> return (AuthUser 3)) `allShouldSatisfy` isRight
-            (router "path" <$> forAllRouterCases <*> return (AuthAdmin 1)) `allShouldSatisfy` isRight
-            (router "path" <$> forUserRouterCases <*> return (AuthUser 3)) `allShouldSatisfy` isRight
-            (router "path" <$> forUserRouterCases <*> return (AuthAdmin 1)) `allShouldSatisfy` isRight
-            (router "path" <$> forAdminRouterCases <*> return (AuthAdmin 1)) `allShouldSatisfy` isRight
+  it "throws request error" $ do
+    (router "path" <$> wrongRouterCases <*> return AuthNo) `allShouldSatisfy` isRequestError
+    (router "path" <$> wrongRouterCases <*> return (AuthUser 3)) `allShouldSatisfy` isRequestError
+    (router "path" <$> wrongRouterCases <*> return (AuthAdmin 1)) `allShouldSatisfy` isRequestError
+    (router "path" <$> forAdminRouterCases <*> return AuthNo) `allShouldSatisfy` isRequestError
+    (router "path" <$> forAdminRouterCases <*> return (AuthUser 3)) `allShouldSatisfy` isRequestError
+  it "throws auth error" $ do
+    (router "path" <$> forUserRouterCases <*> return AuthNo) `allShouldSatisfy` isAuthError
+  it "returns result" $ do
+    (router "path" <$> forAllRouterCases <*> return AuthNo) `allShouldSatisfy` isRight
+    (router "path" <$> forAllRouterCases <*> return (AuthUser 3)) `allShouldSatisfy` isRight
+    (router "path" <$> forAllRouterCases <*> return (AuthAdmin 1)) `allShouldSatisfy` isRight
+    (router "path" <$> forUserRouterCases <*> return (AuthUser 3)) `allShouldSatisfy` isRight
+    (router "path" <$> forUserRouterCases <*> return (AuthAdmin 1)) `allShouldSatisfy` isRight
+    (router "path" <$> forAdminRouterCases <*> return (AuthAdmin 1)) `allShouldSatisfy` isRight
 
-router :: B.ByteString -> PathInfo -> Auth -> Either E API
+router :: B.ByteString -> PathInfo -> Auth -> Either Error.Error API
 router = API.router
 
 wrongRouterCases :: [PathInfo]
-wrongRouterCases = [
-    ["foo"],
+wrongRouterCases =
+  [ ["foo"],
     ["login", "2"],
     ["posts", "foo", "comments", "create"],
     ["drafts", "3", "create"],
     ["categories", "delete"]
-    ]
+  ]
 
 forAllRouterCases :: [PathInfo]
-forAllRouterCases = [
-    ["login"],
+forAllRouterCases =
+  [ ["login"],
     ["photos", "upload"],
     ["users", "create"],
     ["categories", "42"],
     ["tags", "42"],
     ["posts", "42"],
     ["drafts", "42"]
-    ]
+  ]
 
 forUserRouterCases :: [PathInfo]
-forUserRouterCases = [
-    ["drafts", "create"],
+forUserRouterCases =
+  [ ["drafts", "create"],
     ["posts", "55", "comments", "create"],
     ["user", "edit"],
     ["drafts", "55", "edit"],
@@ -221,11 +232,11 @@ forUserRouterCases = [
     ["posts", "256", "delete"],
     ["comments", "256", "delete"],
     ["user"]
-    ]
+  ]
 
-forAdminRouterCases ::  [PathInfo]
-forAdminRouterCases = [
-    ["authors", "create"],
+forAdminRouterCases :: [PathInfo]
+forAdminRouterCases =
+  [ ["authors", "create"],
     ["categories", "create"],
     ["tags", "create"],
     ["drafts", "5", "publish"],
@@ -238,4 +249,4 @@ forAdminRouterCases = [
     ["tags", "42", "delete"],
     ["users"],
     ["authors", "256"]
-    ]
+  ]

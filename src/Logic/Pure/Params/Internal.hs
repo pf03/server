@@ -193,7 +193,7 @@ findTemplate queryString name paramDesc@(ParamDesc _ _ must0 _) = do
   case filtered of
     [] ->
       if must0
-        then Error.throwRequest "Required parameter {0} not specified " [show name]
+        then Error.throwRequest "Required parameter {0} is not specified " [show name]
         else return Nothing
     [(_, param, Nothing)] -> Error.throwRequest "Parameter value {0} not specified" [show param]
     [(tmpl, param, Just value)] -> return . Just $ (tmpl, param, value)
