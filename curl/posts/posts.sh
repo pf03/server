@@ -3,7 +3,7 @@ cd ..
 source tokens.sh
 source host.sh
 
-APIPATH=posts
+APIPATH=/posts
 URL="$HOST$APIPATH"
 
 # single filters

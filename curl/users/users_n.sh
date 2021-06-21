@@ -3,7 +3,7 @@ cd ..
 source tokens.sh
 source host.sh
 
-APIPATH=users/1
+APIPATH=/users/1
 URL="$HOST$APIPATH"
 BODY=""
 

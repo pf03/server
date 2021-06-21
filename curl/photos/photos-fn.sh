@@ -4,7 +4,7 @@ cd ..
 source host.sh
 
 
-APIPATH=photos/zvezdnoe_nebo_test.png
+APIPATH=/photos/zvezdnoe_nebo_test.png
 URL="$HOST$APIPATH"
 BODY=""
 

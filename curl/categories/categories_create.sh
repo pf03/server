@@ -3,7 +3,7 @@ cd ..
 source tokens.sh
 source host.sh
 
-APIPATH=categories/create
+APIPATH=/categories/create
 URL="$HOST$APIPATH"
 BODY="parent_id=2"
 BODY+="&category_name=category_name"

@@ -1,1 +1,1 @@
-HOST=http://localhost/
+HOST=http://localhost

@@ -3,7 +3,7 @@ cd ..
 # source tokens.sh
 source host.sh
 
-APIPATH=login
+APIPATH=/login
 URL="$HOST$APIPATH"
 
 curl --data "login=fake&pass=fake" ${URL}

@@ -3,7 +3,7 @@ cd ..
 source tokens.sh
 source host.sh
 
-APIPATH=categories
+APIPATH=/categories
 URL="$HOST$APIPATH"
 BODY="page=1"
 

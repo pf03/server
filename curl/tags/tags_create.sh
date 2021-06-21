@@ -3,7 +3,7 @@ cd ..
 source tokens.sh
 source host.sh
 
-APIPATH=tags/create
+APIPATH=/tags/create
 URL="$HOST$APIPATH"
 BODY="name=some_tag"
 

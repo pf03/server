@@ -3,7 +3,7 @@ cd ..
 source tokens.sh
 source host.sh
 
-APIPATH=tags/2/edit
+APIPATH=/tags/2/edit
 URL="$HOST$APIPATH"
 BODY="name=edited_tag"
 
