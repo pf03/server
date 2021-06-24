@@ -135,11 +135,11 @@ publish :: MTrans m => Int -> m ()
 publish paramId = do
   params <- Cache.addIdParam "draft_id" paramId
   checkExist "draft_id" [sql|SELECT 1 FROM drafts WHERE drafts.id = {0}|]
-  [(contentId, mpostId)] <-
+  [(contentId, mPostId)] <-
     DB.queryM
       [sql|SELECT content_id, post_id FROM drafts WHERE drafts.id = {0}|]
       [paramToQuery $ params ! "draft_id"]
-  case mpostId :: Maybe Int of
+  case mPostId :: Maybe Int of
     Nothing -> do
       DB.insert
         Post
@@ -281,8 +281,8 @@ addAuthAuthorIdParam = do
           WHERE users.id = {0}
       |]
       [paramToQuery paramUserId]
-  mauthorId <- fromOnly <<$>> listToMaybe <$> DB.query query
-  case mauthorId :: (Maybe Int) of
+  mAuthorId <- fromOnly <<$>> listToMaybe <$> DB.query query
+  case mAuthorId :: (Maybe Int) of
     Nothing -> Error.throw $ Error.AuthError "This feature is only available for authors"
     Just 1 -> Error.throw $ Error.AuthError "Unable to authenticate deleted author"
     Just authorId -> Cache.addIdParam "author_id" authorId

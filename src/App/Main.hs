@@ -11,11 +11,11 @@ main_ = do
   args <- getArgs
   case args of
     [] -> server_
-    ["db-init"] -> dbinit_
+    ["db-init"] -> dbInit_
     ["migrations"] -> migrations_
-    ["db-drop"] -> dbdrop_
-    ["db-restart"] -> dbrestart_
-    ["db-restart-force"] -> dbrestartForce_
+    ["db-drop"] -> dbDrop_
+    ["db-restart"] -> dbRestart_
+    ["db-restart-force"] -> dbRestartForce_
     ["gen-tokens"] -> genTokens_
     _ -> do
       putStrLn "Wrong command line arguments!"
@@ -31,23 +31,23 @@ main_ = do
   _ <- getLine
   return ()
 
-dbinit_ :: IO ()
-dbinit_ = Transformer.runT Migrations.dbinit
+dbInit_ :: IO ()
+dbInit_ = Transformer.runT Migrations.dbInit
 
 migrations_ :: IO ()
 migrations_ = Transformer.runT Migrations.run
 
-dbdrop_ :: IO ()
-dbdrop_ = Transformer.runT Migrations.dbdrop
+dbDrop_ :: IO ()
+dbDrop_ = Transformer.runT Migrations.dbDrop
 
 server_ :: IO ()
 server_ = Server.run
 
-dbrestart_ :: IO ()
-dbrestart_ = dbdrop_ >> dbinit_
+dbRestart_ :: IO ()
+dbRestart_ = dbDrop_ >> dbInit_
 
-dbrestartForce_ :: IO ()
-dbrestartForce_ = Transformer.runT Migrations.dbrestartForce
+dbRestartForce_ :: IO ()
+dbRestartForce_ = Transformer.runT Migrations.dbRestartForce
 
 genTokens_ :: IO ()
 genTokens_ = Transformer.runT Emulate.writeTokens

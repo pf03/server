@@ -91,7 +91,7 @@ setPostContent :: Post -> Content -> Post
 setPostContent post content = post {postContent = content}
 
 -----------------------------Data manipulation----------------------------------
--- Here the JSON.Category type is used, which has already been checked for cyclicity and correctness in JSON.evalCategory
+-- Here the JSON.Category type is used, which has already been checked for cyclic recurrence and correctness in JSON.evalCategory
 
 getChildCategories :: MError m => Param -> [Category] -> m Param
 getChildCategories (ParamIn vals) categories =

@@ -24,9 +24,9 @@ setColorT :: MonadIO m => Color -> m ()
 setColorT color = setColorSchemeT Vivid NormalIntensity (Just color) Nothing
 
 setColorSchemeT :: (MonadIO m) => ColorIntensity -> ConsoleIntensity -> Maybe Color -> Maybe Color -> m ()
-setColorSchemeT colorIntensity consoleIntensity mcolor1 mcolor2 = liftIO $ do
-  ifJust mcolor1 $ setSGR [SetColor Foreground colorIntensity (fromJust mcolor1)]
-  ifJust mcolor2 $ setSGR [SetColor Background colorIntensity (fromJust mcolor2)]
+setColorSchemeT colorIntensity consoleIntensity mColor1 mColor2 = liftIO $ do
+  ifJust mColor1 $ setSGR [SetColor Foreground colorIntensity (fromJust mColor1)]
+  ifJust mColor2 $ setSGR [SetColor Background colorIntensity (fromJust mColor2)]
   setSGR [SetConsoleIntensity consoleIntensity]
 
 resetColorSchemeT :: MonadIO m => m ()
@@ -36,9 +36,9 @@ resetColorSchemeT = liftIO $ setSGR [Reset]
 
 -- | Set colors and write some text in those colors.
 colorCell :: ColorIntensity -> ConsoleIntensity -> (String, Maybe Color) -> (String, Maybe Color) -> IO ()
-colorCell colorIntensity consoleIntensity (colorName1, mcolor1) (colorName2, mcolor2) = do
-  ifJust mcolor1 $ setSGR [SetColor Foreground colorIntensity (fromJust mcolor1)]
-  ifJust mcolor2 $ setSGR [SetColor Background colorIntensity (fromJust mcolor2)]
+colorCell colorIntensity consoleIntensity (colorName1, mColor1) (colorName2, mColor2) = do
+  ifJust mColor1 $ setSGR [SetColor Foreground colorIntensity (fromJust mColor1)]
+  ifJust mColor2 $ setSGR [SetColor Background colorIntensity (fromJust mColor2)]
   setSGR [SetConsoleIntensity consoleIntensity]
   putStr $ template " {0} {1} " [take 3 colorName1, take 3 colorName2]
   setSGR [Reset] -- Reset to default colour scheme
@@ -53,8 +53,8 @@ colorPairs :: [(String, Maybe Color)]
 colorPairs = zip colorNames colors
 
 colorRow :: ColorIntensity -> ConsoleIntensity -> (String, Maybe Color) -> IO ()
-colorRow colorIntensity consoleIntensity (colorName1, mcolor1) = do
-  mapM_ (colorCell colorIntensity consoleIntensity (colorName1, mcolor1)) colorPairs
+colorRow colorIntensity consoleIntensity (colorName1, mColor1) = do
+  mapM_ (colorCell colorIntensity consoleIntensity (colorName1, mColor1)) colorPairs
   putStrLn ""
 
 colorTable :: IO ()

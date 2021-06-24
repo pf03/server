@@ -43,7 +43,7 @@ writeTokens = do
       return token
 
     templ :: String -> Auth.Token -> String
-    templ pname (Auth.Token token) = template "{0}=\"Authorization: {1}\"" [pname, token]
+    templ paramName (Auth.Token token) = template "{0}=\"Authorization: {1}\"" [paramName, token]
 
     calcFakeToken :: Auth.Token -> Auth.Token
     calcFakeToken (Auth.Token token) = if last token == '0' 

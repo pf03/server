@@ -7,7 +7,7 @@ import Logic.Pure.Params.Types
       ParamDesc(ParamDesc),
       ParamType(..),
       Templ(..) )
-import Common.Functions( (<<$>>), jlookup, forMaybe, for, Template(template) )
+import Common.Functions( (<<$>>), jLookup, forMaybe, for, Template(template) )
 import Common.Types (BS, BSName)
 import Control.Monad.Except (forM_, when)
 import qualified Data.ByteString as B
@@ -153,7 +153,7 @@ possibleParamDescs (API queryType apiType) = M.fromList <$> list
       _ -> Error.throw $ Error.patError "Params.possibleParamDesc" apiType
 
 possibleParams :: BSName -> ParamDesc -> [BSKey]
-possibleParams bsname (ParamDesc templs0 _ _ _) = for templs0 $ \templ -> bsname <> jlookup templ templates
+possibleParams bsName (ParamDesc templs0 _ _ _) = for templs0 $ \templ -> bsName <> jLookup templ templates
 
 concatParams :: M.Map BSName ParamDesc -> [BSKey]
 concatParams = concat . M.mapWithKey possibleParams
@@ -179,8 +179,8 @@ checkParams api queries paramDesc = do
           else Error.throwRequest "Unsupported request parameter: {0}" [show param]
 
 parseParam :: MError m => Query -> BSName -> ParamDesc -> m Param
-parseParam queries bsname paramDesc@(ParamDesc _ paramType0 _ nullable0) = do
-  mTuple <- findTemplate queries bsname paramDesc
+parseParam queries bsName paramDesc@(ParamDesc _ paramType0 _ nullable0) = do
+  mTuple <- findTemplate queries bsName paramDesc
   readParamAny paramType0 mTuple nullable0
 
 -- Checking the entire query string
@@ -196,7 +196,7 @@ findTemplate queryString name paramDesc@(ParamDesc _ _ must0 _) = do
         then Error.throwRequest "Required parameter {0} is not specified " [show name]
         else return Nothing
     [(_, param, Nothing)] -> Error.throwRequest "Parameter value {0} not specified" [show param]
-    [(tmpl, param, Just value)] -> return . Just $ (tmpl, param, value)
+    [(templ, param, Just value)] -> return . Just $ (templ, param, value)
     (_ : _) ->
       Error.throwRequest
         "The list of query parameters must contain no more than one value from the list {0}, but there are {1}: {2}"
@@ -204,12 +204,12 @@ findTemplate queryString name paramDesc@(ParamDesc _ _ must0 _) = do
 
 -- Checking one element of the query string
 checkParam :: (BS, Maybe BS) -> BSName -> ParamDesc -> Maybe (Templ, BSKey, Maybe BSValue)
-checkParam (param, mvalue) name (ParamDesc ts _ _ _) = res
+checkParam (param, mValue) name (ParamDesc ts _ _ _) = res
   where
-    mtmpl = find (\tpl -> param == name <> jlookup tpl templates) ts
-    res = case mtmpl of
+    mTempl = find (\tpl -> param == name <> jLookup tpl templates) ts
+    res = case mTempl of
       Nothing -> Nothing
-      Just tmpl -> Just (tmpl, param, mvalue)
+      Just templ -> Just (templ, param, mValue)
 
 -----------------------------Params handlers-----------------------------------
 readParamAny :: MError m => ParamType -> Maybe (Templ, BSKey, BSValue) -> Bool -> m Param
@@ -278,38 +278,38 @@ readParam constructor constructorStr mTuple = do
   case mTuple of
     Nothing -> return ParamNo
     Just (templ, param, bs) -> case templ of
-      Eq -> ParamEq . constructor <$> ereadMap paramType bs param
-      In -> ParamIn <$> (constructor <<$>> ereadMap listType bs param)
-      All -> ParamAll <$> (constructor <<$>> ereadMap listType bs param)
-      Lt -> ParamLt . constructor <$> ereadMap paramType bs param
-      Gt -> ParamGt . constructor <$> ereadMap paramType bs param
+      Eq -> ParamEq . constructor <$> eReadMap paramType bs param
+      In -> ParamIn <$> (constructor <<$>> eReadMap listType bs param)
+      All -> ParamAll <$> (constructor <<$>> eReadMap listType bs param)
+      Lt -> ParamLt . constructor <$> eReadMap paramType bs param
+      Gt -> ParamGt . constructor <$> eReadMap paramType bs param
       Bt -> do
-        (val1, val2) <- ereadMap tupleType bs param
+        (val1, val2) <- eReadMap tupleType bs param
         return $ ParamBt (constructor val1, constructor val2)
-      Like -> ParamLike . constructor <$> ereadMap paramType bs param
+      Like -> ParamLike . constructor <$> eReadMap paramType bs param
 
 -----------------------------Decoding------------------------------------------
-ereadMap :: (MError m, Read a) => String -> BS -> BS -> m a
-ereadMap paramType bs param = case paramType of
-  "Int" -> eread bs $ template "{0}an integer" [mustBe]
-  "[Int]" -> eread bs $ template "{0}a list of integers in the format [x,y,z]" [mustBe]
-  "(Int,Int)" -> eread bs $ template "{0}a pair of integers in the format (x,y)" [mustBe]
+eReadMap :: (MError m, Read a) => String -> BS -> BS -> m a
+eReadMap paramType bs param = case paramType of
+  "Int" -> eRead bs $ template "{0}an integer" [mustBe]
+  "[Int]" -> eRead bs $ template "{0}a list of integers in the format [x,y,z]" [mustBe]
+  "(Int,Int)" -> eRead bs $ template "{0}a pair of integers in the format (x,y)" [mustBe]
   -- option with string parameter without quotes ?text__like=glasgow
-  "String" -> eread ("\"" <> bs <> "\"") $ template "{0}a string" [mustBe]
+  "String" -> eRead ("\"" <> bs <> "\"") $ template "{0}a string" [mustBe]
   -- option with string parameter with quotes ?text__like="glasgow"
-  --"String" -> eread bs $ template "{0}a string" [mustBe]
+  --"String" -> eRead bs $ template "{0}a string" [mustBe]
   -- every string inside a list or tuple must be quoted ?tag__in=["python","haskell"]
-  "[String]" -> eread bs $ template "{0}a list of strings in the format [x,y,z]" [mustBe]
-  "(String,String)" -> eread bs $ template "{0}a pair of strings in the format (x,y)" [mustBe]
-  "Date" -> eread bs $ template "{0}a date in the format YYYY-MM-DD" [mustBe]
-  "[Date]" -> eread bs $ template "{0}a list of dates in the format [YYYY-MM-DD,YYYY-MM-DD,YYYY-MM-DD]" [mustBe]
-  "(Date,Date)" -> eread bs $ template "{0}a pair of dates in the format (YYYY-MM-DD,YYYY-MM-DD)" [mustBe]
+  "[String]" -> eRead bs $ template "{0}a list of strings in the format [x,y,z]" [mustBe]
+  "(String,String)" -> eRead bs $ template "{0}a pair of strings in the format (x,y)" [mustBe]
+  "Date" -> eRead bs $ template "{0}a date in the format YYYY-MM-DD" [mustBe]
+  "[Date]" -> eRead bs $ template "{0}a list of dates in the format [YYYY-MM-DD,YYYY-MM-DD,YYYY-MM-DD]" [mustBe]
+  "(Date,Date)" -> eRead bs $ template "{0}a pair of dates in the format (YYYY-MM-DD,YYYY-MM-DD)" [mustBe]
   _ -> Error.throwRequest "Unknown parameter type {1}: {0}" [paramType, show param]
   where
     mustBe = template "The query parameter {0} must be " [show param]
 
-eread :: (MError m, Read a) => BC.ByteString -> String -> m a
-eread bs err = Error.catchEither (readEither . unpackString $ bs) $ \_ -> Error.RequestError err
+eRead :: (MError m, Read a) => BC.ByteString -> String -> m a
+eRead bs err = Error.catchEither (readEither . unpackString $ bs) $ \_ -> Error.RequestError err
 
 -- For correct processing of the Cyrillic alphabet
 unpackString :: BC.ByteString -> String

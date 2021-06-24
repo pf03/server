@@ -51,20 +51,20 @@ evalCategory allCategories category = _evalCategory [] allCategories (Row.catego
 
 -- internal
 _evalCategory :: MError m => [Int] -> [Select.Category] -> Int -> m Category
-_evalCategory childs categories categoryId = do
-  if categoryId `elem` childs
+_evalCategory children categories categoryId = do
+  if categoryId `elem` children
     then do
       -- The cyclic category will froze our server when generating json, so let's throw out the error
       Error.throwDB "Cyclic category {0} found, which is its own parent" [show categoryId]
     else do
       let mCategory = findById categoryId categories -- There can't be two categories with the same primary key. But it can be no one
       case mCategory of
-        Nothing -> Error.throwDB "Отсутствует категория {0}" [show categoryId]
+        Nothing -> Error.throwDB "Category {0} missing" [show categoryId]
         Just (Row.Category _ mParentId name) -> do
           case mParentId of
             Nothing -> return $ Category categoryId Nothing name
             Just parentId -> do
-              parentCategory <- _evalCategory (categoryId : childs) categories parentId
+              parentCategory <- _evalCategory (categoryId : children) categories parentId
               return $ Category categoryId (Just parentCategory) name
 
 -- Category should not be its own parent
@@ -89,7 +89,7 @@ getParents = helper []
       let mrc = findById categoryId categories
       case mrc of
         Nothing -> Error.throwDB "Category missing {0}" [show categoryId]
-        Just (Row.Category _ mparentId _) -> case mparentId of
+        Just (Row.Category _ mParentId _) -> case mParentId of
           Nothing -> return acc
           Just parentId -> do
             when (parentId `elem` acc) $
@@ -98,8 +98,8 @@ getParents = helper []
 
 getCategoryById :: MError m => Int -> [Category] -> String -> m Category
 getCategoryById categoryId categories err =
-  let mcategory = findById categoryId categories
-   in case mcategory of
+  let mCategory = findById categoryId categories
+   in case mCategory of
         Nothing -> do
           Error.throwDB err []
         Just category -> return category
@@ -111,27 +111,27 @@ evalPosts :: MError m => [Category] -> [Select.Post] -> m [Post]
 evalPosts cs l = unitePosts <$> mapM (evalPost cs) l
 
 evalPost :: MError m => [Category] -> Select.Post -> m Post
-evalPost cs (rpost :. rcontent :. rcategory :. rauthor :. user :. _ :. mtag :. mphoto) = do
-  let author = turnAuthor rauthor user
-  let pid = Row.postId rpost
-  let cid = Row.categoryId rcategory
+evalPost categories (rowPost :. rowContent :. rowCategory :. rowAuthor :. user :. _ :. mTag :. mPhoto) = do
+  let author = turnAuthor rowAuthor user
+  let postId = Row.postId rowPost
+  let categoryId = Row.categoryId rowCategory
   category <-
-    getCategoryById cid cs $
-      template "Post {0} belongs to a category that does not exist {1}" [show pid, show cid]
-  let content = turnContent rcontent author category (maybeToList mtag) (maybeToList mphoto)
-  let post = turnPost rpost content
+    getCategoryById categoryId categories $
+      template "Post {0} belongs to a category that does not exist {1}" [show postId, show categoryId]
+  let content = turnContent rowContent author category (maybeToList mTag) (maybeToList mPhoto)
+  let post = turnPost rowPost content
   return post
 
 evalDraft :: MError m => [Category] -> Select.Draft -> m Draft
-evalDraft cs (rdraft :. rcontent :. rcategory :. rauthor :. user :. _ :. mtag :. mphoto) = do
-  let author = turnAuthor rauthor user
-  let did = Row.draftId rdraft
-  let cid = Row.categoryId rcategory
+evalDraft categories (rowDraft :. rowContent :. rowCategory :. rowAuthor :. user :. _ :. mTag :. mPhoto) = do
+  let author = turnAuthor rowAuthor user
+  let draftId = Row.draftId rowDraft
+  let categoryId = Row.categoryId rowCategory
   category <-
-    getCategoryById cid cs $
-      template "Draft {0} belongs to a category that does not exist {1}" [show did, show cid]
-  let content = turnContent rcontent author category (maybeToList mtag) (maybeToList mphoto)
-  let draft = turnDraft rdraft content
+    getCategoryById categoryId categories $
+      template "Draft {0} belongs to a category that does not exist {1}" [show draftId, show categoryId]
+  let content = turnContent rowContent author category (maybeToList mTag) (maybeToList mPhoto)
+  let draft = turnDraft rowDraft content
   return draft
 
 unitePosts :: [Post] -> [Post]
@@ -165,7 +165,7 @@ evalComment :: Select.Comment -> Comment
 evalComment (comment :. _ :. user) = turnComment comment user
 
 -----------------------------Data manipulation----------------------------------
--- Here the JSON.Category type is used, which has already been checked for cyclicity and correctness in JSON.evalCategory
+-- Here the JSON.Category type is used, which has already been checked for cyclic recurrence and correctness in JSON.evalCategory
 
 evalParams :: MError m => [Category] -> ParamsMap -> m ParamsMap
 evalParams categories = adjustM (`getChildCategories` categories) ParamNo "category_id"

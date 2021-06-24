@@ -40,15 +40,15 @@ catchEIO m h = do
 
 liftEIO :: MIOError m => IO a -> m a
 liftEIO m = do
-  ea <- liftIO $ (Right <$> m) `E.catch` iohandler `E.catch` sqlhandler `E.catch` otherhandler
+  ea <- liftIO $ (Right <$> m) `E.catch` ioHandler `E.catch` sqlHandler `E.catch` otherHandler
   liftE ea
   where
-    iohandler :: E.IOException -> IO (Either Error a)
-    iohandler err = return . Left . IOError . show $ err
-    sqlhandler :: SqlError -> IO (Either Error a)
-    sqlhandler e = return . Left . DBError . T.unpack . T.decodeUtf8 . sqlErrorMsg $ e
-    otherhandler :: E.SomeException -> IO (Either Error a)
-    otherhandler err = return . Left . SomeError . show $ err
+    ioHandler :: E.IOException -> IO (Either Error a)
+    ioHandler err = return . Left . IOError . show $ err
+    sqlHandler :: SqlError -> IO (Either Error a)
+    sqlHandler e = return . Left . DBError . T.unpack . T.decodeUtf8 . sqlErrorMsg $ e
+    otherHandler :: E.SomeException -> IO (Either Error a)
+    otherHandler err = return . Left . SomeError . show $ err
 
 -----------------------------Functions-----------------------------------------
 eDecode :: (MError m, FromJSON a) => LBS -> m a
@@ -66,7 +66,7 @@ getStatus (SomeError _)    = internalServerError500
 
 -----------------------------Errors--------------------------------------------
 errorDefault :: Error
-errorDefault = SomeError "Some error occured"
+errorDefault = SomeError "Some error occurred"
 
 authErrorDefault :: Error
 authErrorDefault = AuthError "This function requires authorization"

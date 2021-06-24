@@ -14,8 +14,8 @@ import qualified Transformer.Exports as Transformer
 
 run :: IO ()
 run = do
-  mconfig <- Transformer.exceptToMaybe Transformer.runConfig
-  case mconfig of
+  mСonfig <- Transformer.exceptToMaybe Transformer.runConfig
+  case mСonfig of
     Nothing -> return ()
     Just config -> do
       let port = warpPort . Config.warp $ config
@@ -25,7 +25,7 @@ run = do
 
 app :: Config -> Application
 app config request f = do
-  response <- Transformer.evalTwithHandler (Response.get request) Response.errorHandler config
+  response <- Transformer.evalTWithHandler (Response.get request) Response.errorHandler config
   emptyBody 0 (getRequestBodyChunk request)
   f response
 

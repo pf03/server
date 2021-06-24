@@ -60,7 +60,7 @@ migrate = mapM_ $ \name -> do
   executeFile $ pathMigration name
   Insert.migration name
 
--- | Exequte sql from file
+-- | Execute sql from file
 executeFile :: MDB m => FilePath -> m ()
 executeFile path = do
   queryBS <- File.read path

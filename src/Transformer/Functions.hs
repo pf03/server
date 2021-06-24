@@ -5,7 +5,7 @@ import qualified Logic.IO.Config as Config
 import Transformer.Internal
     ( exceptToMaybe,
       runE_,
-      runEwithHandler,
+      runEWithHandler,
       runE,
       runConfig,
       runConnection,
@@ -36,7 +36,7 @@ evalT m defaultValue config = runE defaultValue $ do
   getValue config connection m
 
 -- | Evaluate value of transformer with error handler
-evalTwithHandler :: Transformer a -> (Error.Error -> a) -> Config.Config -> IO a
-evalTwithHandler m handler config = runEwithHandler handler $ do
+evalTWithHandler :: Transformer a -> (Error.Error -> a) -> Config.Config -> IO a
+evalTWithHandler m handler config = runEWithHandler handler $ do
   connection <- runConnection config
   getValue config connection m

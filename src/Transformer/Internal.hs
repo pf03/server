@@ -22,7 +22,7 @@ import Transformer.Types
 runConfig :: (MIOError m) => m Config.Config
 runConfig = do
   config <- Error.catch Config.readConfig $ \err -> do
-    Log.critical Log.defaultConfig logSettings0 "Error config read while run the transfomer:"
+    Log.critical Log.defaultConfig logSettings0 "Error config read while run the transformer:"
     Log.critical Log.defaultConfig logSettings0 $ show err
     Error.throw err
   let logConfig0 = Config.log config
@@ -82,16 +82,16 @@ connectDB connectInfo = connect connectInfo `Error.catchEIO` handler
 -- | Run ExceptT transformer without error handling with default value
 runE :: a -> ExceptT Error.Error IO a -> IO a
 runE defaultValue m = do
-  evalue <- runExceptT m
-  case evalue of
+  eValue <- runExceptT m
+  case eValue of
     Left _ -> return defaultValue
     Right value -> return value
 
 -- | Run ExceptT transformer with error handling
-runEwithHandler :: (Error.Error -> a) -> ExceptT Error.Error IO a -> IO a
-runEwithHandler handler m = do
-  evalue <- runExceptT m
-  case evalue of
+runEWithHandler :: (Error.Error -> a) -> ExceptT Error.Error IO a -> IO a
+runEWithHandler handler m = do
+  eValue <- runExceptT m
+  case eValue of
     Left err -> return $ handler err
     Right value -> return value
 
@@ -101,7 +101,7 @@ runE_ m = void (runExceptT m)
 
 exceptToMaybe :: ExceptT Error.Error IO a -> IO (Maybe a)
 exceptToMaybe m = do
-  evalue <- runExceptT m
-  case evalue of
+  eValue <- runExceptT m
+  case eValue of
     Left _ -> return Nothing
     Right value -> return $ Just value

@@ -13,17 +13,17 @@ import Test.Hspec
 allShouldBe :: (HasCallStack, Show a, Eq a) => [a] -> a -> Expectation
 allShouldBe cases result = eachShouldBe cases (replicate (length cases) result)
 
---EACH of cases SHOULD BE eqaul to each of results
+--EACH of cases SHOULD BE equal to each of results
 eachShouldBe :: (HasCallStack, Show a, Eq a) => [a] -> [a] -> Expectation
-eachShouldBe = bimapM_ shouldBe
+eachShouldBe = biMapM_ shouldBe
 
---ALL of cases SHOULD SATISFY to one predicat
+--ALL of cases SHOULD SATISFY to one predicate
 allShouldSatisfy :: (HasCallStack, Show a) => [a] -> (a -> Bool) -> Expectation
-allShouldSatisfy cases f = bimapM_ shouldSatisfy cases (replicate (length cases) f)
+allShouldSatisfy cases f = biMapM_ shouldSatisfy cases (replicate (length cases) f)
 
 -----------------------------State cases---------------------------------------
--- Can't use bimapM_ in this functions, because they do not consider State effect
--- ALL EVAL STATES of cases SHOULD BE eqaul to one result WITH INITIAL STATE
+-- Can't use biMapM_ in this functions, because they do not consider State effect
+-- ALL EVAL STATES of cases SHOULD BE equal to one result WITH INITIAL STATE
 allEvalStatesShouldBe :: (HasCallStack, Show a, Eq a) => [State s a] -> (a, s) -> Expectation
 allEvalStatesShouldBe states (result, initialState) = eachEvalStateShouldBe states (replicate (length states) result, initialState)
 
@@ -44,9 +44,9 @@ withInitialState :: a -> b -> (a, b)
 withInitialState = (,)
 
 -- This is not equal to base Data.Bifoldable.bimapM_
-bimapM_ :: Monad m => (a -> b -> m c) -> [a] -> [b] -> m ()
-bimapM_ _ [] [] = return ()
-bimapM_ f (x : xs) (y : ys) = do
+biMapM_ :: Monad m => (a -> b -> m c) -> [a] -> [b] -> m ()
+biMapM_ _ [] [] = return ()
+biMapM_ f (x : xs) (y : ys) = do
   _ <- f x y
-  bimapM_ f xs ys
-bimapM_ _ _ _ = return ()
+  biMapM_ f xs ys
+biMapM_ _ _ _ = return ()

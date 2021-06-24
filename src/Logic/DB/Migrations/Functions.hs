@@ -11,8 +11,8 @@ import Common.Functions ( readLnT )
 import qualified Interface.MLog.Exports as Log
 import qualified Logic.DB.Select.Exports as Select
 
-dbinit :: MDB m => m ()
-dbinit = do
+dbInit :: MDB m => m ()
+dbInit = do
   Log.warnM "Database initialization and migrations in progress..."
   namesList <- getNamesList
   migrate namesList
@@ -27,21 +27,21 @@ run = do
   migrate namesTodo
   Log.warnM "All migrations completed successfully"
 
-dbdrop :: MDB m => m ()
-dbdrop = do
+dbDrop :: MDB m => m ()
+dbDrop = do
   Log.warnM "Warning! All database tables will be dropped Y/N"
   answer <- readLnT
   case answer of
     "N" -> Log.infoM "Exit from the migration program"
-    "Y" -> dbdropForce
+    "Y" -> dbDropForce
     _ -> Log.infoM "Wrong choice. Try again"
 
-dbdropForce :: MDB m => m ()
-dbdropForce = do
+dbDropForce :: MDB m => m ()
+dbDropForce = do
   executeFile $ pathMigration "drop.sql"
   Log.warnM "All database tables are dropped by user choice"
 
-dbrestartForce :: MDB m => m ()
-dbrestartForce = do
-  dbdropForce
-  dbinit
+dbRestartForce :: MDB m => m ()
+dbRestartForce = do
+  dbDropForce
+  dbInit

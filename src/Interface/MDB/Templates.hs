@@ -11,8 +11,8 @@ whereAll :: Query -> [Query] -> Query
 whereAll query0 conditions = concat2 [sql|WHERE|] query0 $ concatWithAND conditions
 
 whereAllM ::Monad m => Query -> [m Query] -> m Query
-whereAllM query0 mconditions = do
-  (return . concat2 [sql|WHERE|] query0 . concatWithAND) <$$> mconditions
+whereAllM query0 mConditions = do
+  (return . concat2 [sql|WHERE|] query0 . concatWithAND) <$$> mConditions
 
 concatWithOR :: [Query] -> Query
 concatWithOR = concatWith [sql|OR|]
@@ -36,17 +36,17 @@ concat2 splitter query1 query2 = query1 <+> splitter <+> query2
 (<+>) q1 q2                 = q1 <> " " <> q2
 
 (<<+>>) :: Monad m => m Query -> m Query -> m Query
-(<<+>>) mquery1 mquery2 = (<+>) <$> mquery1 <*> mquery2
+(<<+>>) mQuery1 mQuery2 = (<+>) <$> mQuery1 <*> mQuery2
 
 inList :: Convert a => Query -> [a] -> Query
 inList _ [] = "FALSE"
 inList field values = template [sql|{0} IN ({1})|] [field, concatWith "," $ map toQuery values]
 
-inSubquery :: Query -> Query -> Query
-inSubquery field subquery = template [sql|{0} IN ({1})|] [field, subquery]
+inSubQuery :: Query -> Query -> Query
+inSubQuery field subQuery = template [sql|{0} IN ({1})|] [field, subQuery]
 
-inSubqueryM :: Monad m => Query -> m Query -> m Query
-inSubqueryM field subquery = return . template [sql|{0} IN ({1})|] <$$> [return field, subquery]
+inSubQueryM :: Monad m => Query -> m Query -> m Query
+inSubQueryM field subQuery = return . template [sql|{0} IN ({1})|] <$$> [return field, subQuery]
 
 exists :: Query -> Query
 exists query0 = template [sql|EXISTS ({0})|] [query0]

@@ -14,8 +14,8 @@ import qualified Interface.MLog.Exports as Log
 -- Ideally, we can give the user an error code or sequence number,
 -- but this is outside the scope of the educational task.
 
-ehandler :: (Error.MError m, Log.MLog m) => Query -> Error.Error -> m a
-ehandler query0 err = do
+eHandler :: (Error.MError m, Log.MLog m) => Query -> Error.Error -> m a
+eHandler query0 err = do
   Log.errorM "An error occurred in the request:"
   Log.errorM $ show query0
   Log.errorM $ show err
@@ -26,7 +26,7 @@ query :: (MDB m, Show r, FromRow r) => Query -> m [r]
 query query0 = do
   Log.debugM query0
   -- LiftIO cannot be used because error handling is lost
-  Error.catch (dbquery query0) $ ehandler query0
+  Error.catch (dbQuery query0) $ eHandler query0
 
 queryM :: (MDB m, Show r, FromRow r) => Query -> [m Query] -> m [r]
 queryM query0 queries = do
@@ -37,38 +37,38 @@ queryM query0 queries = do
 execute :: MDB m => Query -> [Query] -> m Int64
 execute query0 queries = do
   let query1 = template query0 queries
-  Error.catch (dbexecute query0) $ ehandler query1
+  Error.catch (dbExecute query0) $ eHandler query1
 
 executeM :: MDB m => Query -> [m Query] -> m Int64
 executeM query0 queries = do
   query1 <- templateM query0 queries
-  Error.catch (dbexecute query0) $ ehandler query1
+  Error.catch (dbExecute query0) $ eHandler query1
 
 
 -- | Query without automatic recording of the number of changed entities
 execute_ :: MDB m => Query -> [Query] -> m ()
 execute_ query0 queries = do
   n <- execute query0 queries
-  Log.debugM $ template "Выполнен запрос, изменено {0} строк" [show n]
+  Log.debugM $ template "Query executed, {0} rows changed" [show n]
 
 executeM_ :: MDB m => Query -> [m Query] -> m ()
 executeM_ query0 queries = do
   n <- executeM query0 queries
-  Log.debugM $ template "Выполнен запрос, изменено {0} строк" [show n]
+  Log.debugM $ template "Query executed, {0} rows changed" [show n]
 
 -- | Helper function for automatic recording of the number of changed entities
 _execute :: MTrans m => Cache.QueryType -> Cache.APIType -> Query -> [Query] -> m ()
 _execute queryType apiType query0 queries = do
   let query1 = template query0 queries
   Log.debugM query1
-  rows <- Error.catch (dbexecute query1) $ ehandler query1
+  rows <- Error.catch (dbExecute query1) $ eHandler query1
   Cache.addChanged queryType apiType rows
 
 _executeM :: MTrans m => Cache.QueryType -> Cache.APIType -> Query -> [m Query] -> m ()
 _executeM queryType apiType query0 queries = do
   query1 <- templateM query0 queries
   Log.debugM query1
-  rows <- Error.catch (dbexecute query1) $ ehandler query1
+  rows <- Error.catch (dbExecute query1) $ eHandler query1
   Cache.addChanged queryType apiType rows
 
 -- | Insert query with automatic recording of the number of changed entities

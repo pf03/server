@@ -33,7 +33,7 @@ updateById wantedId func = map helper
   where
     helper curValue = if getId curValue == wantedId then func curValue else curValue
 
--- * Shouldn't break sort
+-- * Should not break sort
 
 updateInsertById :: Identifiable a => (a -> a) -> a -> [a] -> [a]
 updateInsertById func updated list = res

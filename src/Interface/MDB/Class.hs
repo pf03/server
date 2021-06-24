@@ -7,7 +7,7 @@ import qualified Interface.MError.Exports as Error
 import qualified Interface.MLog.Exports as Log
 
 class (Log.MLog m, Error.MIOError m) => MDB m where
-  dbquery :: FromRow r => Query -> m [r]
-  dbexecute :: Query -> m Int64
+  dbQuery :: FromRow r => Query -> m [r]
+  dbExecute :: Query -> m Int64
 
 class (MDB m, Cache.MCache m) => MTrans m

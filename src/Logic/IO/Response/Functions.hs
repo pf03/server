@@ -20,11 +20,11 @@ get req = do
   api <- Cache.getAPI
   case api of
     API Load [Image fn] -> do
-      let (_, extention) = splitOnLast '.' fn
+      let (_, extension) = splitOnLast '.' fn
       return $
         Wai.responseFile
           status200
-          [(hContentType, "image/" <> convert extention)]
+          [(hContentType, "image/" <> convert extension)]
           (Photos.photosPath <> "/" <> fn)
           Nothing
     _ -> return $ Wai.responseLBS status200 [(hContentType, "text/plain")] json

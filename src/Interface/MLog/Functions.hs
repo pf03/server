@@ -103,7 +103,7 @@ critical :: MonadIO m => Config -> Settings -> String -> m ()
 critical logConfig logSettings = messageIO logConfig logSettings Critical
 
 -----------------------------Default implementation----------------------------
--- The default implementation of the MLog typeclass for the IO monad.
+-- The default implementation of the MLog type class for the IO monad.
 -- In pure code, for example for testing, you can replace this implementation with another one,
 -- for example based on writerT, or empty return () implementation
 -- Info can be shown in different color schemes, and for other levels the color corresponds to the level

@@ -153,9 +153,9 @@ instance Identifiable Comment where
 
 instance FromRow (Maybe Tag) where
   fromRow = do
-    mtagId <- field
-    mtagName <- field
-    return $ Tag <$> mtagId <*> mtagName
+    mTagId <- field
+    mTagName <- field
+    return $ Tag <$> mTagId <*> mTagName
 
 instance FromRow (Maybe Photo) where
   fromRow = do

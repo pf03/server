@@ -48,7 +48,7 @@ instance Template Query where
   template (Query str) args = Query $ template str $ map fromQuery args
 
 templateM :: (Template s, Monad m) => s -> [m s] -> m s
-templateM str margs = return . template str <$$> margs
+templateM str mArgs = return . template str <$$> mArgs
 
 -----------------------------Monadic and simple functions----------------------
 ifJust :: Monad m => Maybe a -> m () -> m ()
@@ -85,8 +85,8 @@ maybeToList :: Maybe a -> [a]
 maybeToList Nothing = []
 maybeToList (Just a) = [a]
 
-jlookup :: Eq a => a -> [(a, b)] -> b
-jlookup key list = fromJust $ lookup key list
+jLookup :: Eq a => a -> [(a, b)] -> b
+jLookup key list = fromJust $ lookup key list
 
 for :: [a] -> (a -> b) -> [b]
 for = flip map

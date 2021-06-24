@@ -21,7 +21,7 @@ main = do
   hspec testParseParams
   hspec testRouter
 
--- Predicats
+-- Predicates
 isRequestError :: Either Error.Error a -> Bool
 isRequestError ma = case ma of
   Left (Error.RequestError _) -> True

@@ -31,10 +31,10 @@ import Network.Wai.Internal as Wai
 getJSON :: MTrans m => Request -> m LC.ByteString
 getJSON req = do
   Cache.resetChanged
-  let (rpinfo, pinfo, qs) = (Wai.rawPathInfo req, Wai.pathInfo req, Wai.queryString req)
+  let (rpInfo, pInfo, qs) = (Wai.rawPathInfo req, Wai.pathInfo req, Wai.queryString req)
   Auth.auth req
   a <- Cache.getAuth
-  api@(API apiType _) <- Log.logM $ API.router rpinfo pinfo a
+  api@(API apiType _) <- Log.logM $ API.router rpInfo pInfo a
   Cache.setAPI api
   rb <- case apiType of
     Upload -> return mempty
@@ -160,5 +160,5 @@ updateCategory pid = do
 getCategory :: MTrans m => Int -> m (Maybe JSON.Category)
 getCategory pid = do
   allCats <- Select.allCategories
-  mcat <- Select.category pid
-  sequenceA $ JSON.evalCategory allCats <$> mcat
+  mCategory <- Select.category pid
+  sequenceA $ JSON.evalCategory allCats <$> mCategory

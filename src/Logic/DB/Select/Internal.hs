@@ -14,7 +14,7 @@ import Interface.MDB.Templates
       brackets,
       concatWithOR,
       exists,
-      inSubqueryM,
+      inSubQueryM,
       whereAllM )
 import qualified Interface.MError.Exports as Error
 
@@ -76,7 +76,7 @@ postsQuery :: (MError m, MCache m) => m SQL.Query
 postsQuery = do
   params <- Cache.getParams
   let conditions =
-        [ postIdsSubquery [sql|tags_to_contents.tag_id|] (params ! "tag_id"),
+        [ postIdsSubQuery [sql|tags_to_contents.tag_id|] (params ! "tag_id"),
           containsCondition (params ! "contains"),
           paramToCondition [sql|contents.category_id|] $ params ! "category_id",
           paramToCondition [sql|contents.creation_date|] $ params ! "created_at",
@@ -86,14 +86,14 @@ postsQuery = do
         ]
   selectPostsQuery `whereAllM` conditions <<+>> orderBy (params ! "order_by") <<+>> pagination
   where
-    postIdsSubquery :: MError m => Query -> Cache.Param -> m Query
-    postIdsSubquery field (Cache.ParamAll vals) =
+    postIdsSubQuery :: MError m => Query -> Cache.Param -> m Query
+    postIdsSubQuery field (Cache.ParamAll vals) =
       [sql|posts.id|]
-        `inSubqueryM` ([sql|SELECT posts.id FROM posts|] `whereAllM` map (existTagSubquery field . Cache.ParamEq) vals)
-    postIdsSubquery _ Cache.ParamNo = return [sql|TRUE|]
-    postIdsSubquery field param =
+        `inSubQueryM` ([sql|SELECT posts.id FROM posts|] `whereAllM` map (existTagSubQuery field . Cache.ParamEq) vals)
+    postIdsSubQuery _ Cache.ParamNo = return [sql|TRUE|]
+    postIdsSubQuery field param =
       [sql|posts.id|]
-        `inSubqueryM` ([sql|SELECT posts.id FROM posts|] `whereAllM` [existTagSubquery field param])
+        `inSubQueryM` ([sql|SELECT posts.id FROM posts|] `whereAllM` [existTagSubQuery field param])
 
     containsCondition :: MError m => Cache.Param -> m Query
     containsCondition param = brackets . concatWithOR <$> subConditions
@@ -104,14 +104,14 @@ postsQuery = do
               paramToCondition [sql|CONCAT_WS(' ', users.last_name, users.first_name)|] param,
               paramToCondition [sql|contents.name|] param,
               paramToCondition [sql|categories.category_name|] param,
-              postIdsSubquery [sql|tags.name|] param
+              postIdsSubQuery [sql|tags.name|] param
             ]
 
     -- Search by tag name and id.
     -- We take ids of posts in which at least one of the tags matches the condition.
     -- Then we return all the posts tags with those ids.
-    existTagSubquery :: MError m => Query -> Cache.Param -> m Query
-    existTagSubquery field param = do
+    existTagSubQuery :: MError m => Query -> Cache.Param -> m Query
+    existTagSubQuery field param = do
       condition <- paramToCondition field param
       return $
         exists $

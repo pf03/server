@@ -69,21 +69,21 @@ router path ["drafts", n] _ = withInt path n $ \paramId -> API SelectById [Draft
 --UNKNOWN---
 router path _ _ = Error.throw $ unknownPathError path
 
-ereadInt :: MError m => B.ByteString -> Text -> m Int
-ereadInt path text = do
+eReadInt :: MError m => B.ByteString -> Text -> m Int
+eReadInt path text = do
   let str = unpack text
   Error.catchEither (readEither str) $ \_ -> unknownPathError path
 
 withInt :: MError m => B.ByteString -> Text -> (Int -> API) -> m API
 withInt path text f = do
-  paramId <- ereadInt path text
+  paramId <- eReadInt path text
   return $ f paramId
 
 -- * Error 401 - API function that requires authorization
 
 withUserE :: MError m => Auth -> m API -> m API
-withUserE auth mapi = do
-  api <- mapi
+withUserE auth mApi = do
+  api <- mApi
   case auth of
     AuthNo -> Error.throw Error.authErrorDefault
     _ -> return api

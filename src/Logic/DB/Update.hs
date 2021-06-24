@@ -121,7 +121,7 @@ post paramId = do
   Insert.tagToContent Execute
   Insert.photos
 
--- * Deleted user authentication will fail. The deleted author is binded to the deleted
+-- * Deleted user authentication will fail. The deleted author is bound to the deleted
 
 -- user. Thus, posts with deleted authors and users will be able to edit
 -- only admin
@@ -182,7 +182,7 @@ checkAuthExist paramId name query = do
       case a of
         AuthNo -> Error.throw Error.authErrorDefault
         AuthAdmin _ -> return (userId, authorId, contentId) -- admin can EDIT all contents (moderation)
-        AuthUser authuid | userId == authuid -> return (userId, authorId, contentId) -- user can EDIT only his own contents
+        AuthUser authUserId | userId == authUserId -> return (userId, authorId, contentId) -- user can EDIT only his own contents
         _ -> Error.throw Error.authErrorWrong
     res -> Error.throw $ Error.DevError $ template "Wrong query result {0} in function Update.checkAuthExist" [show res]
 

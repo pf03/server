@@ -32,10 +32,10 @@ import qualified Logic.DB.Update as Update
 
 -- | 4 cases for delete
 -- 1. The deleted entity should be replaced with the default value. Used for users and authors
--- 2. Cascade delete along with binded entities. Used for posts and drafts.
+-- 2. Cascade delete along with bound entities. Used for posts and drafts.
 -- For tags, the tag and all tag bindings to contents should be deleted
--- 3. Delete strictly by condition, if nothing is binded to this entity.
--- First you should to edit or delete binded entities, and then continue deletion.
+-- 3. Delete strictly by condition, if nothing is bound to this entity.
+-- First you should to edit or delete bound entities, and then continue deletion.
 -- Used for categories.
 -- 4. Simple deletion if nothing depends on the entity. Used for comments
 
@@ -123,7 +123,7 @@ checkNotExist paramId name1 name2 templ = do
     [] -> return ()
     _ ->
       Error.throwDB
-        "Unable to delete {0} because the following {1} are binded to it:\n{2}"
+        "Unable to delete {0} because the following {1} are bound to it:\n{2}"
         [name1, name2, showResults]
       where
         showResults = concatMap helper results
