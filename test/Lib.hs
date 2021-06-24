@@ -8,8 +8,8 @@ import Test.Hspec
     shouldSatisfy,
   )
 
------------------------------Mutiple cases-------------------------------------
---ALL of cases SHOULD BE eqaul to one result
+-----------------------------Multiple cases-------------------------------------
+--ALL of cases SHOULD BE equal to one result
 allShouldBe :: (HasCallStack, Show a, Eq a) => [a] -> a -> Expectation
 allShouldBe cases result = eachShouldBe cases (replicate (length cases) result)
 
