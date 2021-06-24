@@ -68,7 +68,7 @@ Lower layers should not import modules from higher layers.
 ## API
 
 The server supports the following api functions (paths). Some paths are available only for admin (marked with ![](https://via.placeholder.com/15/ff0000/000000?text=+)). In this case, other users receive an `Unknown path` error. Some paths are available only for authorized users (![](https://via.placeholder.com/15/0000ff/000000?text=+)) or for all users (![](https://via.placeholder.com/15/00ff00/000000?text=+)). For testing each path, there is a separate file in the `curl` folder. The requests in the file are duplicated for different tokens (users). The `posts` request is tested with different filters.
-All possible paths are written in the `Logic.Pure.API.router` function. All possible parameters for each path are written in the` Logic.Pure.Params.Internal.possibleParamDescs` function
+All possible paths are written in the `Logic.Pure.API.router` function. All possible parameters for each path are written in the` Logic.Pure.Params.Internal.possibleParamDescs` function. All requests for creating, editing, deleting entities and uploading photos return the number of changed entities.
 
 #### Paths list:
 
