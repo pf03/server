@@ -28,45 +28,45 @@ import Logic.DB.Select.Types
     ( Author, Category, Comment, Draft, Migration, Post, Tag, User )
 
 -----------------------------Migration----------------------------------------------
-allMigrations :: MDB m => m [Migration]
-allMigrations = DB.query selectMigrationsQuery
+selectAllMigrations :: MDB m => m [Migration]
+selectAllMigrations = DB.query selectMigrationsQuery
 
 -----------------------------User----------------------------------------------
-user :: MDB m => Int -> m (Maybe User)
-user paramId = do
+selectUser :: MDB m => Int -> m (Maybe User)
+selectUser paramId = do
   listToMaybe <$> DB.query query
   where
     query = selectUsersQuery <+> template [sql|WHERE users.id = {0}|] [toQuery paramId]
 
-users :: MTrans m => m [User]
-users = DB.query =<< usersQuery
+selectUsers :: MTrans m => m [User]
+selectUsers = DB.query =<< usersQuery
 
 -----------------------------Author--------------------------------------------
-author :: MDB m => Int -> m (Maybe Author)
-author paramId = listToMaybe <$> DB.query query
+selectAuthor :: MDB m => Int -> m (Maybe Author)
+selectAuthor paramId = listToMaybe <$> DB.query query
   where
     query = selectAuthorsQuery <+> template [sql|WHERE authors.id = {0}|] [toQuery paramId]
 
-authors :: MTrans m => m [Author]
-authors = DB.query =<< authorsQuery
+selectAuthors :: MTrans m => m [Author]
+selectAuthors = DB.query =<< authorsQuery
 
 -----------------------------Category------------------------------------------
-category :: MDB m => Int -> m (Maybe Category)
-category paramId = listToMaybe <$> DB.query query
+selectCategory :: MDB m => Int -> m (Maybe Category)
+selectCategory paramId = listToMaybe <$> DB.query query
   where
     query = selectCategoriesQuery <+> template [sql|WHERE categories.id = {0}|] [toQuery paramId]
 
-categories :: MTrans m => m [Category]
-categories = DB.query =<< categoriesQuery
+selectCategories :: MTrans m => m [Category]
+selectCategories = DB.query =<< categoriesQuery
 
 -- * All categories without pagination are needed to evaluate parent categories
 
-allCategories :: MDB m => m [Category]
-allCategories = DB.query selectCategoriesQuery
+selectAllCategories :: MDB m => m [Category]
+selectAllCategories = DB.query selectCategoriesQuery
 
 -----------------------------Draft---------------------------------------------
-draft :: MTrans m => Int -> m [Draft]
-draft paramId = do
+selectDraft :: MTrans m => Int -> m [Draft]
+selectDraft paramId = do
   paramUserId <- authUserIdParam
   conditions <-
     sequenceA
@@ -76,31 +76,31 @@ draft paramId = do
   let query = selectDraftsQuery `whereAll` conditions
   DB.query query
 
-drafts :: MTrans m => m [Draft]
-drafts = do
+selectDrafts :: MTrans m => m [Draft]
+selectDrafts = do
   paramUserId <- authUserIdParam
   let conditions = [paramToCondition [sql|users.id|] paramUserId]
   query <- selectDraftsQuery `whereAllM` conditions <<+>> pagination
   DB.query query
 
 -----------------------------Post----------------------------------------------
-post :: MDB m => Int -> m [Post]
-post paramId = DB.query query
+selectPost :: MDB m => Int -> m [Post]
+selectPost paramId = DB.query query
   where
     query = selectPostsQuery <+> template [sql|WHERE posts.id = {0}|] [toQuery paramId]
 
-posts :: MTrans m => m [Post]
-posts = DB.query =<< postsQuery
+selectPosts :: MTrans m => m [Post]
+selectPosts = DB.query =<< postsQuery
 
 -----------------------------Tag-----------------------------------------------
-tag :: MDB m => Int -> m (Maybe Tag)
-tag paramId = listToMaybe <$> DB.query query
+selectTag :: MDB m => Int -> m (Maybe Tag)
+selectTag paramId = listToMaybe <$> DB.query query
   where
     query = selectTagsQuery <+> template [sql|WHERE tags.id = {0}|] [toQuery paramId]
 
-tags :: MTrans m => m [Tag]
-tags = DB.query =<< tagsQuery
+selectTags :: MTrans m => m [Tag]
+selectTags = DB.query =<< tagsQuery
 
 -----------------------------Comment-------------------------------------------
-comments :: MTrans m => Int -> m [Comment]
-comments postId = DB.query =<< commentsQuery postId
+selectComments :: MTrans m => Int -> m [Comment]
+selectComments postId = DB.query =<< commentsQuery postId

@@ -21,7 +21,7 @@ dbInit = do
 run :: MDB m => m ()
 run = do
   Log.writeWarnM "Migrations in progress..."
-  migrations <- Select.allMigrations
+  migrations <- Select.selectAllMigrations
   namesList <- getNamesList
   namesTodo <- checkMigrations migrations namesList
   migrate namesTodo

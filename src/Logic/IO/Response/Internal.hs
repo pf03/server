@@ -87,17 +87,17 @@ evalJSON api req = case api of
   API Delete [Draft, Id n] -> encode $ Delete.draft n
   API Delete [Comment, Id n] -> encode $ Delete.comment n
   -- API, which returns the json result from DB
-  API Select [User] -> encode Select.users
-  API Select [Author] -> encode $ JSON.evalAuthors <$> Select.authors
+  API Select [User] -> encode Select.selectUsers
+  API Select [Author] -> encode $ JSON.evalAuthors <$> Select.selectAuthors
   API Select [Category] -> encode getCategories
-  API Select [Tag] -> encode Select.tags
+  API Select [Tag] -> encode Select.selectTags
   API Select [Post] -> encode getPosts
   API Select [Draft] -> encode getDrafts
-  API Select [Post, Id n, Comment] -> encode $ JSON.evalComments <$> Select.comments n
-  API SelectById [User, Id n] -> encode $ Select.user n
-  API SelectById [Author, Id n] -> encode $ (JSON.evalAuthor <$>) <$> Select.author n
+  API Select [Post, Id n, Comment] -> encode $ JSON.evalComments <$> Select.selectComments n
+  API SelectById [User, Id n] -> encode $ Select.selectUser n
+  API SelectById [Author, Id n] -> encode $ (JSON.evalAuthor <$>) <$> Select.selectAuthor n
   API SelectById [Category, Id n] -> encode $ getCategory n
-  API SelectById [Tag, Id n] -> encode $ Select.tag n
+  API SelectById [Tag, Id n] -> encode $ Select.selectTag n
   API SelectById [Post, Id n] -> encode $ getPost n
   API SelectById [Draft, Id n] -> encode $ getDraft n
   _ -> Error.throw $ Error.patError "Response.evalJSON" api
@@ -116,49 +116,49 @@ getPosts :: MTrans m => m [JSON.Post]
 getPosts = do
   categories <- getAllCategories
   _ <- Cache.modifyParamsM $ JSON.evalParams categories
-  selectPosts <- Select.posts
+  selectPosts <- Select.selectPosts
   JSON.evalPosts categories selectPosts
 
 getDrafts :: MTrans m => m [JSON.Draft]
 getDrafts = do
   categories <- getAllCategories
-  selectDrafts <- Select.drafts
+  selectDrafts <- Select.selectDrafts
   JSON.evalDrafts categories selectDrafts
 
 getPost :: MTrans m => Int -> m (Maybe JSON.Post)
-getPost pid = do
+getPost paramId = do
   categories <- getAllCategories
-  selectPosts <- Select.post pid
+  selectPosts <- Select.selectPost paramId
   jsonPosts <- JSON.evalPosts categories selectPosts
   return $ listToMaybe jsonPosts
 
 getDraft :: MTrans m => Int -> m (Maybe JSON.Draft)
-getDraft pid = do
+getDraft paramId = do
   categories <- getAllCategories
-  selectDrafts <- Select.draft pid
+  selectDrafts <- Select.selectDraft paramId
   jsonDrafts <- JSON.evalDrafts categories selectDrafts
   return $ listToMaybe jsonDrafts
 
 getAllCategories :: MTrans m => m [JSON.Category]
 getAllCategories = do
-  allCategories <- Select.allCategories
+  allCategories <- Select.selectAllCategories
   JSON.evalCategories allCategories allCategories
 
 getCategories :: MTrans m => m [JSON.Category]
 getCategories = do
-  allCategories <- Select.allCategories
-  categories <- Select.categories
+  allCategories <- Select.selectAllCategories
+  categories <- Select.selectCategories
   JSON.evalCategories allCategories categories
 
 updateCategory :: MTrans m => Int -> m ()
-updateCategory pid = do
+updateCategory paramId = do
   params <- Cache.getParams
-  allCategories <- Select.allCategories
-  JSON.checkCyclicCategory pid params allCategories
-  Update.category pid
+  allCategories <- Select.selectAllCategories
+  JSON.checkCyclicCategory paramId params allCategories
+  Update.category paramId
 
 getCategory :: MTrans m => Int -> m (Maybe JSON.Category)
-getCategory pid = do
-  allCats <- Select.allCategories
-  mCategory <- Select.category pid
+getCategory paramId = do
+  allCats <- Select.selectAllCategories
+  mCategory <- Select.selectCategory paramId
   sequenceA $ JSON.evalCategory allCats <$> mCategory
