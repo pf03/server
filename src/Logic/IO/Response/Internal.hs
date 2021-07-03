@@ -34,7 +34,7 @@ getJSON req = do
   let (rpInfo, pInfo, qs) = (Wai.rawPathInfo req, Wai.pathInfo req, Wai.queryString req)
   Auth.auth req
   a <- Cache.getAuth
-  api@(API apiType _) <- Log.logM $ API.router rpInfo pInfo a
+  api@(API apiType _) <- Log.withLogM $ API.router rpInfo pInfo a
   Cache.setAPI api
   rb <- case apiType of
     Upload -> return mempty
@@ -42,15 +42,15 @@ getJSON req = do
   qsBody <- case apiType of
     Upload -> return []
     _ -> return $ parseQuery rb
-  Log.debugM rb
+  Log.writeDebugM rb
   params <-
     if apiType `elem` [Auth, Delete, Insert, Update]
-      then Error.catch (Log.logM $ Params.parseParams api qsBody) $
+      then Error.catch (Log.withLogM $ Params.parseParams api qsBody) $
         \(Error.RequestError e) ->
           Error.throwRequest
             "{0}.\n Attention: parameters for this request must be passed in the request body by the x-www-form-urlencoded method"
             [e]
-      else Error.catch (Log.logM $ Params.parseParams api (qs <> qsBody)) $
+      else Error.catch (Log.withLogM $ Params.parseParams api (qs <> qsBody)) $
         \(Error.RequestError e) ->
           Error.throwRequest
             "{0}.\n Attention: parameters for this request can be passed both in the query string and in the request body by the x-www-form-urlencoded method"

@@ -45,7 +45,7 @@ login = do
     |] [paramToQuery $ pars ! "login", paramToQuery $ pars ! "pass"]
   case users :: [(Int, Bool)] of
     [(userId, isAdmin)] -> do
-      Log.debugM users
+      Log.writeDebugM users
       when (userId == 1) $ Error.throwAuth "Unable to login as a deleted user" []
       let role = if isAdmin then "admin" else "user"
       date <- Error.liftEIO getCurrentTime

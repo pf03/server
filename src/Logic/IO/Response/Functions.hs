@@ -15,7 +15,7 @@ import Logic.IO.Response.Internal ( getJSON )
 
 get :: MTrans m => Request -> m Response
 get req = do
-  Log.debugM req
+  Log.writeDebugM req
   json <- getJSON req
   api <- Cache.getAPI
   case api of

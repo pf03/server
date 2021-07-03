@@ -50,65 +50,65 @@ defaultSettings = Settings Black True
 defaultConfig :: Config
 defaultConfig = Config {colorEnable = False, terminalEnable = True, fileEnable = False, minLevel = 0}
 
-logM :: (MLog m, Show a) => m a -> m a
-logM m = do
+withLogM :: (MLog m, Show a) => m a -> m a
+withLogM m = do
   a <- m
-  debugM a
+  writeDebugM a
   return a
 
 -- * An exception has been made for debug information - it can be of any type Show a, not just a String
 
-debugM :: (MLog m, Show a) => a -> m ()
-debugM a = messageM Debug (show a)
+writeDebugM :: (MLog m, Show a) => a -> m ()
+writeDebugM a = writeMessageM Debug (show a)
 
-infoM :: MLog m => String -> m ()
-infoM = messageM Info
+writeInfoM :: MLog m => String -> m ()
+writeInfoM = writeMessageM Info
 
-infoColorM :: MLog m => ColorScheme -> String -> m ()
-infoColorM colorScheme str = do
+writeInfoColorM :: MLog m => ColorScheme -> String -> m ()
+writeInfoColorM colorScheme str = do
   setColorScheme colorScheme
-  infoM str
+  writeInfoM str
 
-warnM :: MLog m => String -> m ()
-warnM = messageM Warn
+writeWarnM :: MLog m => String -> m ()
+writeWarnM = writeMessageM Warn
 
-errorM :: MLog m => String -> m ()
-errorM = messageM Error
+writeErrorM :: MLog m => String -> m ()
+writeErrorM = writeMessageM Error
 
-criticalM :: MLog m => String -> m ()
-criticalM = messageM Critical
+writeCriticalM :: MLog m => String -> m ()
+writeCriticalM = writeMessageM Critical
 
-messageM :: MLog m => Level -> String -> m ()
-messageM level str = do
+writeMessageM :: MLog m => Level -> String -> m ()
+writeMessageM level str = do
   (config, settings) <- getConfigSettings
   message config settings level str
 
 -----------------------------MonadIO-------------------------------------------
-debug :: (MonadIO m, Show a) => Config -> Settings -> a -> m ()
-debug logConfig logSettings a = messageIO logConfig logSettings Debug (show a)
+writeDebug :: (MonadIO m, Show a) => Config -> Settings -> a -> m ()
+writeDebug logConfig logSettings a = writeMessageIO logConfig logSettings Debug (show a)
 
-info :: MonadIO m => Config -> Settings -> String -> m ()
-info logConfig logSettings = messageIO logConfig logSettings Info
+writeInfo :: MonadIO m => Config -> Settings -> String -> m ()
+writeInfo logConfig logSettings = writeMessageIO logConfig logSettings Info
 
-infoColor :: MonadIO m => Config -> ColorScheme -> String -> m ()
-infoColor logConfig colorScheme = messageIO logConfig (Settings colorScheme False) Info
+writeInfoColor :: MonadIO m => Config -> ColorScheme -> String -> m ()
+writeInfoColor logConfig colorScheme = writeMessageIO logConfig (Settings colorScheme False) Info
 
-warn :: MonadIO m => Config -> Settings -> String -> m ()
-warn logConfig logSettings = messageIO logConfig logSettings Warn
+writeWarn :: MonadIO m => Config -> Settings -> String -> m ()
+writeWarn logConfig logSettings = writeMessageIO logConfig logSettings Warn
 
-error :: MonadIO m => Config -> Settings -> String -> m ()
-error logConfig logSettings = messageIO logConfig logSettings Error
+writeError :: MonadIO m => Config -> Settings -> String -> m ()
+writeError logConfig logSettings = writeMessageIO logConfig logSettings Error
 
-critical :: MonadIO m => Config -> Settings -> String -> m ()
-critical logConfig logSettings = messageIO logConfig logSettings Critical
+writeCritical :: MonadIO m => Config -> Settings -> String -> m ()
+writeCritical logConfig logSettings = writeMessageIO logConfig logSettings Critical
 
 -----------------------------Default implementation----------------------------
 -- The default implementation of the MLog type class for the IO monad.
 -- In pure code, for example for testing, you can replace this implementation with another one,
 -- for example based on writerT, or empty return () implementation
 -- Info can be shown in different color schemes, and for other levels the color corresponds to the level
-messageIO :: MonadIO m => Config -> Settings -> Level -> String -> m ()
-messageIO (Config enableColor enableTerminal enableFile minLevel0) (Settings colorScheme debugMode) level text = do
+writeMessageIO :: MonadIO m => Config -> Settings -> Level -> String -> m ()
+writeMessageIO (Config enableColor enableTerminal enableFile minLevel0) (Settings colorScheme debugMode) level text = do
   if level < toEnum minLevel0 && not debugMode
     then return ()
     else do
@@ -117,7 +117,7 @@ messageIO (Config enableColor enableTerminal enableFile minLevel0) (Settings col
           then Color.setSchemeT colorScheme
           else Color.setColorT $ getColor level
       when enableTerminal $ putStrLnT logText
-      when enableFile $ file logText
+      when enableFile $ writeToFile logText
       when (enableColor && enableTerminal) Color.resetColorSchemeT
   where
     logText :: String
@@ -130,7 +130,7 @@ messageIO (Config enableColor enableTerminal enableFile minLevel0) (Settings col
     getColor Error = Yellow
     getColor Critical = Red
 
-    file :: MonadIO m => String -> m ()
-    file str = do
+    writeToFile :: MonadIO m => String -> m ()
+    writeToFile str = do
       liftIO $ B.appendFile "log.txt" $ convert str
       liftIO $ B.appendFile "log.txt" "\n"

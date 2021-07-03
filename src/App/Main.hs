@@ -10,9 +10,9 @@ main_ :: IO ()
 main_ = do
   args <- getArgs
   case args of
-    [] -> server_
+    [] -> serverRun_
     ["db-init"] -> dbInit_
-    ["migrations"] -> migrations_
+    ["migrations"] -> migrationsRun_
     ["db-drop"] -> dbDrop_
     ["db-restart"] -> dbRestart_
     ["db-restart-force"] -> dbRestartForce_
@@ -34,14 +34,14 @@ main_ = do
 dbInit_ :: IO ()
 dbInit_ = Transformer.runT Migrations.dbInit
 
-migrations_ :: IO ()
-migrations_ = Transformer.runT Migrations.run
+migrationsRun_ :: IO ()
+migrationsRun_ = Transformer.runT Migrations.run
 
 dbDrop_ :: IO ()
 dbDrop_ = Transformer.runT Migrations.dbDrop
 
-server_ :: IO ()
-server_ = Server.run
+serverRun_ :: IO ()
+serverRun_ = Server.run
 
 dbRestart_ :: IO ()
 dbRestart_ = dbDrop_ >> dbInit_

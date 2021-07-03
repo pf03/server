@@ -47,7 +47,7 @@ instance MLog Transformer where
   getConfig = Transformer $ do
     gets configLog
   message logConfig0 logSettings0 logLevel0 str = Transformer $ do
-    Log.messageIO logConfig0 logSettings0 logLevel0 str
+    Log.writeMessageIO logConfig0 logSettings0 logLevel0 str
 
 instance MError Transformer where
   throw :: Error.Error -> Transformer a

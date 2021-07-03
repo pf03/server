@@ -50,13 +50,13 @@ checkMigrations migrations names = do
   where
     helper migration name =
       if Row.migrationName migration == name
-        then Log.infoM $ template "Migration {0} is already applied..." [name]
+        then Log.writeInfoM $ template "Migration {0} is already applied..." [name]
         else
           Error.throwDB"Database migration name: {0} does not match the file name: {1}" [Row.migrationName migration, name]
 
 migrate :: MDB m => [FileName] -> m ()
 migrate = mapM_ $ \name -> do
-  Log.warnM $ template "Migration in progress: {0}..." [name]
+  Log.writeWarnM $ template "Migration in progress: {0}..." [name]
   executeFile $ pathMigration name
   Insert.migration name
 

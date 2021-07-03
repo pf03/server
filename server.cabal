@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: c9031824644510326d6ffb653d47f49e3414c37a11be5d00e1b8c7b897bc040d
+-- hash: 6c5c1b08d7884ea65bcc86c9b3f3ac70be98a5fa65317ddad18da98274f044fa
 
 name:           server
 version:        0.1.0.0
@@ -118,7 +118,7 @@ executable server-exe
   hs-source-dirs:
       app
   default-extensions: OverloadedStrings, TemplateHaskell, QuasiQuotes
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -Werror
   build-depends:
       QuickCheck
     , aeson

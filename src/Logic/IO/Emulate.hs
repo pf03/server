@@ -39,7 +39,7 @@ writeTokens = do
       Cache.addStrParam_ "login" login
       Cache.addStrParam_ "pass" pass
       token <- Auth.login
-      Log.debugM token
+      Log.writeDebugM token
       return token
 
     templ :: String -> Auth.Token -> String

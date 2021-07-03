@@ -25,12 +25,12 @@ read path = B.readFile path `Error.catchEIO` handler
 
 writeResponse :: (MonadIO m, MLog m, ToJSON a) => a -> m ()
 writeResponse json = do
-  Log.warnM "Writing the response to the file for debug..."
+  Log.writeWarnM "Writing the response to the file for debug..."
   liftIO $ B.writeFile "response.json" $ convert . Aeson.encodePretty $ json
 
 writeResponseJSON :: (MonadIO m, MLog m) => LBS -> m ()
 writeResponseJSON json = do
-  Log.warnM "Writing the response to the file for debug..."
+  Log.writeWarnM "Writing the response to the file for debug..."
   liftIO $ B.writeFile "response.json" $ convert json
 
 getFreeName :: (MIOError m) => FilePath -> FileName -> m FileName

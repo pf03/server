@@ -14,13 +14,13 @@ import qualified Transformer.Exports as Transformer
 
 run :: IO ()
 run = do
-  mСonfig <- Transformer.exceptToMaybe Transformer.runConfig
-  case mСonfig of
+  mConfig <- Transformer.exceptToMaybe Transformer.runConfig
+  case mConfig of
     Nothing -> return ()
     Just config -> do
       let port = warpPort . Config.warp $ config
       let logConfig = Config.log config
-      Log.infoColor logConfig Color.Green $ template "Start server. Listen to port {0}..." [show port]
+      Log.writeInfoColor logConfig Color.Green $ template "Start server. Listen to port {0}..." [show port]
       Warp.run port $ app config
 
 app :: Config -> Application
