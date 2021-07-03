@@ -40,22 +40,22 @@ import qualified Logic.DB.Update as Update
 -- 4. Simple deletion if nothing depends on the entity. Used for comments
 
 -----------------------------Public functions----------------------------------
-user :: MTrans m => Int -> m ()
-user paramId = do
+deleteUser :: MTrans m => Int -> m ()
+deleteUser paramId = do
   when (paramId == 1) $ Error.throw $ DBError "Unable to delete default user with id = 1"
   when (paramId == 2) $ Error.throw $ DBError "Unable to delete admin with id = 2"
   DB.update Author [sql|UPDATE authors SET user_id = 1 WHERE user_id = {0}|] [toQuery paramId]
   DB.update Comment [sql|UPDATE comments SET user_id = 1 WHERE user_id = {0}|] [toQuery paramId]
   DB.delete User [sql|DELETE FROM users WHERE id = {0}|] [toQuery paramId]
 
-author :: MTrans m => Int -> m ()
-author paramId = do
+deleteAuthor :: MTrans m => Int -> m ()
+deleteAuthor paramId = do
   when (paramId == 1) $ Error.throw $ DBError "Unable to delete default author with id = 1"
   DB.update Content [sql|UPDATE contents SET author_id = 1 WHERE author_id = {0}|] [toQuery paramId]
   DB.delete Author [sql|DELETE FROM authors WHERE id = {0}|] [toQuery paramId]
 
-post :: MTrans m => Int -> m ()
-post paramId = do
+deletePost :: MTrans m => Int -> m ()
+deletePost paramId = do
   _ <- Update.checkAuthExistPost paramId
   ParamEq (Int contentId) <- Cache.getParam "content_id"
   DB.delete Post [sql|DELETE FROM posts WHERE id = {0}|] [toQuery paramId]
@@ -65,8 +65,8 @@ post paramId = do
   DB.delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [toQuery contentId]
   DB.delete Comment [sql|DELETE FROM comments WHERE post_id = {0}|] [toQuery paramId]
 
-draft :: MTrans m => Int -> m ()
-draft paramId = do
+deleteDraft :: MTrans m => Int -> m ()
+deleteDraft paramId = do
   _ <- Update.checkAuthExistDraft paramId
   ParamEq (Int contentId) <- Cache.getParam "content_id"
   DB.delete Draft [sql|DELETE FROM drafts WHERE id = {0}|] [toQuery paramId]
@@ -74,13 +74,13 @@ draft paramId = do
   DB.execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [toQuery contentId]
   DB.delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [toQuery contentId]
 
-comment :: MTrans m => Int -> m ()
-comment paramId = do
+deleteComment :: MTrans m => Int -> m ()
+deleteComment paramId = do
   _ <- Update.checkAuthExistComment paramId
   DB.delete Comment [sql|DELETE FROM comments WHERE id = {0}|] [toQuery paramId]
 
-category :: MTrans m => Int -> m ()
-category paramId = do
+deleteCategory :: MTrans m => Int -> m ()
+deleteCategory paramId = do
   checkNotExist paramId "category" "child categories" $
     template
       [sql|
@@ -110,8 +110,8 @@ category paramId = do
       [toQuery paramId]
   DB.delete Category [sql|DELETE FROM categories WHERE id = {0}|] [toQuery paramId]
 
-tag :: MTrans m => Int -> m ()
-tag paramId = do
+deleteTag :: MTrans m => Int -> m ()
+deleteTag paramId = do
   DB.execute_ [sql|DELETE FROM tags_to_contents WHERE tag_id = {0}|] [toQuery paramId]
   DB.delete Tag [sql|DELETE FROM tags WHERE id = {0}|] [toQuery paramId]
 

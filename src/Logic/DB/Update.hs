@@ -19,7 +19,8 @@ import Interface.MCache.Types
 import qualified Interface.MDB.Exports as DB
 import Interface.MDB.Templates (concatWith, toQuery, whereAllM)
 import qualified Interface.MError.Exports as Error
-import Logic.DB.Insert as Insert (checkExist, photos, rowEither, tagToContent)
+import qualified Logic.DB.Insert as Insert
+import Logic.DB.Insert ( checkExist, rowEither ) 
 import Logic.DB.Select.Templates
   ( paramToCondition,
     paramToQuery,
@@ -27,8 +28,8 @@ import Logic.DB.Select.Templates
   )
 
 ----------------------------------User-----------------------------------------
-user :: MTrans m => Int -> m ()
-user paramId = do
+updateUser :: MTrans m => Int -> m ()
+updateUser paramId = do
   _ <- Cache.addIdParam "id" paramId
   checkExist "id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
   -- Login is required to generate new password
@@ -38,8 +39,8 @@ user paramId = do
     [updates params ["first_name", "last_name", "avatar", "pass"], return $ toQuery paramId]
 
 ----------------------------------Author---------------------------------------
-author :: MTrans m => Int -> m ()
-author paramId = do
+updateAuthor :: MTrans m => Int -> m ()
+updateAuthor paramId = do
   params <- Cache.addIdParam "id" paramId
   checkExist "id" [sql|SELECT 1 FROM authors WHERE authors.id = {0}|]
   checkExist "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
@@ -47,8 +48,8 @@ author paramId = do
     [updates params ["user_id", "description"], return $ toQuery paramId]
 
 ----------------------------------Category-------------------------------------
-category :: MTrans m => Int -> m ()
-category paramId = do
+updateCategory :: MTrans m => Int -> m ()
+updateCategory paramId = do
   params <- Cache.addIdParam "id" paramId
   checkExist "id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
   checkExist "parent_id" [sql|SELECT 1 FROM categories WHERE categories.parent_id = {0}|]
@@ -56,37 +57,37 @@ category paramId = do
     [updates params ["parent_id", "category_name"], return $ toQuery paramId]
 
 ----------------------------------Tag------------------------------------------
-tag :: MTrans m => Int -> m ()
-tag paramId = do
+updateTag :: MTrans m => Int -> m ()
+updateTag paramId = do
   params <- Cache.addIdParam "id" paramId
   checkExist "id" [sql|SELECT 1 FROM tags WHERE tags.id = {0}|]
   DB.updateM Tag [sql|UPDATE tags SET name = {0} WHERE id = {1}|]
     [paramToQuery $ params ! "name", return $ toQuery paramId]
 
-tagToContent :: MTrans m => Action -> m ()
-tagToContent Check = withParam "tag_id" $ Insert.tagToContent Check
-tagToContent Execute = withParam "tag_id" $ do
+updateTagToContent :: MTrans m => Action -> m ()
+updateTagToContent Check = withParam "tag_id" $ Insert.insertTagToContent Check
+updateTagToContent Execute = withParam "tag_id" $ do
   ParamEq (Int cid) <- Cache.getParam "content_id"
   DB.execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [toQuery cid]
-  Insert.tagToContent Execute
+  Insert.insertTagToContent Execute
 
 ----------------------------------Draft----------------------------------------
-draft :: MTrans m => Int -> m ()
-draft paramId = do
+updateDraft :: MTrans m => Int -> m ()
+updateDraft paramId = do
   _ <- checkAuthExistDraft paramId
   params <- Cache.getParams
   checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
-  Logic.DB.Update.tagToContent Check
+  updateTagToContent Check
   ParamEq (Int contentId) <- Cache.getParam "content_id"
   DB.updateM Content [sql|UPDATE contents SET {0} WHERE id = {1}|]
     [updates params ["name", "category_id", "text", "photo"], return $ toQuery contentId]
-  Logic.DB.Update.tagToContent Execute
-  Logic.DB.Update.photos
+  updateTagToContent Execute
+  updatePhotos
 
 -- | Draft existence check with authorization for update and delete requests
 checkAuthExistDraft :: MTrans m => Int -> m ParamsMap
 checkAuthExistDraft paramId = do
-  qu <-
+  query <-
     [sql|
         SELECT users.id, authors.id, contents.id FROM drafts
         LEFT JOIN contents ON contents.id = drafts.content_id
@@ -94,20 +95,20 @@ checkAuthExistDraft paramId = do
         LEFT JOIN users ON users.id = authors.user_id
     |]
       `whereAllM` [paramToCondition [sql|drafts.id|] $ ParamEq (Int paramId)]
-  (uid, aid, cid) <- checkAuthExist paramId "draft_id" qu
+  (uid, aid, cid) <- checkAuthExist paramId "draft_id" query
   Cache.addIdParam_ "id" paramId
   Cache.addIdParam_ "user_id" uid
   Cache.addIdParam_ "author_id" aid
   Cache.addIdParam "content_id" cid
 
 ----------------------------------Post-----------------------------------------
-post :: MTrans m => Int -> m ()
-post paramId = do
+updatePost :: MTrans m => Int -> m ()
+updatePost paramId = do
   params <- checkAuthExistPost paramId
   when (params ! "author_id" == ParamEq (Int 1)) $
     Error.throwDB "Unable to create draft from deleted author with id = 1" []
   checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
-  Insert.tagToContent Check
+  Insert.insertTagToContent Check
   [Only contentId] <-
     DB.queryM
       [sql|INSERT into contents (author_id, name, creation_date, category_id, text, photo) values {0} RETURNING id|]
@@ -118,8 +119,8 @@ post paramId = do
     [sql|INSERT into drafts (content_id, post_id) values ({0}, {1})|]
     [toQuery contentId, toQuery paramId]
   Cache.addIdParam_ "content_id" contentId -- update param
-  Insert.tagToContent Execute
-  Insert.photos
+  Insert.insertTagToContent Execute
+  Insert.insertPhotos
 
 -- * Deleted user authentication will fail. The deleted author is bound to the deleted
 
@@ -151,11 +152,11 @@ checkAuthExistComment paramId = do
   (\(a, _, _) -> a) <$> checkAuthExist paramId "comment_id" query
 
 ----------------------------------Photo----------------------------------------
-photos :: MTrans m => m ()
-photos = withParam "photos" $ do
+updatePhotos :: MTrans m => m ()
+updatePhotos = withParam "photos" $ do
   ParamEq (Int contentId) <- Cache.getParam "content_id"
   DB.delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [toQuery contentId]
-  Insert.photos
+  Insert.insertPhotos
 
 ----------------------------------Common---------------------------------------
 updates :: MError m => ParamsMap -> [BSName] -> m Query

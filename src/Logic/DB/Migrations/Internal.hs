@@ -58,7 +58,7 @@ migrate :: MDB m => [FileName] -> m ()
 migrate = mapM_ $ \name -> do
   Log.writeWarnM $ template "Migration in progress: {0}..." [name]
   executeFile $ pathMigration name
-  Insert.migration name
+  Insert.insertMigration name
 
 -- | Execute sql from file
 executeFile :: MDB m => FilePath -> m ()

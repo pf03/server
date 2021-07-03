@@ -33,13 +33,13 @@ import Logic.DB.Select.Templates (paramToCondition, paramToQuery, valToQuery)
 
 ----------------------------------Migration------------------------------------
 
-migration :: MDB m => String -> m ()
-migration name = do
+insertMigration :: MDB m => String -> m ()
+insertMigration name = do
   DB.execute_ [sql|INSERT into migrations (name) values ('{0}')|] [toQuery name]
 
 ----------------------------------User-----------------------------------------
-user :: MTrans m => m ()
-user = do
+insertUser :: MTrans m => m ()
+insertUser = do
   params <- Cache.getParams
   checkNotExist "user" "login" [sql|SELECT 1 FROM users WHERE users.login = {0}|]
   passQuery <- templateM [sql|md5 (CONCAT_WS(' ', {0}, {1}))|] [cell (params ! "login"), cell (params ! "pass")]
@@ -59,8 +59,8 @@ user = do
     ]
 
 ----------------------------------Author---------------------------------------
-author :: MTrans m => m ()
-author = do
+insertAuthor :: MTrans m => m ()
+insertAuthor = do
   params <- Cache.getParams
   checkExist "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
   checkNotExist "author" "user_id" [sql|SELECT 1 FROM authors WHERE authors.user_id = {0}|]
@@ -74,8 +74,8 @@ author = do
 -- * You cannot insert a category with a non-existent parent,
 
 -- but you can insert a category without a parent, "parent_id" is an optional parameter
-category :: MTrans m => m ()
-category = do
+insertCategory :: MTrans m => m ()
+insertCategory = do
   params <- Cache.getParams
   checkExist "parent_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
   DB.insertM
@@ -84,8 +84,8 @@ category = do
     [row params ["parent_id", "category_name"]]
 
 ----------------------------------Tag------------------------------------------
-tag :: MTrans m => m ()
-tag = do
+insertTag :: MTrans m => m ()
+insertTag = do
   params <- Cache.getParams
   checkNotExist "tag" "name" [sql|SELECT 1 FROM tags WHERE tags.name = {0}|]
   DB.insertM
@@ -94,13 +94,13 @@ tag = do
     [paramToQuery $ params ! "name"]
 
 -- Check and execute parts for right sequence
-tagToContent :: MTrans m => Action -> m ()
-tagToContent Check = do
+insertTagToContent :: MTrans m => Action -> m ()
+insertTagToContent Check = do
   params <- Cache.getParams
   let tagIds = valInt <$> (\(Cache.ParamAll vs) -> vs) (params ! "tag_id") -- :: [Val]
   condition <- paramToCondition [sql|id|] $ ParamIn (Int <$> tagIds)
   checkExistAll "tag_id" tagIds $ [sql|SELECT id FROM tags|] `whereAll` [condition]
-tagToContent Execute = do
+insertTagToContent Execute = do
   params <- Cache.getParams
   unless (emptyParam $ params ! "tag_id") $ do
     DB.executeM_
@@ -108,23 +108,23 @@ tagToContent Execute = do
       [rows params ["tag_id", "content_id"]]
 
 ----------------------------------Draft----------------------------------------
-draft :: MTrans m => m ()
-draft = do
+insertDraft :: MTrans m => m ()
+insertDraft = do
   params <- addAuthAuthorIdParam
   when (params ! "author_id" == ParamEq (Int 1)) $
     Error.throw $
       Error.DBError
         "Unable to create draft from deleted author with id = 1"
   checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
-  tagToContent Check
+  insertTagToContent Check
   [Only contentId] <-
     DB.queryM
       [sql|INSERT into contents (author_id, name, creation_date, category_id, text, photo) values {0} RETURNING id|]
       [rowEither params [Left "author_id", Left "name", Right [sql|current_date|], Left "category_id", Left "text", Left "photo"]]
   Cache.addChanged Insert Content 1
   _ <- Cache.addIdParam "content_id" contentId
-  tagToContent Execute
-  photos
+  insertTagToContent Execute
+  insertPhotos
   DB.insertM
     Draft
     [sql|INSERT into drafts (content_id) values ({0})|]
@@ -159,8 +159,8 @@ publish paramId = do
   DB.deleteM Draft [sql|DELETE FROM drafts WHERE drafts.id = {0}|] [paramToQuery $ params ! "draft_id"]
 
 ----------------------------------Comment--------------------------------------
-comment :: MTrans m => Int -> m ()
-comment postId = do
+insertComment :: MTrans m => Int -> m ()
+insertComment postId = do
   _ <- addAuthUserIdParam
   params <- Cache.addIdParam "post_id" postId
   when (params ! "user_id" == ParamEq (Int 1)) $
@@ -175,8 +175,8 @@ comment postId = do
     [rowEither params [Left "post_id", Left "user_id", Right [sql|current_date|], Left "text"]]
 
 ----------------------------------Photo----------------------------------------
-photos :: MTrans m => m ()
-photos = do
+insertPhotos :: MTrans m => m ()
+insertPhotos = do
   params <- Cache.getParams
   unless (emptyParam $ params ! "photos") $ do
     DB.insertM

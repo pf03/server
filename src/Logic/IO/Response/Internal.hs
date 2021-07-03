@@ -26,39 +26,39 @@ import qualified Logic.Pure.API as API
 import qualified Logic.Pure.JSON.Exports as JSON
 import qualified Logic.Pure.Params.Functions as Params
 import Network.HTTP.Types ( parseQuery )
-import Network.Wai.Internal as Wai
+import qualified Network.Wai.Internal as Wai
 
-getJSON :: MTrans m => Request -> m LC.ByteString
-getJSON req = do
+getJSON :: MTrans m => Wai.Request -> m LC.ByteString
+getJSON request = do
   Cache.resetChanged
-  let (rpInfo, pInfo, qs) = (Wai.rawPathInfo req, Wai.pathInfo req, Wai.queryString req)
-  Auth.auth req
-  a <- Cache.getAuth
-  api@(API apiType _) <- Log.withLogM $ API.router rpInfo pInfo a
+  let (rawPathInfo, pathInfo, queryString) = (Wai.rawPathInfo request, Wai.pathInfo request, Wai.queryString request)
+  Auth.auth request
+  auth <- Cache.getAuth
+  api@(API apiType _) <- Log.withLogM $ API.router rawPathInfo pathInfo auth
   Cache.setAPI api
-  rb <- case apiType of
+  requestBody <- case apiType of
     Upload -> return mempty
-    _ -> Upload.streamOne (getRequestBodyChunk req)
-  qsBody <- case apiType of
+    _ -> Upload.streamOne (Wai.getRequestBodyChunk request)
+  queryStringBody <- case apiType of
     Upload -> return []
-    _ -> return $ parseQuery rb
-  Log.writeDebugM rb
+    _ -> return $ parseQuery requestBody
+  Log.writeDebugM requestBody
   params <-
     if apiType `elem` [Auth, Delete, Insert, Update]
-      then Error.catch (Log.withLogM $ Params.parseParams api qsBody) $
-        \(Error.RequestError e) ->
+      then Error.catch (Log.withLogM $ Params.parseParams api queryStringBody) $
+        \(Error.RequestError err) ->
           Error.throwRequest
             "{0}.\n Attention: parameters for this request must be passed in the request body by the x-www-form-urlencoded method"
-            [e]
-      else Error.catch (Log.withLogM $ Params.parseParams api (qs <> qsBody)) $
-        \(Error.RequestError e) ->
+            [err]
+      else Error.catch (Log.withLogM $ Params.parseParams api (queryString <> queryStringBody)) $
+        \(Error.RequestError err) ->
           Error.throwRequest
             "{0}.\n Attention: parameters for this request can be passed both in the query string and in the request body by the x-www-form-urlencoded method"
-            [e]
+            [err]
   Cache.setParams params
-  evalJSON api req
+  evalJSON api request
 
-evalJSON :: MTrans m => API -> Request -> m LC.ByteString
+evalJSON :: MTrans m => API -> Wai.Request -> m LC.ByteString
 evalJSON api req = case api of
   API Auth [] -> encode Auth.login
   -- Files
@@ -66,26 +66,26 @@ evalJSON api req = case api of
   API Load [Image fn] -> encode $ Photos.load fn
   API Select [Photo] -> encode Photos.select
   -- API, which returns the number of changed entities in the DB
-  API Insert [User] -> encode Insert.user
-  API Insert [Author] -> encode Insert.author
-  API Insert [Category] -> encode Insert.category
-  API Insert [Tag] -> encode Insert.tag
-  API Insert [Draft] -> encode Insert.draft
+  API Insert [User] -> encode Insert.insertUser
+  API Insert [Author] -> encode Insert.insertAuthor
+  API Insert [Category] -> encode Insert.insertCategory
+  API Insert [Tag] -> encode Insert.insertTag
+  API Insert [Draft] -> encode Insert.insertDraft
   API Insert [Draft, Id n, Post] -> encode $ Insert.publish n
-  API Insert [Post, Id n, Comment] -> encode $ Insert.comment n
-  API Update [User, Id n] -> encode $ Update.user n
-  API Update [Author, Id n] -> encode $ Update.author n
+  API Insert [Post, Id n, Comment] -> encode $ Insert.insertComment n
+  API Update [User, Id n] -> encode $ Update.updateUser n
+  API Update [Author, Id n] -> encode $ Update.updateAuthor n
   API Update [Category, Id n] -> encode $ updateCategory n
-  API Update [Tag, Id n] -> encode $ Update.tag n
-  API Update [Draft, Id n] -> encode $ Update.draft n
-  API Update [Post, Id n] -> encode $ Update.post n
-  API Delete [User, Id n] -> encode $ Delete.user n
-  API Delete [Author, Id n] -> encode $ Delete.author n
-  API Delete [Category, Id n] -> encode $ Delete.category n
-  API Delete [Tag, Id n] -> encode $ Delete.tag n
-  API Delete [Post, Id n] -> encode $ Delete.post n
-  API Delete [Draft, Id n] -> encode $ Delete.draft n
-  API Delete [Comment, Id n] -> encode $ Delete.comment n
+  API Update [Tag, Id n] -> encode $ Update.updateTag n
+  API Update [Draft, Id n] -> encode $ Update.updateDraft n
+  API Update [Post, Id n] -> encode $ Update.updatePost n
+  API Delete [User, Id n] -> encode $ Delete.deleteUser n
+  API Delete [Author, Id n] -> encode $ Delete.deleteAuthor n
+  API Delete [Category, Id n] -> encode $ Delete.deleteCategory n
+  API Delete [Tag, Id n] -> encode $ Delete.deleteTag n
+  API Delete [Post, Id n] -> encode $ Delete.deletePost n
+  API Delete [Draft, Id n] -> encode $ Delete.deleteDraft n
+  API Delete [Comment, Id n] -> encode $ Delete.deleteComment n
   -- API, which returns the json result from DB
   API Select [User] -> encode Select.selectUsers
   API Select [Author] -> encode $ JSON.evalAuthors <$> Select.selectAuthors
@@ -155,7 +155,7 @@ updateCategory paramId = do
   params <- Cache.getParams
   allCategories <- Select.selectAllCategories
   JSON.checkCyclicCategory paramId params allCategories
-  Update.category paramId
+  Update.updateCategory paramId
 
 getCategory :: MTrans m => Int -> m (Maybe JSON.Category)
 getCategory paramId = do
