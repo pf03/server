@@ -13,14 +13,6 @@ import Transformer.Internal
       showValue )
 import Transformer.Types (Transformer)
 
--- | Run and show result of transformer
-showT :: Show a => Transformer a -> IO ()
-showT m = runE_ $ do
-  config <- runConfig
-  connection <- runConnection config
-  value <- getValue config connection m
-  showValue config value
-
 -- | Run transformer without showing
 runT :: Transformer a -> IO ()
 runT m = runE_ $ do
@@ -28,12 +20,6 @@ runT m = runE_ $ do
   connection <- runConnection config
   _ <- getValue config connection m
   return ()
-
--- | Evaluate value of transformer with default value in error case
-evalT :: Transformer a -> a -> Config.Config -> IO a
-evalT m defaultValue config = runE defaultValue $ do
-  connection <- runConnection config
-  getValue config connection m
 
 -- | Evaluate value of transformer with error handler
 evalTWithHandler :: Transformer a -> (Error.Error -> a) -> Config.Config -> IO a
