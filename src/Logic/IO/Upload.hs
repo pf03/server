@@ -40,18 +40,6 @@ saveBinary request path = do
           Error.liftEIO $ B.appendFile path bs
           stream (n + 1) str
 
--- | Reading the request body, divided into chunks
-streamAll :: (MonadIO m, Eq a, Monoid a) => IO a -> (a -> IO ()) -> m ()
-streamAll source0 = liftIO . helper (0 :: Int) source0
-  where
-    helper n source receiver = do
-      a <- source
-      if a == mempty
-        then putStrLn $ template "Successfully read {0} parts of the request body" [show n]
-        else do
-          _ <- receiver a
-          helper (n + 1) source receiver
-
 -- | Reading the request body, divided into chunks - there should be no more than one chunk
 streamOne :: (MIOError m, Eq a, Monoid a) => IO a -> m a
 streamOne = helper (0 :: Int)
@@ -66,11 +54,3 @@ streamOne = helper (0 :: Int)
         else if n >= 1
             then Error.throwRequest "The request body is too long. The request body should consist of no more than one chunk" []
             else (a <>) <$> helper (n + 1) source
-
--- | Reading the request body, divided into chunks - should be empty
-streamEmpty :: (MIOError m, Eq a, Monoid a) => IO a -> m ()
-streamEmpty source = do
-  a <- Error.liftEIO source
-  if a == mempty
-    then return ()
-    else Error.throwRequest "Request body should be empty" []
