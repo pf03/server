@@ -63,7 +63,7 @@ evalJSON api req = case api of
   API Auth [] -> encode Auth.login
   -- Files
   API Upload [Photo] -> encode $ Photos.upload req
-  API Load [Image fn] -> encode $ Photos.load fn
+  API Load [Image fileName] -> encode $ Photos.load fileName
   API Select [Photo] -> encode Photos.select
   -- API, which returns the number of changed entities in the DB
   API Insert [User] -> encode Insert.insertUser

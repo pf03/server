@@ -25,30 +25,30 @@ getNamesList :: MIOError m => m [FileName]
 getNamesList = do
   items <- Error.liftEIO $ listDirectory pathMigrations
   printT items
-  let files = sort $ filter helper items
-  unless (all (uncurry helper2) $ zip [0 :: Int ..] files) $
+  let files = sort $ filter checkFormat items
+  unless (all (uncurry checkOrder) $ zip [0 :: Int ..] files) $
     Error.throwIO "Check the order of numbers in migration files!" []
   printT files
   return files
   where
-    -- Check format 0000_migration_name.sql
-    helper :: FileName -> Bool
-    helper (a : b : c : d : '_' : xs) | all (`elem` show [0 :: Int .. 9]) [a, b, c, d] && ".sql" `isSuffixOf` xs = True
-    helper _ = False
+    -- Check format of file names 0000_migration_name.sql
+    checkFormat :: FileName -> Bool
+    checkFormat (a : b : c : d : '_' : xs) | all (`elem` show [0 :: Int .. 9]) [a, b, c, d] && ".sql" `isSuffixOf` xs = True
+    checkFormat _ = False
 
     -- Check order of file names, n <= 9999
-    helper2 :: Int -> FileName -> Bool
-    helper2 n f = shown `isPrefixOf` f
+    checkOrder :: Int -> FileName -> Bool
+    checkOrder n f = showN `isPrefixOf` f
       where
-        shown = replicate (4 - length (show n)) '0' <> show n
+        showN = replicate (4 - length (show n)) '0' <> show n
 
 -- | From the entire list of migrations, we choose those that have not yet been applied
 checkMigrations :: (MError m, MLog m) => [Select.Migration] -> [FileName] -> m [FileName]
 checkMigrations migrations names = do
-  zipWithM_ helper migrations names -- Checking migration names match
+  zipWithM_ checkMigration migrations names -- Checking migration names match
   return $ drop (length migrations) names
   where
-    helper migration name =
+    checkMigration migration name =
       if Row.migrationName migration == name
         then Log.writeInfoM $ template "Migration {0} is already applied..." [name]
         else
