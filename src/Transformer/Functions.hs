@@ -3,14 +3,13 @@ module Transformer.Functions (module Transformer.Functions, runConfig, exceptToM
 import qualified Interface.MError.Exports as Error
 import qualified Logic.IO.Config as Config
 import Transformer.Internal
-    ( exceptToMaybe,
-      runE_,
-      runEWithHandler,
-      runE,
-      runConfig,
-      runConnection,
-      getValue,
-      showValue )
+  ( exceptToMaybe,
+    getValue,
+    runConfig,
+    runConnection,
+    runEWithHandler,
+    runE_,
+  )
 import Transformer.Types (Transformer)
 
 -- | Run transformer without showing

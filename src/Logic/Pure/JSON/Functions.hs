@@ -2,29 +2,8 @@
 
 module Logic.Pure.JSON.Functions where
 
-import Logic.Pure.JSON.Types ( Comment, Category(Category), Author, Draft, Post )
-import Logic.Pure.JSON.Internal
-    ( turnContent,
-      turnAuthor,
-      turnComment,
-      turnPost,
-      turnDraft,
-      getPostTags,
-      getPostPhotos,
-      getDraftTags,
-      getDraftPhotos,
-      setPostTags,
-      setPostPhotos,
-      modifyPostTags,
-      modifyPostPhotos,
-      setDraftTags,
-      setDraftPhotos,
-      modifyDraftTags,
-      modifyDraftPhotos,
-      getChildCategories,
-      unite )
-import Common.Identifiable ( filterById, findById )
-import Common.Functions ( adjustM, Template(template), maybeToList )
+import Common.Functions (Template (template), adjustM, maybeToList)
+import Common.Identifiable ( filterById, findById, unite )
 import Control.Monad.Except (when)
 import qualified Data.Map as M
 import Database.PostgreSQL.Simple (type (:.) ((:.)))
@@ -37,6 +16,27 @@ import Interface.MCache.Types
 import qualified Interface.MError.Exports as Error
 import qualified Logic.DB.Row as Row
 import qualified Logic.DB.Select.Exports as Select
+import Logic.Pure.JSON.Internal
+  ( getChildCategories,
+    getDraftPhotos,
+    getDraftTags,
+    getPostPhotos,
+    getPostTags,
+    modifyDraftPhotos,
+    modifyDraftTags,
+    modifyPostPhotos,
+    modifyPostTags,
+    setDraftPhotos,
+    setDraftTags,
+    setPostPhotos,
+    setPostTags,
+    turnAuthor,
+    turnComment,
+    turnContent,
+    turnDraft,
+    turnPost,
+  )
+import Logic.Pure.JSON.Types (Author, Category (Category), Comment, Draft, Post)
 
 -----------------------------Evaluate------------------------------------------
 -- Evaluate from 'Select' types to 'JSON' types

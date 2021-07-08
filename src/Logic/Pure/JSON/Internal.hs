@@ -1,38 +1,40 @@
 module Logic.Pure.JSON.Internal where
 
-import Logic.Pure.JSON.Types
-    ( Photo,
-      Tag,
-      User,
-      Comment(Comment),
-      Category(parent),
-      Author(Author),
-      Content(Content, contentPhotos, contentTags),
-      Draft(Draft, draftContent),
-      Post(Post, postContent) )
-import Common.Identifiable ( updateInsertById, Identifiable(..) )
+import Common.Identifiable ( Identifiable(getId) )
 import Interface.Class (MError)
-import Interface.MCache.Types( Param (ParamIn, ParamNo),Val (Int))
+import Interface.MCache.Types (Param (ParamIn, ParamNo), Val (Int))
 import qualified Interface.MError.Exports as Error
 import qualified Logic.DB.Row as Row
+import Logic.Pure.JSON.Types
+  ( Author (Author),
+    Category (parent),
+    Comment (Comment),
+    Content (Content, contentPhotos, contentTags),
+    Draft (Draft, draftContent),
+    Photo,
+    Post (Post, postContent),
+    Tag,
+    User,
+  )
 
 -----------------------------Turn----------------------------------------------
 -- Turn from 'Row' types to 'JSON' types
 
 turnContent :: Row.Content -> Author -> Category -> [Tag] -> [Photo] -> Content
-turnContent (Row.Content a _ c d _ f g) author category = Content a author c d category f g --tags photos
+turnContent (Row.Content contentId _ contentName contentCreationDate _ contentText contentPhoto) author category =
+  Content contentId author contentName contentCreationDate category contentText contentPhoto
 
 turnAuthor :: Row.Author -> User -> Author
-turnAuthor (Row.Author a _ c) user = Author a user c
+turnAuthor (Row.Author authorId _ authorDescription) user = Author authorId user authorDescription
 
 turnComment :: Row.Comment -> User -> Comment
-turnComment (Row.Comment a _ _ d e) user = Comment a user d e
+turnComment (Row.Comment commentId _ _ commentCreationDate commentText) user = Comment commentId user commentCreationDate commentText
 
 turnPost :: Row.Post -> Content -> Post
-turnPost (Row.Post a _) = Post a
+turnPost (Row.Post postId _) = Post postId
 
 turnDraft :: Row.Draft -> Content -> Draft
-turnDraft (Row.Draft a _ c) content = Draft a content c
+turnDraft (Row.Draft draftId _ draftPostId) content = Draft draftId content draftPostId
 
 -----------------------------Getters-------------------------------------------
 getPostTags :: Post -> [Tag]
@@ -105,9 +107,3 @@ getChildCategories (ParamIn vals) categories =
     helper category = (getId category `elem` categoryIds) || maybe False helper (parent category)
 getChildCategories ParamNo _ = return ParamNo
 getChildCategories param _ = Error.throw $ Error.patError "JSON.getChildCategories" param
-
--- | Universal function for concatenating rows
-unite :: (Identifiable a) => (a -> a -> a) -> [a] -> [a]
-unite f = foldl helper []
-  where
-    helper acc a = updateInsertById (f a) a acc

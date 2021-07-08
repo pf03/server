@@ -159,17 +159,17 @@ instance FromRow (Maybe Tag) where
 
 instance FromRow (Maybe Photo) where
   fromRow = do
-    a <- field
-    b <- field
-    c <- field
-    return $ Photo <$> a <*> b <*> c
+    mPhotoId <- field
+    mPhotoPhoto <- field
+    mPhotoContentId <- field
+    return $ Photo <$> mPhotoId <*> mPhotoPhoto <*> mPhotoContentId
 
 instance FromRow (Maybe TagToContent) where
   fromRow = do
-    a <- field
-    b <- field
-    c <- field
-    return $ TagToContent <$> a <*> b <*> c
+    mTagToContentId <- field
+    mTagToContentContentId <- field
+    mTagToContentTagId <- field
+    return $ TagToContent <$> mTagToContentId <*> mTagToContentContentId <*> mTagToContentTagId
 
 newtype Date = Date Time.Date
 

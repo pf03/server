@@ -16,15 +16,15 @@ data Error = ParseError String
     | SomeError String
 
 instance Show Error where
-    show (ParseError s)   = "Parse JSON error: "++s
-    show (RequestError s) = "Request error: "++s
-    show (ConfigError s)  = "Config error: "++s
-    show (DBError s)      = "DB error: "++s
-    show (IOError s)      = "IO error: "++s
-    show (AuthError s)    = "Authorization error: "++s
-    show (DevError s)     = "Developer error: "++s
-    show (SomeError s)    = "Some error: "++s
+    show (ParseError str)   = "Parse JSON error: "++str
+    show (RequestError str) = "Request error: "++str
+    show (ConfigError str)  = "Config error: "++str
+    show (DBError str)      = "DB error: "++str
+    show (IOError str)      = "IO error: "++str
+    show (AuthError str)    = "Authorization error: "++str
+    show (DevError str)     = "Developer error: "++str
+    show (SomeError str)    = "Some error: "++str
 instance E.Exception Error
 
 instance MonadFail (Either Error) where
-    fail s = Left $ DevError s
+    fail str = Left $ DevError str

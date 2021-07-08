@@ -46,3 +46,9 @@ updateInsertById func updated list = res
 -- | Filter only unique values
 filterById :: Identifiable a => [a] -> [a]
 filterById = foldl (\acc a -> if getId a `elem` map getId acc then acc else a : acc) []
+
+-- | Universal function for concatenating rows
+unite :: (Identifiable a) => (a -> a -> a) -> [a] -> [a]
+unite f = foldl helper []
+  where
+    helper acc a = updateInsertById (f a) a acc
