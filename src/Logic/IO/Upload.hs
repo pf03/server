@@ -42,9 +42,9 @@ saveBinary request path = do
 
 -- | Reading the request body, divided into chunks - there should be no more than one chunk
 streamOne :: (MIOError m, Eq a, Monoid a) => IO a -> m a
-streamOne = helper (0 :: Int)
+streamOne = loop (0 :: Int)
   where
-    helper n source = do
+    loop n source = do
       liftIO $ putStrLn "streamOne"
       a <- Error.liftEIO source
       if a == mempty
@@ -53,4 +53,4 @@ streamOne = helper (0 :: Int)
           return a
         else if n >= 1
             then Error.throwRequest "The request body is too long. The request body should consist of no more than one chunk" []
-            else (a <>) <$> helper (n + 1) source
+            else (a <>) <$> loop (n + 1) source

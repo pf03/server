@@ -189,17 +189,16 @@ insertPhotos = do
 -- | Check for entity existence
 checkExist :: MTrans m => BSName -> Query -> m ()
 checkExist name templ = do
-  par <- Cache.getParam name
-  helper par
-  where
-    helper ParamNo = return ()
-    helper ParamNull = return ()
-    helper (ParamEq (Int paramId)) = do
+  param <- Cache.getParam name
+  case param of
+    ParamNo -> return ()
+    ParamNull -> return ()
+    ParamEq (Int paramId) -> do
       exist <- DB.query $ template templ [toQuery paramId]
       case exist :: [Only Int] of
         [] -> Error.throwDB "Entity {0} = {1} is not exist" [show name, show paramId]
         _ -> return ()
-    helper par = Error.throw $ Error.patError "Insert.checkExist" par
+    _ -> Error.throw $ Error.patError "Insert.checkExist" param
 
 -- | Check for all entities existence
 checkExistAll :: MTrans m => BSName -> [Int] -> Query -> m ()
@@ -212,19 +211,19 @@ checkExistAll name ids templ = do
 checkNotExist :: MTrans m => String -> BSName -> Query -> m ()
 checkNotExist description name templ = do
   param <- Cache.getParam name
-  helper param
-  where
-    helper ParamNo = return ()
-    helper (ParamEq v) = do
+  case param of
+    ParamNo -> return ()
+    ParamEq v -> do
       exist <- DB.query $ template templ [valToQuery v]
       case exist :: [Only Int] of
         [] -> return ()
         _ -> Error.throwDB "Entity \"{2}\" with {0} = {1} is already exist" [show name, toString v, description]
-    helper par = Error.throw $ Error.patError "Insert.checkNotExist" par
+    _ -> Error.throw $ Error.patError "Insert.checkNotExist" param
+  where
     toString :: Val -> String
     toString (Int n) = show n
-    toString (Str s) = show s
-    toString (Date d) = show d
+    toString (Str str) = show str
+    toString (Date date) = show date
 
 row :: MError m => ParamsMap -> [BSName] -> m Query
 row params names = list <$> mapM (\name -> cell (params ! name)) names
@@ -232,14 +231,14 @@ row params names = list <$> mapM (\name -> cell (params ! name)) names
 -- * The number of lines is determined by the first parameter, which must be ParamAll
 
 rows :: MError m => ParamsMap -> [BSName] -> m Query
-rows params names = res
+rows params names = result
   where
     (ParamAll first) = params ! head names
     len = length first
     listOfRows = mapM helper [0 .. len -1]
     helper :: MError m => Int -> m Query
     helper n = list <$> mapM (\name -> cellByNumber (params ! name) n) names
-    res = concatWith [sql|,|] <$> listOfRows
+    result = concatWith [sql|,|] <$> listOfRows
 
 emptyParam :: Param -> Bool
 emptyParam ParamNo = True

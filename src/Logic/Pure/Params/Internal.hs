@@ -259,16 +259,16 @@ readParamSort list mTuple = do
 readParamFileName :: MError m => [BSName] -> Maybe (Templ, BSKey, BSValue) -> m Param
 readParamFileName list mTuple = case mTuple of
   Just (Eq, param, bs) ->
-    if any (helper bs) list
+    if any (checkFormat bs) list
       then readParam Str "String" mTuple
       else Error.throwRequest "Parameter {0} must be a filename with one of the following extensions: {1}, in the format \"foo.png\"" [show param, show list]
   _ -> Error.throw $ Error.patError "Params.readParamFileName" mTuple
   where
     --check the file format, for example "foo.png"
-    helper :: ByteString -> ByteString -> Bool
-    helper bs format | B.length bs < 2 + B.length format = False
-    helper bs format | takeEnd (1 + B.length format) bs == "." <> format = True where takeEnd n xs = B.drop (B.length xs - n) xs
-    helper _ _ = False
+    checkFormat :: ByteString -> ByteString -> Bool
+    checkFormat bs format | B.length bs < 2 + B.length format = False
+    checkFormat bs format | takeEnd (1 + B.length format) bs == "." <> format = True where takeEnd n xs = B.drop (B.length xs - n) xs
+    checkFormat _ _ = False
 
 readParam :: (MError m, Read a) => (a -> Val) -> String -> Maybe (Templ, BSKey, BSValue) -> m Param
 readParam constructor constructorStr mTuple = do

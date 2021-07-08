@@ -82,10 +82,10 @@ checkCyclicCategory categoryId params categories = do
     param -> Error.throw $ Error.patError "JSON.checkCyclicCategory" param
 
 getParents :: MError m => Int -> [Select.Category] -> m [Int]
-getParents = helper []
+getParents = loop []
   where
-    helper :: MError m => [Int] -> Int -> [Select.Category] -> m [Int]
-    helper acc categoryId categories = do
+    loop :: MError m => [Int] -> Int -> [Select.Category] -> m [Int]
+    loop acc categoryId categories = do
       let mrc = findById categoryId categories
       case mrc of
         Nothing -> Error.throwDB "Category missing {0}" [show categoryId]
@@ -94,7 +94,7 @@ getParents = helper []
           Just parentId -> do
             when (parentId `elem` acc) $
               Error.throwDB "Category {0} is its own parent" [show parentId]
-            helper ([parentId] <> acc) parentId categories
+            loop ([parentId] <> acc) parentId categories
 
 getCategoryById :: MError m => Int -> [Category] -> String -> m Category
 getCategoryById categoryId categories err =
