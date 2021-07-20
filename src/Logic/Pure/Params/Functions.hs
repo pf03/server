@@ -1,6 +1,6 @@
 module Logic.Pure.Params.Functions where
 
-import Logic.Pure.Params.Internal ( possibleParamDescs, checkParams, parseParam )
+import Logic.Pure.Params.Internal ( possibleParamDescs, checkParams, parseParam, escapeQuotes ) 
 import Common.Functions ( forMapWithKeyM )
 import Interface.Class (MError)
 import Interface.MCache.Types ( ParamsMap, API )
@@ -10,4 +10,5 @@ parseParams :: MError m => API -> Query -> m ParamsMap
 parseParams api queries = do
   paramDescs <- possibleParamDescs api
   checkParams api queries paramDescs
-  forMapWithKeyM paramDescs $ parseParam queries
+  let safeQueries = escapeQuotes queries
+  forMapWithKeyM paramDescs $ parseParam safeQueries

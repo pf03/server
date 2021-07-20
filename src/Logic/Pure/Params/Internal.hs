@@ -26,6 +26,8 @@ import Interface.MCache.Types
 import qualified Interface.MError.Exports as Error
 import Network.HTTP.Types.URI (Query)
 import Text.Read (readEither)
+import Data.ByteString.Internal ( c2w )
+import Data.Bifunctor ( Bifunctor(second) )
 
 -----------------------------Params map----------------------------------------
 
@@ -177,6 +179,13 @@ checkParams api queries paramDesc = do
         if param `elem` allParams
           then return ()
           else Error.throwRequest "Unsupported request parameter: {0}" [show param]
+
+-- For sql injection protection!
+escapeQuotes :: Query -> Query
+escapeQuotes = map (second ( doubleQuotes <$>)) where
+  quote = c2w '\'' --39
+  doubleQuotes :: BSValue -> BSValue
+  doubleQuotes = B.concatMap (\word8 -> if word8 == quote then "''" else B.singleton word8)
 
 parseParam :: MError m => Query -> BSName -> ParamDesc -> m Param
 parseParam queries bsName paramDesc@(ParamDesc _ paramType0 _ nullable0) = do
