@@ -7,7 +7,7 @@ import Logic.Pure.Params.Types
       ParamDesc(ParamDesc),
       ParamType(..),
       Templ(..) )
-import Common.Functions( (<<$>>), jLookup, forMaybe, for, Template(template) )
+import Common.Functions( (<<$>>), jLookup, Template(template) )
 import Common.Types (BS, BSName)
 import Control.Monad.Except (forM_, when)
 import qualified Data.ByteString as B
@@ -28,6 +28,7 @@ import Network.HTTP.Types.URI (Query)
 import Text.Read (readEither)
 import Data.ByteString.Internal ( c2w )
 import Data.Bifunctor ( Bifunctor(second) )
+import Data.Maybe (mapMaybe)
 
 -----------------------------Params map----------------------------------------
 
@@ -155,7 +156,7 @@ possibleParamDescs (API queryType apiType) = M.fromList <$> list
       _ -> Error.throw $ Error.patError "Params.possibleParamDesc" apiType
 
 possibleParams :: BSName -> ParamDesc -> [BSKey]
-possibleParams bsName (ParamDesc templs0 _ _ _) = for templs0 $ \templ -> bsName <> jLookup templ templates
+possibleParams bsName (ParamDesc templs0 _ _ _) = (flip fmap) templs0 $ \templ -> bsName <> jLookup templ templates
 
 concatParams :: M.Map BSName ParamDesc -> [BSKey]
 concatParams = concat . M.mapWithKey possibleParams
@@ -198,7 +199,7 @@ parseParam queries bsName paramDesc@(ParamDesc _ paramType0 _ nullable0) = do
 findTemplate :: MError m => [(BS, Maybe BS)] -> BSName -> ParamDesc -> m (Maybe (Templ, BSKey, BSValue))
 findTemplate queryString name paramDesc@(ParamDesc _ _ must0 _) = do
   let possibleParams0 = possibleParams name paramDesc
-  let filtered = forMaybe queryString $ \q -> checkParam q name paramDesc
+  let filtered = (flip mapMaybe) queryString $ \q -> checkParam q name paramDesc
   case filtered of
     [] ->
       if must0
