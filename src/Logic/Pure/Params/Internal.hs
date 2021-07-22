@@ -11,7 +11,6 @@ import Common.Functions( (<<$>>), jLookup, Template(template) )
 import Common.Types (BS, BSName)
 import Control.Monad.Except (forM_, when)
 import qualified Data.ByteString as B
-import Data.ByteString.Char8 as BC (ByteString)
 import Data.List (find)
 import qualified Data.Map as M
 import qualified Data.Text as T
@@ -275,7 +274,7 @@ readParamFileName list mTuple = case mTuple of
   _ -> Error.throw $ Error.patError "Params.readParamFileName" mTuple
   where
     --check the file format, for example "foo.png"
-    checkFormat :: ByteString -> ByteString -> Bool
+    checkFormat :: BS -> BS -> Bool
     checkFormat bs format | B.length bs < 2 + B.length format = False
     checkFormat bs format | takeEnd (1 + B.length format) bs == "." <> format = True where takeEnd n xs = B.drop (B.length xs - n) xs
     checkFormat _ _ = False
@@ -318,9 +317,9 @@ eReadMap paramType bs param = case paramType of
   where
     mustBe = template "The query parameter {0} must be " [show param]
 
-eRead :: (MError m, Read a) => BC.ByteString -> String -> m a
+eRead :: (MError m, Read a) => BS -> String -> m a
 eRead bs err = Error.catchEither (readEither . unpackString $ bs) $ \_ -> Error.RequestError err
 
 -- For correct processing of the Cyrillic alphabet
-unpackString :: BC.ByteString -> String
+unpackString :: BS -> String
 unpackString = T.unpack . T.decodeUtf8

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 6c5c1b08d7884ea65bcc86c9b3f3ac70be98a5fa65317ddad18da98274f044fa
+-- hash: 72a09450939768cdeaa5bffab4ff1d9f17d2b2095130a009c60b94475f6e6c83
 
 name:           server
 version:        0.1.0.0
@@ -148,7 +148,9 @@ test-suite server-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      Color
       Lib
+      Log
       Paths_server
   hs-source-dirs:
       test
