@@ -38,7 +38,7 @@ CREATE TABLE contents (
     name VARCHAR (50) not null,
     creation_date DATE not null,
     category_id INTEGER not null REFERENCES categories (id),
-    text TEXT  not null,
+    text TEXT not null,
     photo VARCHAR (100)  not null
 );
 
@@ -54,7 +54,7 @@ CREATE TABLE drafts (
 
 CREATE TABLE tags_to_contents (
     id SERIAL PRIMARY KEY,
-    content_id INT not null REFERENCES contents (id),
+    content_id INTEGER not null REFERENCES contents (id),
     tag_id INTEGER not null REFERENCES tags (id)
 );
 
