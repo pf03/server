@@ -53,9 +53,9 @@ CREATE TABLE drafts (
 );
 
 CREATE TABLE tags_to_contents (
-    id SERIAL PRIMARY KEY,
     content_id INT not null REFERENCES contents (id),
-    tag_id INTEGER not null REFERENCES tags (id)
+    tag_id INTEGER not null REFERENCES tags (id),
+    PRIMARY KEY(content_id, tag_id)
 );
 
 CREATE TABLE photos (
