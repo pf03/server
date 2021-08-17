@@ -114,16 +114,15 @@ instance Identifiable Draft where
   getId = draftId
 
 data TagToContent = TagToContent
-  { tagToContentId :: Int,
-    tagToContentContentId :: Int,
+  { tagToContentContentId :: Int,
     tagToContentTagId :: Int
   }
   deriving (Show, Generic, FromRow)
 
 instance ToJSON TagToContent
 
-instance Identifiable TagToContent where
-  getId = tagToContentId
+-- instance Identifiable TagToContent where
+--   getId = tagToContentId
 
 data Photo = Photo
   { photoId :: Int,
@@ -166,10 +165,9 @@ instance FromRow (Maybe Photo) where
 
 instance FromRow (Maybe TagToContent) where
   fromRow = do
-    mTagToContentId <- field
     mTagToContentContentId <- field
     mTagToContentTagId <- field
-    return $ TagToContent <$> mTagToContentId <*> mTagToContentContentId <*> mTagToContentTagId
+    return $ TagToContent <$> mTagToContentContentId <*> mTagToContentTagId
 
 newtype Date = Date Time.Date
 

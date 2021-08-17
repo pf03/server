@@ -22,7 +22,7 @@ CREATE TABLE authors (
 
 CREATE TABLE categories (
 	id SERIAL PRIMARY KEY,
-	parent_id INTEGER,
+	parent_id INTEGER  REFERENCES categories (id),
 	category_name VARCHAR (1000) not null
 );
 
@@ -53,9 +53,9 @@ CREATE TABLE drafts (
 );
 
 CREATE TABLE tags_to_contents (
-    id SERIAL PRIMARY KEY,
     content_id INTEGER not null REFERENCES contents (id),
     tag_id INTEGER not null REFERENCES tags (id)
+    PRIMARY KEY(content_id, tag_id)
 );
 
 CREATE TABLE photos (
@@ -71,6 +71,3 @@ CREATE TABLE comments (
     creation_date DATE not null,
     text text not null
 );
-
-
-
