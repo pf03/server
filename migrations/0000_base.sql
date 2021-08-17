@@ -22,7 +22,7 @@ CREATE TABLE authors (
 
 CREATE TABLE categories (
 	id SERIAL PRIMARY KEY,
-	parent_id INTEGER,
+	parent_id INTEGER  REFERENCES categories (id),
 	category_name VARCHAR (1000) not null
 );
 
@@ -71,6 +71,3 @@ CREATE TABLE comments (
     creation_date DATE not null,
     text text not null
 );
-
-
-
