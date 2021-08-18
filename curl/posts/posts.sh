@@ -10,9 +10,9 @@ URL="$HOST$APIPATH"
 curl --data "tag_id__in=[1,2,3]" ${URL}
 curl --data "created_at__bt=(2018-05-21,2030-05-21)" ${URL}
 curl --data "category_id__in=[1,2,3]" ${URL}
-curl --data "name=Ya pomnyu chudnoe mgnovenye" ${URL}
-curl --data "name__like=mgnovenye" ${URL}
-curl --data "text__like=glasgow" ${URL}
+curl --data "content_name=Ya pomnyu chudnoe mgnovenye" ${URL}
+curl --data "content_name__like=mgnovenye" ${URL}
+curl --data "content_text__like=glasgow" ${URL}
 curl --data "author_name__like=Denis" ${URL}
 curl --data "author_name=Moskvin Denis" ${URL}
 curl --data "contains__like=haskell" ${URL}
@@ -28,8 +28,8 @@ curl --data "page=1" ${URL}
 BODY="tag_id__in=[1,2,3]"
 BODY+="&created_at__bt=(2018-05-21,2030-05-21)"
 BODY+="&category_id__in=[1,2,3]"
-BODY+="&name__like=GHC"
-BODY+="&text__like=glasgow"
+BODY+="&content_name__like=GHC"
+BODY+="&content_text__like=glasgow"
 BODY+="&author_name__like=Denis"
 BODY+="&contains__like=haskell"
 BODY+="&order_by=created_at"

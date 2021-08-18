@@ -3,10 +3,10 @@ cd ..
 source tokens.sh
 source host.sh
 
-APIPATH=/categories/2/edit
+APIPATH=/categories/9/edit
 URL="$HOST$APIPATH"
-BODY="user_id=5"
-BODY+="&description=description2"
+BODY="parent_id=3"
+BODY+="&category_name=description2"
 
 curl --data "$BODY" ${URL}
 curl --data "$BODY" ${URL} -H "$FAKEUSER"

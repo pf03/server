@@ -5,7 +5,7 @@ source host.sh
 
 APIPATH=/tags/2/edit
 URL="$HOST$APIPATH"
-BODY="name=edited_tag"
+BODY="tag_name=edited_tag"
 
 curl --data "$BODY" ${URL}
 curl --data "$BODY" ${URL} -H "$FAKEUSER"

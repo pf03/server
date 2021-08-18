@@ -41,8 +41,8 @@ login = do
   users <- DB.queryM
         [sql|
         SELECT id, is_admin FROM users
-        WHERE login = {0} and pass = md5 (CONCAT_WS(' ', {0}, {1}))
-    |] [paramToQuery $ pars ! "login", paramToQuery $ pars ! "pass"]
+        WHERE user_login = {0} and pass = md5 (CONCAT_WS(' ', {0}, {1}))
+    |] [paramToQuery $ pars ! "user_login", paramToQuery $ pars ! "pass"]
   case users :: [(Int, Bool)] of
     [(userId, isAdmin)] -> do
       Log.writeDebugM users

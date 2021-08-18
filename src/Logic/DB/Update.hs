@@ -33,8 +33,8 @@ updateUser paramId = do
   _ <- Cache.addIdParam "id" paramId
   checkExist "id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
   -- Login is required to generate new password
-  [Only login] <- DB.query $ template [sql|SELECT users.login FROM users WHERE users.id = {0}|] [toQuery paramId]
-  params <- Cache.addStrParam "login" login
+  [Only login] <- DB.query $ template [sql|SELECT users.user_login FROM users WHERE users.id = {0}|] [toQuery paramId]
+  params <- Cache.addStrParam "user_login" login
   DB.updateM User [sql|UPDATE users SET {0} WHERE id = {1}|]
     [updates params ["first_name", "last_name", "avatar", "pass"], return $ toQuery paramId]
 
@@ -61,8 +61,8 @@ updateTag :: MTrans m => Int -> m ()
 updateTag paramId = do
   params <- Cache.addIdParam "id" paramId
   checkExist "id" [sql|SELECT 1 FROM tags WHERE tags.id = {0}|]
-  DB.updateM Tag [sql|UPDATE tags SET name = {0} WHERE id = {1}|]
-    [paramToQuery $ params ! "name", return $ toQuery paramId]
+  DB.updateM Tag [sql|UPDATE tags SET tag_name = {0} WHERE id = {1}|]
+    [paramToQuery $ params ! "tag_name", return $ toQuery paramId]
 
 updateTagToContent :: MTrans m => Action -> m ()
 updateTagToContent Check = withParam "tag_id" $ Insert.insertTagToContent Check
@@ -80,7 +80,7 @@ updateDraft paramId = do
   updateTagToContent Check
   ParamEq (Int contentId) <- Cache.getParam "content_id"
   DB.updateM Content [sql|UPDATE contents SET {0} WHERE id = {1}|]
-    [updates params ["name", "category_id", "text", "photo"], return $ toQuery contentId]
+    [updates params ["content_name", "category_id", "content_text", "photo"], return $ toQuery contentId]
   updateTagToContent Execute
   updatePhotos
 
@@ -95,11 +95,11 @@ checkAuthExistDraft paramId = do
         LEFT JOIN users ON users.id = authors.user_id
     |]
       `whereAllM` [paramToCondition [sql|drafts.id|] $ ParamEq (Int paramId)]
-  (uid, aid, cid) <- checkAuthExist paramId "draft_id" query
+  (userId, authorId, contentId) <- checkAuthExist paramId "draft_id" query
   Cache.addIdParam_ "id" paramId
-  Cache.addIdParam_ "user_id" uid
-  Cache.addIdParam_ "author_id" aid
-  Cache.addIdParam "content_id" cid
+  Cache.addIdParam_ "user_id" userId
+  Cache.addIdParam_ "author_id" authorId
+  Cache.addIdParam "content_id" contentId
 
 ----------------------------------Post-----------------------------------------
 updatePost :: MTrans m => Int -> m ()
@@ -111,8 +111,8 @@ updatePost paramId = do
   Insert.insertTagToContent Check
   [Only contentId] <-
     DB.queryM
-      [sql|INSERT into contents (author_id, name, creation_date, category_id, text, photo) values {0} RETURNING id|]
-      [rowEither params [Left "author_id", Left "name", Right [sql|current_date|], Left "category_id", Left "text", Left "photo"]]
+      [sql|INSERT into contents (author_id, content_name, creation_date, category_id, content_text, photo) values {0} RETURNING id|]
+      [rowEither params [Left "author_id", Left "content_name", Right [sql|current_date|], Left "category_id", Left "content_text", Left "photo"]]
   Cache.addChanged Insert Content 1
   DB.insert
     Draft
@@ -166,7 +166,7 @@ updates params names = concatWith "," <$> mapMaybeM helper names
     helper name = upd (toQuery name) (params ! name)
     upd :: MError m => Query -> Param -> m (Maybe Query)
     upd "pass" (ParamEq val) = do
-      login <- paramToQuery $ params ! "login"
+      login <- paramToQuery $ params ! "user_login"
       return . Just $ template [sql|pass = md5 (CONCAT_WS(' ', {0}, {1}))|] [login, valToQuery val]
     upd field (ParamEq val) = return . Just $ template [sql|{0} = {1}|] [field, valToQuery val]
     upd _ ParamNo = return Nothing

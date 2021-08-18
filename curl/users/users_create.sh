@@ -8,7 +8,7 @@ URL="$HOST$APIPATH"
 BODY="last_name=last_name"
 BODY+="&first_name=first_name"
 BODY+="&avatar=avatar"
-BODY+="&login=login"
+BODY+="&user_login=login"
 BODY+="&pass=pass"
 
 curl --data "$BODY" ${URL}

@@ -2,7 +2,7 @@ INSERT into users (
     last_name,
 	first_name,
 	avatar,
-	login,
+	user_login,
 	pass,
 	creation_date,
 	is_admin
@@ -38,7 +38,7 @@ INSERT into categories (
 	(6, 'Monady');
 
 INSERT into tags (
-	name
+	tag_name
 ) values
 	('yazyk_programmirovaniya'),
 	('programmirovanie'),
@@ -52,10 +52,10 @@ INSERT into tags (
 
 INSERT INTO contents (
     author_id,
-    name,
+    content_name,
     creation_date,
     category_id,
-    text,
+    content_text,
     photo
 )
 VALUES
@@ -94,7 +94,7 @@ INSERT INTO photos (photo, content_id) VALUES
     ('open_source.jpg', 1),
     ('poem.jpg', 2);
 
-INSERT INTO comments (news_id, user_id, creation_date, text) VALUES
+INSERT INTO comments (news_id, user_id, creation_date, comment_text) VALUES
     (1, 2, '2020-03-21', 'Kakaya zamechatelnaya novost...'),
     (1, 3, '2020-03-22', 'Kakaya prevoskhodnaya novost...'),
     (1, 4, '2020-03-23', 'Kakaya velikolepnaya novost...')

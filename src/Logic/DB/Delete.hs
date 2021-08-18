@@ -58,21 +58,21 @@ deletePost :: MTrans m => Int -> m ()
 deletePost paramId = do
   _ <- Update.checkAuthExistPost paramId
   ParamEq (Int contentId) <- Cache.getParam "content_id"
+  DB.delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [toQuery contentId]
+  DB.execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [toQuery contentId]
+  DB.delete Draft [sql|DELETE FROM drafts WHERE post_id = {0}|] [toQuery paramId]
   DB.delete Post [sql|DELETE FROM posts WHERE id = {0}|] [toQuery paramId]
   DB.delete Content [sql|DELETE FROM contents WHERE id = {0}|] [toQuery contentId]
-  DB.delete Draft [sql|DELETE FROM drafts WHERE post_id = {0}|] [toQuery paramId]
-  DB.execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [toQuery contentId]
-  DB.delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [toQuery contentId]
   DB.delete Comment [sql|DELETE FROM comments WHERE post_id = {0}|] [toQuery paramId]
 
 deleteDraft :: MTrans m => Int -> m ()
 deleteDraft paramId = do
   _ <- Update.checkAuthExistDraft paramId
   ParamEq (Int contentId) <- Cache.getParam "content_id"
+  DB.delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [toQuery contentId]
+  DB.execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [toQuery contentId]
   DB.delete Draft [sql|DELETE FROM drafts WHERE id = {0}|] [toQuery paramId]
   DB.delete Content [sql|DELETE FROM contents WHERE id = {0}|] [toQuery contentId]
-  DB.execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [toQuery contentId]
-  DB.delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [toQuery contentId]
 
 deleteComment :: MTrans m => Int -> m ()
 deleteComment paramId = do
@@ -92,7 +92,7 @@ deleteCategory paramId = do
   checkNotExist paramId "category" "drafts" $
     template
       [sql|
-        SELECT drafts.id, contents.name FROM drafts
+        SELECT drafts.id, contents.content_name FROM drafts
         LEFT JOIN contents ON contents.id = drafts.content_id
         LEFT JOIN categories ON categories.id = contents.category_id
         WHERE categories.id = {0}
@@ -102,7 +102,7 @@ deleteCategory paramId = do
   checkNotExist paramId "category" "posts" $
     template
       [sql|
-        SELECT posts.id, contents.name FROM posts
+        SELECT posts.id, contents.content_name FROM posts
         LEFT JOIN contents ON contents.id = posts.content_id
         LEFT JOIN categories ON categories.id = contents.category_id
         WHERE categories.id = {0}

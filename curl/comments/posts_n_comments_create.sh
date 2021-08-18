@@ -5,7 +5,7 @@ source host.sh
 
 APIPATH=/posts/1/comments/create
 URL="$HOST$APIPATH"
-BODY="text=comment_text"
+BODY="comment_text=comment_text1"
 
 curl --data "$BODY" ${URL}
 curl --data "$BODY" ${URL} -H "$FAKEUSER"

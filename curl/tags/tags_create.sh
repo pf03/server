@@ -5,7 +5,7 @@ source host.sh
 
 APIPATH=/tags/create
 URL="$HOST$APIPATH"
-BODY="name=some_tag"
+BODY="tag_name=some_tag"
 
 curl --data "$BODY" ${URL}
 curl --data "$BODY" ${URL} -H "$FAKEUSER"

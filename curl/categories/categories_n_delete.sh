@@ -3,7 +3,7 @@ cd ..
 source tokens.sh
 source host.sh
 
-APIPATH=/categories/2/delete
+APIPATH=/categories/9/delete
 URL="$HOST$APIPATH"
 BODY=""
 

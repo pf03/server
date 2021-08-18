@@ -36,7 +36,7 @@ writeTokens = do
 
     getToken :: MTrans m => String -> String -> m Auth.Token
     getToken login pass = do
-      Cache.addStrParam_ "login" login
+      Cache.addStrParam_ "user_login" login
       Cache.addStrParam_ "pass" pass
       token <- Auth.login
       Log.writeDebugM token

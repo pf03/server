@@ -1,1 +1,1 @@
-UPDATE users SET pass = md5 (CONCAT_WS(' ', login, pass))
+UPDATE users SET pass = md5 (CONCAT_WS(' ', user_login, pass))

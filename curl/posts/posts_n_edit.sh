@@ -5,9 +5,9 @@ source host.sh
 
 APIPATH=/posts/3/edit
 URL="$HOST$APIPATH"
-BODY="name=name"
+BODY="content_name=name"
 BODY+="&category_id=3"
-BODY+="&text=text3"
+BODY+="&content_text=text3"
 BODY+="&photo=photo3.jpg"
 BODY+="&tag_id__all=[1,2,3,4,5]"
 BODY+="&photos__all=[\"photo5.jpg\",\"photo6.jpg\"]"

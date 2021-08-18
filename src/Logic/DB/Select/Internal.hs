@@ -80,9 +80,9 @@ postsQuery = do
           containsCondition (params ! "contains"),
           paramToCondition [sql|contents.category_id|] $ params ! "category_id",
           paramToCondition [sql|contents.creation_date|] $ params ! "created_at",
-          paramToCondition [sql|contents.name|] $ params ! "name",
+          paramToCondition [sql|contents.content_name|] $ params ! "content_name",
           paramToCondition [sql|CONCAT_WS(' ', users.last_name, users.first_name)|] $ params ! "author_name",
-          paramToCondition [sql|contents.text|] $ params ! "text"
+          paramToCondition [sql|contents.content_text|] $ params ! "content_text"
         ]
   selectPostsQuery `whereAllM` conditions <<+>> orderBy (params ! "order_by") <<+>> pagination
   where
@@ -100,11 +100,11 @@ postsQuery = do
       where
         subConditions =
           sequenceA
-            [ paramToCondition [sql|contents.name|] param,
+            [ paramToCondition [sql|contents.content_name|] param,
               paramToCondition [sql|CONCAT_WS(' ', users.last_name, users.first_name)|] param,
-              paramToCondition [sql|contents.name|] param,
+              paramToCondition [sql|contents.content_name|] param,
               paramToCondition [sql|categories.category_name|] param,
-              postIdsSubQuery [sql|tags.name|] param
+              postIdsSubQuery [sql|tags.tag_name|] param
             ]
 
     -- Search by tag name and id.

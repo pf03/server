@@ -1,6 +1,6 @@
 CREATE TABLE migrations (
 	id SERIAL PRIMARY KEY,
-	name VARCHAR (255) not null
+	migration_name VARCHAR (255) not null
 );
 
 CREATE TABLE users (
@@ -8,7 +8,7 @@ CREATE TABLE users (
 	first_name VARCHAR (50)  not null,
 	last_name VARCHAR (50)  not null,
 	avatar VARCHAR (100) not null,
-	login VARCHAR (50) unique not null,
+	user_login VARCHAR (50) unique not null,
 	pass VARCHAR (50) not null,
 	creation_date DATE not null,
 	is_admin Boolean not null
@@ -28,17 +28,17 @@ CREATE TABLE categories (
 
 CREATE TABLE tags (
 	id SERIAL PRIMARY KEY,
-	name VARCHAR (50) unique not null 
+	tag_name VARCHAR (50) unique not null 
 );
 
 --CONTENT = DRAFT OR NEWS
 CREATE TABLE contents (
     id SERIAL PRIMARY KEY,
     author_id INTEGER not null REFERENCES authors (id),
-    name VARCHAR (50) not null,
+    content_name VARCHAR (50) not null,
     creation_date DATE not null,
     category_id INTEGER not null REFERENCES categories (id),
-    text TEXT not null,
+    content_text TEXT not null,
     photo VARCHAR (100)  not null
 );
 
@@ -54,8 +54,8 @@ CREATE TABLE drafts (
 
 CREATE TABLE tags_to_contents (
     content_id INTEGER not null REFERENCES contents (id),
-    tag_id INTEGER not null REFERENCES tags (id)
-    PRIMARY KEY(content_id, tag_id)
+    tag_id INTEGER not null REFERENCES tags (id),
+    PRIMARY KEY (content_id, tag_id)
 );
 
 CREATE TABLE photos (
@@ -69,5 +69,5 @@ CREATE TABLE comments (
     news_id INTEGER not null REFERENCES news (id),
     user_id INTEGER not null REFERENCES users (id),
     creation_date DATE not null,
-    text text not null
+    comment_text text not null
 );

@@ -42,7 +42,7 @@ possibleParamDescs (API queryType apiType) = M.fromList <$> list
     list = case queryType of
       Auth ->
         return
-          [ param "login" [Eq] ParamTypeStr True,
+          [ param "user_login" [Eq] ParamTypeStr True,
             param "pass" [Eq] ParamTypeStr True
           ]
       Upload -> case apiType of
@@ -63,8 +63,8 @@ possibleParamDescs (API queryType apiType) = M.fromList <$> list
                 param "author_name" [Eq, Like] ParamTypeStr,
                 param "category_id" [Eq, In] ParamTypeInt,
                 param "tag_id" [Eq, In, All] ParamTypeInt,
-                param "name" [Eq, Like] ParamTypeStr,
-                param "text" [Like] ParamTypeStr,
+                param "content_name" [Eq, Like] ParamTypeStr,
+                param "content_text" [Like] ParamTypeStr,
                 param "contains" [Like] ParamTypeStr, -- The news API should support search by string, which can be found in either text content, author name, or category / tag name
                 param "order_by" [Eq] $ ParamTypeSort ["created_at", "author_name", "category_id", "photos"],
                 param "page" [Eq] ParamTypePage
@@ -78,7 +78,7 @@ possibleParamDescs (API queryType apiType) = M.fromList <$> list
             [ param "last_name" [Eq] ParamTypeStr True,
               param "first_name" [Eq] ParamTypeStr True,
               param "avatar" [Eq] ParamTypeStr True,
-              param "login" [Eq] ParamTypeStr True,
+              param "user_login" [Eq] ParamTypeStr True,
               param "pass" [Eq] ParamTypeStr True
             ]
         [Author] ->
@@ -91,12 +91,12 @@ possibleParamDescs (API queryType apiType) = M.fromList <$> list
             [ param "parent_id" [Eq] ParamTypeInt False,
               param "category_name" [Eq] ParamTypeStr True
             ]
-        [Tag] -> return [param "name" [Eq] ParamTypeStr True]
+        [Tag] -> return [param "tag_name" [Eq] ParamTypeStr True]
         [Draft] ->
           return
-            [ param "name" [Eq] ParamTypeStr True,
+            [ param "content_name" [Eq] ParamTypeStr True,
               param "category_id" [Eq] ParamTypeInt True,
-              param "text" [Eq] ParamTypeStr True,
+              param "content_text" [Eq] ParamTypeStr True,
               param "photo" [Eq] ParamTypeStr True,
               param "tag_id" [All] ParamTypeInt True,
               param "photos" [All] ParamTypeStr True
@@ -105,7 +105,7 @@ possibleParamDescs (API queryType apiType) = M.fromList <$> list
         [Post] -> return []
         [Post, Id _, Comment] ->
           return
-            [ param "text" [Eq] ParamTypeStr True
+            [ param "comment_text" [Eq] ParamTypeStr True
             ]
         _ -> Error.throw $ Error.patError "Params.possibleParamDesc" apiType
       -- An additional requirement - at least one of the parameters is present for Update (Params.checkParams)
@@ -127,12 +127,12 @@ possibleParamDescs (API queryType apiType) = M.fromList <$> list
             [ paramNull "parent_id" [Eq] ParamTypeInt False,
               param "category_name" [Eq] ParamTypeStr False
             ]
-        Tag : _ -> return [param "name" [Eq] ParamTypeStr False]
+        Tag : _ -> return [param "tag_name" [Eq] ParamTypeStr False]
         Draft : _ ->
           return
-            [ param "name" [Eq] ParamTypeStr False,
+            [ param "content_name" [Eq] ParamTypeStr False,
               param "category_id" [Eq] ParamTypeInt False,
-              param "text" [Eq] ParamTypeStr False,
+              param "content_text" [Eq] ParamTypeStr False,
               param "photo" [Eq] ParamTypeStr False,
               param "tag_id" [All] ParamTypeInt False,
               param "photos" [All] ParamTypeStr False
@@ -140,13 +140,13 @@ possibleParamDescs (API queryType apiType) = M.fromList <$> list
         [Post, Id _, Comment] ->
           return
             [ param "user_id" [Eq] ParamTypeInt False,
-              param "text" [Eq] ParamTypeStr False
+              param "comment_text" [Eq] ParamTypeStr False
             ]
         [Post, Id _] ->
           return
-            [ param "name" [Eq] ParamTypeStr True, -- These parameters are required to create new content. The frontend can take them from the original post
+            [ param "content_name" [Eq] ParamTypeStr True, -- These parameters are required to create new content. The frontend can take them from the original post
               param "category_id" [Eq] ParamTypeInt True,
-              param "text" [Eq] ParamTypeStr True,
+              param "content_text" [Eq] ParamTypeStr True,
               param "photo" [Eq] ParamTypeStr True,
               param "tag_id" [All] ParamTypeInt True,
               param "photos" [All] ParamTypeStr True

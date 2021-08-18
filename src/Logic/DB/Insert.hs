@@ -35,23 +35,23 @@ import Logic.DB.Select.Templates (paramToCondition, paramToQuery, valToQuery)
 
 insertMigration :: MDB m => String -> m ()
 insertMigration name = do
-  DB.execute_ [sql|INSERT into migrations (name) values ('{0}')|] [toQuery name]
+  DB.execute_ [sql|INSERT into migrations (migration_name) values ('{0}')|] [toQuery name]
 
 ----------------------------------User-----------------------------------------
 insertUser :: MTrans m => m ()
 insertUser = do
   params <- Cache.getParams
-  checkNotExist "user" "login" [sql|SELECT 1 FROM users WHERE users.login = {0}|]
-  passQuery <- templateM [sql|md5 (CONCAT_WS(' ', {0}, {1}))|] [cell (params ! "login"), cell (params ! "pass")]
+  checkNotExist "user" "user_login" [sql|SELECT 1 FROM users WHERE users.user_login = {0}|]
+  passQuery <- templateM [sql|md5 (CONCAT_WS(' ', {0}, {1}))|] [cell (params ! "user_login"), cell (params ! "pass")]
   DB.insertM
     User
-    [sql|INSERT into users (last_name, first_name, avatar, login, pass, creation_date, is_admin) values {0}|]
+    [sql|INSERT into users (last_name, first_name, avatar, user_login, pass, creation_date, is_admin) values {0}|]
     [ rowEither
         params
         [ Left "last_name",
           Left "first_name",
           Left "avatar",
-          Left "login",
+          Left "user_login",
           Right passQuery,
           Right [sql|current_date|],
           Right [sql|False|]
@@ -87,11 +87,11 @@ insertCategory = do
 insertTag :: MTrans m => m ()
 insertTag = do
   params <- Cache.getParams
-  checkNotExist "tag" "name" [sql|SELECT 1 FROM tags WHERE tags.name = {0}|]
+  checkNotExist "tag" "tag_name" [sql|SELECT 1 FROM tags WHERE tag_name = {0}|]
   DB.insertM
     Cache.Tag
-    [sql|INSERT into tags (name)  values ({0})|]
-    [paramToQuery $ params ! "name"]
+    [sql|INSERT into tags (tag_name)  values ({0})|]
+    [paramToQuery $ params ! "tag_name"]
 
 -- Check and execute parts for right sequence
 insertTagToContent :: MTrans m => Action -> m ()
@@ -119,8 +119,8 @@ insertDraft = do
   insertTagToContent Check
   [Only contentId] <-
     DB.queryM
-      [sql|INSERT into contents (author_id, name, creation_date, category_id, text, photo) values {0} RETURNING id|]
-      [rowEither params [Left "author_id", Left "name", Right [sql|current_date|], Left "category_id", Left "text", Left "photo"]]
+      [sql|INSERT into contents (author_id, content_name, creation_date, category_id, content_text, photo) values {0} RETURNING id|]
+      [rowEither params [Left "author_id", Left "content_name", Right [sql|current_date|], Left "category_id", Left "content_text", Left "photo"]]
   Cache.addChanged Insert Content 1
   _ <- Cache.addIdParam "content_id" contentId
   insertTagToContent Execute
@@ -171,8 +171,8 @@ insertComment postId = do
   checkExist "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
   DB.insertM
     Comment
-    [sql|INSERT into comments (post_id, user_id, creation_date, text) values {0}|]
-    [rowEither params [Left "post_id", Left "user_id", Right [sql|current_date|], Left "text"]]
+    [sql|INSERT into comments (post_id, user_id, creation_date, comment_text) values {0}|]
+    [rowEither params [Left "post_id", Left "user_id", Right [sql|current_date|], Left "comment_text"]]
 
 ----------------------------------Photo----------------------------------------
 insertPhotos :: MTrans m => m ()

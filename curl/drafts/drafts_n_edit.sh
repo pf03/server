@@ -5,9 +5,9 @@ source host.sh
 
 APIPATH=/drafts/2/edit
 URL="$HOST$APIPATH"
-BODY="name=name"
+BODY="content_name=name"
 BODY+="&category_id=2"
-BODY+="&text=text2"
+BODY+="&content_text=text2"
 BODY+="&photo=photo2.jpg"
 BODY+="&tag_id__all=[1,2,3,4]"
 BODY+="&photos__all=[\"photo3.jpg\",\"photo4.jpg\"]"

@@ -5,9 +5,9 @@ source host.sh
 
 APIPATH=/drafts/create
 URL="$HOST$APIPATH"
-BODY="name=name"
+BODY="content_name=name"
 BODY+="&category_id=1"
-BODY+="&text=text"
+BODY+="&content_text=text"
 BODY+="&photo=photo.jpg"
 BODY+="&tag_id__all=[1,2,3]"
 BODY+="&photos__all=[\"photo1.jpg\",\"photo2.jpg\"]"

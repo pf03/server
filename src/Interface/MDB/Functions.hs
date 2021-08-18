@@ -37,11 +37,13 @@ queryM query0 queries = do
 execute :: MDB m => Query -> [Query] -> m Int64
 execute query0 queries = do
   let query1 = template query0 queries
+  Log.writeDebugM query1
   Error.catch (dbExecute query1) $ eHandler query1
 
 executeM :: MDB m => Query -> [m Query] -> m Int64
 executeM query0 queries = do
   query1 <- templateM query0 queries
+  Log.writeDebugM query1
   Error.catch (dbExecute query1) $ eHandler query1
 
 
