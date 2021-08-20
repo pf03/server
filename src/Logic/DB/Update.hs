@@ -80,7 +80,7 @@ updateDraft paramId = do
   updateTagToContent Check
   ParamEq (Int contentId) <- Cache.getParam "content_id"
   DB.updateM Content [sql|UPDATE contents SET {0} WHERE id = {1}|]
-    [updates params ["content_name", "category_id", "content_text", "photo"], return $ toQuery contentId]
+    [updates params ["content_name", "category_id", "content_text", "main_photo"], return $ toQuery contentId]
   updateTagToContent Execute
   updatePhotos
 
@@ -111,8 +111,8 @@ updatePost paramId = do
   Insert.insertTagToContent Check
   [Only contentId] <-
     DB.queryM
-      [sql|INSERT into contents (author_id, content_name, creation_date, category_id, content_text, photo) values {0} RETURNING id|]
-      [rowEither params [Left "author_id", Left "content_name", Right [sql|current_date|], Left "category_id", Left "content_text", Left "photo"]]
+      [sql|INSERT into contents (author_id, content_name, creation_date, category_id, content_text, main_photo) values {0} RETURNING id|]
+      [rowEither params [Left "author_id", Left "content_name", Right [sql|current_date|], Left "category_id", Left "content_text", Left "main_photo"]]
   Cache.addChanged Insert Content 1
   DB.insert
     Draft

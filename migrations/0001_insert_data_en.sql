@@ -56,7 +56,7 @@ INSERT INTO contents (
     creation_date,
     category_id,
     content_text,
-    photo
+    main_photo
 )
 VALUES
     (

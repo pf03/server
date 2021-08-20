@@ -39,7 +39,7 @@ CREATE TABLE contents (
     creation_date DATE not null,
     category_id INTEGER not null REFERENCES categories (id),
     content_text TEXT not null,
-    photo VARCHAR (100)  not null
+    main_photo VARCHAR (100)  not null
 );
 
 CREATE TABLE news (

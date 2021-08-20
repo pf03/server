@@ -8,7 +8,7 @@ URL="$HOST$APIPATH"
 BODY="content_name=name"
 BODY+="&category_id=3"
 BODY+="&content_text=text3"
-BODY+="&photo=photo3.jpg"
+BODY+="&main_photo=photo3.jpg"
 BODY+="&tag_id__all=[1,2,3,4,5]"
 BODY+="&photos__all=[\"photo5.jpg\",\"photo6.jpg\"]"
 
