@@ -5,7 +5,9 @@ module Common.Functions where
 
 import Common.Types (BS)
 import Control.Monad.Except (MonadIO (..), forM)
+import Data.Aeson (Options (fieldLabelModifier), defaultOptions)
 import qualified Data.ByteString.Char8 as BC
+import Data.Char (toLower)
 import Data.List.Split (splitOn)
 import qualified Data.Map as M
 import Data.Maybe (catMaybes, fromJust)
@@ -13,6 +15,7 @@ import Data.String (IsString (fromString))
 import Database.PostgreSQL.Simple.Types (Query (..))
 
 -----------------------------Template------------------------------------------
+
 -- | Substitution in a template
 -- Using: template "Hello {0}, {1}, {0}, {1}," ["Petya", "Vasya"]
 class Template s where
@@ -108,3 +111,12 @@ splitOnFst a (x : xs) = let (b, c) = splitOnFst a xs in (x : b, c)
 
 splitOnLast :: Eq a => a -> [a] -> ([a], [a])
 splitOnLast a list = let (b, c) = splitOnFst a (reverse list) in (reverse c, reverse b)
+
+-- For JSON correct parsing
+deletePrefixOptions :: Int -> Options
+deletePrefixOptions n = defaultOptions {fieldLabelModifier = deletePrefix n}
+
+deletePrefix :: Int -> String -> String
+deletePrefix n str = case drop n str of
+  x : xs -> toLower x : xs
+  [] -> []

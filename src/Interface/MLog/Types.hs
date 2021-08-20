@@ -2,22 +2,20 @@
 
 module Interface.MLog.Types where
 
-import Data.Aeson.Types (FromJSON, ToJSON)
+import Common.Functions (deletePrefixOptions)
+import Data.Aeson (FromJSON (parseJSON), genericParseJSON)
 import GHC.Generics (Generic)
-import System.Console.ANSI (Color)
 
 data Config = Config
-  { colorEnable :: Enable,
-    terminalEnable :: Enable,
-    fileEnable :: Enable,
-    -- | Minimal log level as an integer
-    minLevel :: Int
+  { configColorEnabled :: Bool,
+    configTerminalEnabled :: Bool,
+    configFileEnabled :: Bool,
+    configMinLevel :: Int
   }
   deriving (Show, Generic)
 
-instance FromJSON Config
-
-instance ToJSON Config
+instance FromJSON Config where
+  parseJSON = genericParseJSON $ deletePrefixOptions 6
 
 data Level
   = Debug -- Debug data
@@ -27,8 +25,12 @@ data Level
   | Critical -- Critical error leading to application termination
   deriving (Eq, Enum, Ord, Show)
 
-type ColorScheme = Color
+data ColorScheme
+  = BlueScheme
+  | CyanScheme
+  | GreenScheme
+  | YellowScheme
+  | BlackScheme
+  deriving (Show)
 
-type Enable = Bool
-
-data Settings = Settings {colorScheme :: ColorScheme, debugMode :: Enable} deriving (Show)
+data Settings = Settings {colorScheme :: ColorScheme, debugModeEnabled :: Bool} deriving (Show)

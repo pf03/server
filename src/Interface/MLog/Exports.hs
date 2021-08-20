@@ -26,9 +26,8 @@ import Interface.MLog.Functions as Functions
     writeWarnM,
   )
 import Interface.MLog.Types as Types
-  ( ColorScheme,
+  ( ColorScheme (..),
     Config (..),
-    Enable,
     Level (..),
     Settings (..),
   )

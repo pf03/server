@@ -9,7 +9,6 @@ import qualified Logic.IO.Response.Functions as Response
 import Network.Wai (Application)
 import qualified Network.Wai.Handler.Warp as Warp
 import Network.Wai.Internal (getRequestBodyChunk)
-import qualified System.Console.ANSI as Color
 import qualified Transformer.Exports as Transformer
 
 run :: IO ()
@@ -20,7 +19,7 @@ run = do
     Just config -> do
       let port = warpPort . Config.warp $ config
       let logConfig = Config.log config
-      Log.writeInfoColor logConfig Color.Green $ template "Start server. Listen to port {0}..." [show port]
+      Log.writeInfoColor logConfig Log.GreenScheme $ template "Start server. Listen to port {0}..." [show port]
       Warp.run port $ app config
 
 app :: Config -> Application

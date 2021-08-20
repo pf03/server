@@ -11,7 +11,6 @@ import qualified Interface.MCache.Exports as Cache
 import qualified Interface.MError.Exports as Error
 import qualified Interface.MLog.Exports as Log
 import qualified Logic.IO.Config as Config
-import qualified System.Console.ANSI as Color
 import Transformer.Types
   ( ConnectionDB (ConnectionDB),
     State (..),
@@ -57,7 +56,7 @@ showValue config value = do
   return ()
 
 logSettings0 :: Log.Settings
-logSettings0 = Log.Settings Color.Cyan True
+logSettings0 = Log.Settings Log.CyanScheme True
 
 -----------------------------Config--------------------------------------------
 configToState :: Config.Config -> Connection -> State

@@ -2,19 +2,20 @@ module Interface.MLog.Functions where
 
 import qualified Common.Color as Color
 import Common.Convert (Convert (convert))
-import Common.Functions ( putStrLnT )
+import Common.Functions (putStrLnT)
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
 import qualified Data.ByteString as B
 import Data.Char (toUpper)
 import Interface.MLog.Class (MLog (..))
 import Interface.MLog.Types
-  ( ColorScheme,
+  ( ColorScheme (BlackScheme),
     Config (..),
     Level (..),
     Settings (Settings),
   )
-import System.Console.ANSI (Color (Black, Blue, Green, Magenta, Red, Yellow))
+import System.Console.ANSI (Color (Blue, Green, Magenta, Red, Yellow))
+
 --import Prelude hiding (error)
 
 -----------------------------MLog----------------------------------------------
@@ -45,10 +46,16 @@ resetSettings = do
   setSettings colorScheme logEnable
 
 defaultSettings :: Settings
-defaultSettings = Settings Black True
+defaultSettings = Settings BlackScheme True
 
 defaultConfig :: Config
-defaultConfig = Config {colorEnable = False, terminalEnable = True, fileEnable = False, minLevel = 0}
+defaultConfig =
+  Config
+    { configColorEnabled = False,
+      configTerminalEnabled = True,
+      configFileEnabled = False,
+      configMinLevel = 0
+    }
 
 withLogM :: (MLog m, Show a) => m a -> m a
 withLogM m = do
@@ -108,17 +115,17 @@ writeCritical logConfig logSettings = writeMessageIO logConfig logSettings Criti
 -- for example based on writerT, or empty return () implementation
 -- Info can be shown in different color schemes, and for other levels the color corresponds to the level
 writeMessageIO :: MonadIO m => Config -> Settings -> Level -> String -> m ()
-writeMessageIO (Config enableColor enableTerminal enableFile minLevel0) (Settings colorScheme debugMode) level text = do
-  if level < toEnum minLevel0 && not debugMode
+writeMessageIO (Config colorEnabled terminalEnabled fileEnabled minLevel) (Settings colorScheme debugMode) level text = do
+  if level < toEnum minLevel && not debugMode
     then return ()
     else do
-      when (enableColor && enableTerminal) $ do
+      when (colorEnabled && terminalEnabled) $ do
         if level == Info
-          then Color.setSchemeT colorScheme
-          else Color.setColorT $ getColor level
-      when enableTerminal $ putStrLnT logText
-      when enableFile $ writeToFile logText
-      when (enableColor && enableTerminal) Color.resetColorSchemeT
+          then Color.setScheme colorScheme
+          else Color.setColor $ getColor level
+      when terminalEnabled $ putStrLnT logText
+      when fileEnabled $ writeToFile logText
+      when (colorEnabled && terminalEnabled) Color.resetColorScheme
   where
     logText :: String
     logText = map toUpper (show level) <> " " <> text
