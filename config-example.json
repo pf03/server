@@ -10,9 +10,9 @@
         "connectDatabase": "server"
     },
     "log":{
-        "colorEnable": true,
-        "terminalEnable": true,
-        "fileEnable": false,
+        "colorEnabled": true,
+        "terminalEnabled": true,
+        "fileEnabled": false,
         "minLevel": 0
     }
 }
