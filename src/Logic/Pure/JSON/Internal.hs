@@ -10,9 +10,7 @@ import Logic.Pure.JSON.Types
     Category (parent),
     Comment (Comment),
     Content (Content, contentPhotos, contentTags),
-    Draft (Draft, draftContent),
     Photo,
-    Post (Post, postContent),
     Tag,
     User,
   )
@@ -21,8 +19,8 @@ import Logic.Pure.JSON.Types
 -- Turn from 'Row' types to 'JSON' types
 
 turnContent :: Row.Content -> Author -> Category -> [Tag] -> [Photo] -> Content
-turnContent (Row.Content contentId _ contentName contentCreationDate _ contentText contentPhoto) author category =
-  Content contentId author contentName contentCreationDate category contentText contentPhoto
+turnContent (Row.Content contentId _ contentName contentCreationDate _ contentText contentPhoto contentIsDraft contentNewId) author category tags photos =
+  Content contentId author contentName contentCreationDate category contentText contentPhoto  tags photos contentIsDraft contentNewId
 
 turnAuthor :: Row.Author -> User -> Author
 turnAuthor (Row.Author authorId _ authorDescription) user = Author authorId user authorDescription
@@ -30,67 +28,18 @@ turnAuthor (Row.Author authorId _ authorDescription) user = Author authorId user
 turnComment :: Row.Comment -> User -> Comment
 turnComment (Row.Comment commentId _ _ commentCreationDate commentText) user = Comment commentId user commentCreationDate commentText
 
-turnPost :: Row.Post -> Content -> Post
-turnPost (Row.Post postId _) = Post postId
-
-turnDraft :: Row.Draft -> Content -> Draft
-turnDraft (Row.Draft draftId _ draftPostId) content = Draft draftId content draftPostId
-
------------------------------Getters-------------------------------------------
-getPostTags :: Post -> [Tag]
-getPostTags = contentTags . postContent
-
-getPostPhotos :: Post -> [Photo]
-getPostPhotos = contentPhotos . postContent
-
-getDraftTags :: Draft -> [Tag]
-getDraftTags = contentTags . draftContent
-
-getDraftPhotos :: Draft -> [Photo]
-getDraftPhotos = contentPhotos . draftContent
-
 -----------------------------Setters-------------------------------------------
-setPostTags :: [Tag] -> Post -> Post
-setPostTags tags post = post {postContent = newContent}
-  where
-    content = postContent post
-    newContent = content {contentTags = tags}
+setContentTags :: [Tag] -> Content -> Content
+setContentTags tags content = content {contentTags = tags}
 
-setPostPhotos :: [Photo] -> Post -> Post
-setPostPhotos photos post = post {postContent = newContent}
-  where
-    content = postContent post
-    newContent = content {contentPhotos = photos}
+setContentPhotos :: [Photo] -> Content -> Content
+setContentPhotos photos content = content {contentPhotos = photos}
 
-modifyPostTags :: ([Tag] -> [Tag]) -> Post -> Post
-modifyPostTags f post = setPostTags (f $ getPostTags post) post
+modifyContentTags :: ([Tag] -> [Tag]) -> Content -> Content
+modifyContentTags f content = setContentTags (f $ contentTags content) content
 
-modifyPostPhotos :: ([Photo] -> [Photo]) -> Post -> Post
-modifyPostPhotos f post = setPostPhotos (f $ getPostPhotos post) post
-
-setDraftTags :: [Tag] -> Draft -> Draft
-setDraftTags tags draft = draft {draftContent = newContent}
-  where
-    content = draftContent draft
-    newContent = content {contentTags = tags}
-
-setDraftPhotos :: [Photo] -> Draft -> Draft
-setDraftPhotos photos draft = draft {draftContent = newContent}
-  where
-    content = draftContent draft
-    newContent = content {contentPhotos = photos}
-
-modifyDraftTags :: ([Tag] -> [Tag]) -> Draft -> Draft
-modifyDraftTags f draft = setDraftTags (f $ getDraftTags draft) draft
-
-modifyDraftPhotos :: ([Photo] -> [Photo]) -> Draft -> Draft
-modifyDraftPhotos f draft = setDraftPhotos (f $ getDraftPhotos draft) draft
-
-setContentTags :: Content -> [Tag] -> Content
-setContentTags content tags = content {contentTags = tags}
-
-setPostContent :: Post -> Content -> Post
-setPostContent post content = post {postContent = content}
+modifyContentPhotos :: ([Photo] -> [Photo]) -> Content -> Content
+modifyContentPhotos f post = setContentPhotos (f $ contentPhotos post) post
 
 -----------------------------Data manipulation----------------------------------
 -- Here the JSON.Category type is used, which has already been checked for cyclic recurrence and correctness in JSON.evalCategory

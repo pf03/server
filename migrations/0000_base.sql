@@ -11,7 +11,7 @@ CREATE TABLE users (
 	user_login VARCHAR (50) unique not null,
 	pass VARCHAR (50) not null,
 	creation_date DATE not null,
-	is_admin Boolean not null
+	is_admin BOOLEAN not null
 );
 
 CREATE TABLE authors (
@@ -39,17 +39,9 @@ CREATE TABLE contents (
     creation_date DATE not null,
     category_id INTEGER not null REFERENCES categories (id),
     content_text TEXT not null,
-    main_photo VARCHAR (100)  not null
-);
-
-CREATE TABLE news (
-    id SERIAL PRIMARY KEY,
-    content_id INTEGER not null REFERENCES contents (id)
-);
-CREATE TABLE drafts (
-    id SERIAL PRIMARY KEY,
-    content_id INTEGER not null REFERENCES contents (id),
-    news_id INTEGER REFERENCES news (id)
+    main_photo VARCHAR (100)  not null,
+    is_draft BOOLEAN not null,
+    news_id INTEGER REFERENCES contents (id)
 );
 
 CREATE TABLE tags_to_contents (
@@ -66,7 +58,7 @@ CREATE TABLE photos (
 
 CREATE TABLE comments (
     id SERIAL PRIMARY KEY,
-    news_id INTEGER not null REFERENCES news (id),
+    news_id INTEGER not null REFERENCES contents (id),
     user_id INTEGER not null REFERENCES users (id),
     creation_date DATE not null,
     comment_text text not null

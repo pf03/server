@@ -15,10 +15,6 @@ type Category = Row.Category
 
 type Content = Row.Content :. Row.Category :. Row.Author :. Row.User :. Maybe Row.TagToContent :. Maybe Row.Tag :. Maybe Row.Photo
 
-type Draft = Row.Draft :. Content
-
-type Post = Row.Post :. Content
-
 type Tag = Row.Tag
 
-type Comment = Row.Comment :. Row.Post :. Row.User
+type Comment = Row.Comment :. Row.Content :. Row.User

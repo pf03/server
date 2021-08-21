@@ -1,22 +1,23 @@
 module Logic.DB.Select.Internal where
 
-import Logic.DB.Select.Templates ( paramToCondition )
 import Common.Functions (Template (template), (<$$>))
 import Data.Map ((!))
 import Database.PostgreSQL.Simple.SqlQQ (sql)
 import Database.PostgreSQL.Simple.Types as SQL (Query)
-import Interface.Class ( MCache, MError ) 
+import Interface.Class (MCache, MError)
 import qualified Interface.MCache.Exports as Cache
 import Interface.MDB.Templates
-    ( toQuery,
-      (<+>),
-      (<<+>>),
-      brackets,
-      concatWithOR,
-      exists,
-      inSubQueryM,
-      whereAllM )
+  ( brackets,
+    concatWithOR,
+    exists,
+    inSubQueryM,
+    toQuery,
+    whereAllM,
+    (<+>),
+    (<<+>>),
+  )
 import qualified Interface.MError.Exports as Error
+import Logic.DB.Select.Templates (paramToCondition)
 
 -----------------------------Migration-----------------------------------------
 selectMigrationsQuery :: Query
@@ -50,8 +51,7 @@ categoriesQuery = return selectCategoriesQuery <<+>> pagination
 selectDraftsQuery :: Query
 selectDraftsQuery =
   [sql|
-    SELECT * FROM drafts
-    LEFT JOIN contents ON contents.id = drafts.content_id
+    SELECT * FROM contents
     LEFT JOIN categories ON categories.id = contents.category_id
     LEFT JOIN authors ON authors.id = contents.author_id
     LEFT JOIN users ON users.id = authors.user_id
@@ -59,12 +59,20 @@ selectDraftsQuery =
     LEFT JOIN tags ON tags.id = tags_to_contents.tag_id
     LEFT JOIN photos ON photos.content_id = contents.id|]
 
+draftsQuery :: (MError m, MCache m) => m Query
+draftsQuery = do
+  paramUserId <- authUserIdParam
+  let conditions =
+        [ return [sql|contents.is_draft = TRUE|],
+          paramToCondition [sql|users.id|] paramUserId
+        ]
+  selectDraftsQuery `whereAllM` conditions <<+>> pagination
+
 -----------------------------Post----------------------------------------------
 selectPostsQuery :: Query
 selectPostsQuery =
   [sql|
-    SELECT * FROM posts
-    LEFT JOIN contents ON contents.id = posts.content_id
+    SELECT * FROM contents
     LEFT JOIN categories ON categories.id = contents.category_id
     LEFT JOIN authors ON authors.id = contents.author_id
     LEFT JOIN users ON users.id = authors.user_id
@@ -76,7 +84,8 @@ postsQuery :: (MError m, MCache m) => m SQL.Query
 postsQuery = do
   params <- Cache.getParams
   let conditions =
-        [ postIdsSubQuery [sql|tags_to_contents.tag_id|] (params ! "tag_id"),
+        [ return [sql|contents.is_draft = FALSE|],
+          postIdsSubQuery [sql|tags_to_contents.tag_id|] (params ! "tag_id"),
           containsCondition (params ! "contains"),
           paramToCondition [sql|contents.category_id|] $ params ! "category_id",
           paramToCondition [sql|contents.creation_date|] $ params ! "created_at",
@@ -88,12 +97,12 @@ postsQuery = do
   where
     postIdsSubQuery :: MError m => Query -> Cache.Param -> m Query
     postIdsSubQuery field (Cache.ParamAll vals) =
-      [sql|posts.id|]
-        `inSubQueryM` ([sql|SELECT posts.id FROM posts|] `whereAllM` map (existTagSubQuery field . Cache.ParamEq) vals)
+      [sql|contents.id|]
+        `inSubQueryM` ([sql|SELECT contents.id FROM contents|] `whereAllM` map (existTagSubQuery field . Cache.ParamEq) vals)
     postIdsSubQuery _ Cache.ParamNo = return [sql|TRUE|]
     postIdsSubQuery field param =
-      [sql|posts.id|]
-        `inSubQueryM` ([sql|SELECT posts.id FROM posts|] `whereAllM` [existTagSubQuery field param])
+      [sql|contents.id|]
+        `inSubQueryM` ([sql|SELECT contents.id FROM contents|] `whereAllM` [existTagSubQuery field param])
 
     containsCondition :: MError m => Cache.Param -> m Query
     containsCondition param = brackets . concatWithOR <$> subConditions
@@ -174,8 +183,8 @@ pagination = do
         quantity = 20
     _ -> Error.throw $ Error.patError "Select.pagination" param
 
-
 -----------------------------Auth----------------------------------------------
+
 -- * Admin can READ all publications
 
 authUserIdParam :: (MError m, MCache m) => m Cache.Param

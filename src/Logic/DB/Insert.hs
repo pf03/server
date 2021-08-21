@@ -119,16 +119,23 @@ insertDraft = do
   insertTagToContent Check
   [Only contentId] <-
     DB.queryM
-      [sql|INSERT into contents (author_id, content_name, creation_date, category_id, content_text, main_photo) values {0} RETURNING id|]
-      [rowEither params [Left "author_id", Left "content_name", Right [sql|current_date|], Left "category_id", Left "content_text", Left "main_photo"]]
+      [sql|INSERT into contents (author_id, content_name, creation_date, category_id, content_text, main_photo, is_draft, post_id) values {0} RETURNING id|]
+      [ rowEither
+          params
+          [ Left "author_id",
+            Left "content_name",
+            Right [sql|current_date|],
+            Left "category_id",
+            Left "content_text",
+            Left "main_photo",
+            Right [sql|TRUE|],
+            Right [sql|null|]
+          ]
+      ]
   Cache.addChanged Insert Content 1
   _ <- Cache.addIdParam "content_id" contentId
   insertTagToContent Execute
   insertPhotos
-  DB.insertM
-    Draft
-    [sql|INSERT into drafts (content_id) values ({0})|]
-    [cell $ ParamEq (Int contentId)]
 
 ----------------------------------Post-----------------------------------------
 publish :: MTrans m => Int -> m ()

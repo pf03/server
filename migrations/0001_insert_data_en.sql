@@ -56,7 +56,9 @@ INSERT INTO contents (
     creation_date,
     category_id,
     content_text,
-    main_photo
+    main_photo,
+    is_draft,
+    news_id
 )
 VALUES
     (
@@ -65,26 +67,28 @@ VALUES
         '2020-03-20',
         6,
         'Sostoyalsya ocherednoj reliz kompilyatora Glasgow Haskell Compiler.',
-        'logo.jpg'
+        'logo.jpg',
+        FALSE,
+        null
     ),(
         2,
         'Ya pomnyu chudnoe mgnovenye, chernovik',
         '1825-03-20',
         2,
         'CHernovik: Ya pomnyu chudnoe mgnovenye:\nPeredo mnoj yavilas ty,\nKak mimoletnoe videnye,\nKak genij chistoj krasoty.',
-        'pushkin.jpg'
+        'pushkin.jpg',
+        TRUE,
+        null
     ),(
         2,
         'Ya pomnyu chudnoe mgnovenye',
         '1825-03-20',
         2,
         'Ya pomnyu chudnoe mgnovenye:\nPeredo mnoj yavilas ty,\nKak mimoletnoe videnye,\nKak genij chistoj krasoty.',
-        'pushkin.jpg'
+        'pushkin.jpg',
+        FALSE,
+        null
     );
-
-INSERT INTO news (content_id) VALUES (1), (3);
-
-INSERT INTO drafts (content_id, news_id) VALUES (2, null);
 
 INSERT INTO tags_to_contents (content_id, tag_id) VALUES
     (1,1),(1,2),(1,5),(1,6),(1,9),(2,3),(3,3);

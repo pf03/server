@@ -17,26 +17,7 @@ import qualified Interface.MError.Exports as Error
 import qualified Logic.DB.Row as Row
 import qualified Logic.DB.Select.Exports as Select
 import Logic.Pure.JSON.Internal
-  ( getChildCategories,
-    getDraftPhotos,
-    getDraftTags,
-    getPostPhotos,
-    getPostTags,
-    modifyDraftPhotos,
-    modifyDraftTags,
-    modifyPostPhotos,
-    modifyPostTags,
-    setDraftPhotos,
-    setDraftTags,
-    setPostPhotos,
-    setPostTags,
-    turnAuthor,
-    turnComment,
-    turnContent,
-    turnDraft,
-    turnPost,
-  )
-import Logic.Pure.JSON.Types (Author, Category (Category), Comment, Draft, Post)
+import Logic.Pure.JSON.Types 
 
 -----------------------------Evaluate------------------------------------------
 -- Evaluate from 'Select' types to 'JSON' types
@@ -104,53 +85,27 @@ getCategoryById categoryId categories err =
           Error.throwDB err []
         Just category -> return category
 
-evalDrafts :: MError m => [Category] -> [Select.Draft] -> m [Draft]
-evalDrafts cs l = uniteDrafts <$> mapM (evalDraft cs) l
+evalContents :: MError m => [Category] -> [Select.Content] -> m [Content]
+evalContents categories list = uniteContents <$> mapM (evalContent categories) list
 
-evalPosts :: MError m => [Category] -> [Select.Post] -> m [Post]
-evalPosts cs l = unitePosts <$> mapM (evalPost cs) l
-
-evalPost :: MError m => [Category] -> Select.Post -> m Post
-evalPost categories (rowPost :. rowContent :. rowCategory :. rowAuthor :. user :. _ :. mTag :. mPhoto) = do
+evalContent :: MError m => [Category] -> Select.Content -> m Content
+evalContent categories (rowContent :. rowCategory :. rowAuthor :. user :. _ :. mTag :. mPhoto) = do
   let author = turnAuthor rowAuthor user
-  let postId = Row.postId rowPost
+  let contentId = Row.contentId rowContent
   let categoryId = Row.categoryId rowCategory
   category <-
     getCategoryById categoryId categories $
-      template "Post {0} belongs to a category that does not exist {1}" [show postId, show categoryId]
-  let content = turnContent rowContent author category (maybeToList mTag) (maybeToList mPhoto)
-  let post = turnPost rowPost content
-  return post
+      template "Post {0} belongs to a category that does not exist {1}" [show contentId, show categoryId]
+  return $ turnContent rowContent author category (maybeToList mTag) (maybeToList mPhoto)
 
-evalDraft :: MError m => [Category] -> Select.Draft -> m Draft
-evalDraft categories (rowDraft :. rowContent :. rowCategory :. rowAuthor :. user :. _ :. mTag :. mPhoto) = do
-  let author = turnAuthor rowAuthor user
-  let draftId = Row.draftId rowDraft
-  let categoryId = Row.categoryId rowCategory
-  category <-
-    getCategoryById categoryId categories $
-      template "Draft {0} belongs to a category that does not exist {1}" [show draftId, show categoryId]
-  let content = turnContent rowContent author category (maybeToList mTag) (maybeToList mPhoto)
-  let draft = turnDraft rowDraft content
-  return draft
-
-unitePosts :: [Post] -> [Post]
-unitePosts = map (modifyPostTags filterById . modifyPostPhotos filterById) . unite appendPost
+uniteContents :: [Content] -> [Content]
+uniteContents = map (modifyContentTags filterById . modifyContentPhotos filterById) . unite appendContent
   where
-    appendPost :: Post -> Post -> Post
-    appendPost post1 post2 = setPostTags tags . setPostPhotos photos $ post1
+    appendContent :: Content -> Content -> Content
+    appendContent content1 content2 = setContentTags tags . setContentPhotos photos $ content1
       where
-        tags = getPostTags post1 <> getPostTags post2
-        photos = getPostPhotos post1 <> getPostPhotos post2
-
-uniteDrafts :: [Draft] -> [Draft]
-uniteDrafts = map (modifyDraftTags filterById . modifyDraftPhotos filterById) . unite appendDraft
-  where
-    appendDraft :: Draft -> Draft -> Draft
-    appendDraft draft1 draft2 = setDraftTags tags . setDraftPhotos photos $ draft1
-      where
-        tags = getDraftTags draft1 <> getDraftTags draft2
-        photos = getDraftPhotos draft1 <> getDraftPhotos draft2
+        tags = contentTags content1 <> contentTags content2
+        photos = contentPhotos content1 <> contentPhotos content2
 
 evalAuthor :: Select.Author -> Author
 evalAuthor (author :. user) = turnAuthor author user

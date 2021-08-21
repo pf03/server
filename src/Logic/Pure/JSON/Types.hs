@@ -2,35 +2,13 @@
 {-# LANGUAGE FlexibleInstances #-}
 
 module Logic.Pure.JSON.Types where
-import Common.Identifiable ( Identifiable(..) )
-import Common.Types ( Path )
-import Data.Aeson ( ToJSON )
+
+import Common.Identifiable (Identifiable (..))
+import Common.Types (Path)
+import Data.Aeson (ToJSON)
 import Data.Text (Text)
 import GHC.Generics (Generic)
 import qualified Logic.DB.Row as Row
-
-data Post = Post
-  { postId :: Int,
-    postContent :: Content
-  }
-  deriving (Show, Generic)
-
-instance ToJSON Post
-
-instance Identifiable Post where
-  getId = postId
-
-data Draft = Draft
-  { draftId :: Int,
-    draftContent :: Content,
-    draftPostId :: Maybe Int
-  }
-  deriving (Show, Generic)
-
-instance ToJSON Draft
-
-instance Identifiable Draft where
-  getId = draftId
 
 data Content = Content
   { contentId :: Int,
@@ -41,7 +19,9 @@ data Content = Content
     contentText :: Text,
     contentPhoto :: Path,
     contentTags :: [Tag],
-    contentPhotos :: [Photo]
+    contentPhotos :: [Photo],
+    contentIsDraft :: Bool,
+    contentPostId :: Maybe Int --the postId this draft is related to (when contentIsDraft = True)
   }
   deriving (Show, Generic)
 

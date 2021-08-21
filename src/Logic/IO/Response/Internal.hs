@@ -112,31 +112,31 @@ encode ta = do
 showType :: Typeable a => a -> String
 showType = show . typeOf
 
-getPosts :: MTrans m => m [JSON.Post]
+getPosts :: MTrans m => m [JSON.Content]
 getPosts = do
   categories <- getAllCategories
   _ <- Cache.modifyParamsM $ JSON.evalParams categories
   selectPosts <- Select.selectPosts
-  JSON.evalPosts categories selectPosts
+  JSON.evalContents categories selectPosts
 
-getDrafts :: MTrans m => m [JSON.Draft]
+getDrafts :: MTrans m => m [JSON.Content]
 getDrafts = do
   categories <- getAllCategories
   selectDrafts <- Select.selectDrafts
-  JSON.evalDrafts categories selectDrafts
+  JSON.evalContents categories selectDrafts
 
-getPost :: MTrans m => Int -> m (Maybe JSON.Post)
+getPost :: MTrans m => Int -> m (Maybe JSON.Content)
 getPost paramId = do
   categories <- getAllCategories
   selectPosts <- Select.selectPost paramId
-  jsonPosts <- JSON.evalPosts categories selectPosts
+  jsonPosts <- JSON.evalContents categories selectPosts
   return $ listToMaybe jsonPosts
 
-getDraft :: MTrans m => Int -> m (Maybe JSON.Draft)
+getDraft :: MTrans m => Int -> m (Maybe JSON.Content)
 getDraft paramId = do
   categories <- getAllCategories
   selectDrafts <- Select.selectDraft paramId
-  jsonDrafts <- JSON.evalDrafts categories selectDrafts
+  jsonDrafts <- JSON.evalContents categories selectDrafts
   return $ listToMaybe jsonDrafts
 
 getAllCategories :: MTrans m => m [JSON.Category]

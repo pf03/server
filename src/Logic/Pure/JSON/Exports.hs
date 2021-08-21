@@ -8,15 +8,12 @@ import Logic.Pure.JSON.Functions as Functions
     evalCategory,
     evalComment,
     evalComments,
-    evalDraft,
-    evalDrafts,
+    evalContent,
+    evalContents,
     evalParams,
-    evalPost,
-    evalPosts,
     getCategoryById,
     getParents,
-    uniteDrafts,
-    unitePosts,
+    uniteContents,
     _evalCategory,
   )
 import Logic.Pure.JSON.Types as Types
@@ -24,9 +21,7 @@ import Logic.Pure.JSON.Types as Types
     Category (..),
     Comment (..),
     Content (..),
-    Draft (..),
     Photo,
-    Post (..),
     Tag,
     User,
   )

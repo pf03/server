@@ -1,6 +1,5 @@
 module Logic.DB.Select.Functions where
 
-import Logic.DB.Select.Templates ( paramToCondition )
 import Common.Functions (Template (template))
 import Data.Maybe (listToMaybe)
 import Database.PostgreSQL.Simple.SqlQQ (sql)
@@ -9,23 +8,24 @@ import qualified Interface.MCache.Exports as Cache
 import qualified Interface.MDB.Exports as DB
 import Interface.MDB.Templates (toQuery, whereAll, whereAllM, (<+>), (<<+>>))
 import Logic.DB.Select.Internal
-    ( authUserIdParam,
-      commentsQuery,
-      tagsQuery,
-      selectTagsQuery,
-      postsQuery,
-      selectPostsQuery,
-      selectDraftsQuery,
-      categoriesQuery,
-      selectCategoriesQuery,
-      authorsQuery,
-      selectAuthorsQuery,
-      pagination,
-      usersQuery,
-      selectUsersQuery,
-      selectMigrationsQuery)
-import Logic.DB.Select.Types
-    ( Author, Category, Comment, Draft, Migration, Post, Tag, User )
+  ( authUserIdParam,
+    authorsQuery,
+    categoriesQuery,
+    commentsQuery,
+    draftsQuery,
+    postsQuery,
+    selectAuthorsQuery,
+    selectCategoriesQuery,
+    selectDraftsQuery,
+    selectMigrationsQuery,
+    selectPostsQuery,
+    selectTagsQuery,
+    selectUsersQuery,
+    tagsQuery,
+    usersQuery,
+  )
+import Logic.DB.Select.Templates (paramToCondition)
+import Logic.DB.Select.Types (Author, Category, Comment, Content, Migration, Tag, User)
 
 -----------------------------Migration----------------------------------------------
 selectAllMigrations :: MDB m => m [Migration]
@@ -65,31 +65,33 @@ selectAllCategories :: MDB m => m [Category]
 selectAllCategories = DB.query selectCategoriesQuery
 
 -----------------------------Draft---------------------------------------------
-selectDraft :: MTrans m => Int -> m [Draft]
+selectDraft :: MTrans m => Int -> m [Content]
 selectDraft paramId = do
   paramUserId <- authUserIdParam
   conditions <-
     sequenceA
-      [ paramToCondition [sql|drafts.id|] $ Cache.ParamEq (Cache.Int paramId),
+      [ return [sql|contents.is_draft = TRUE|],
+        paramToCondition [sql|contents.id|] $ Cache.ParamEq (Cache.Int paramId),
         paramToCondition [sql|users.id|] paramUserId
       ]
   let query = selectDraftsQuery `whereAll` conditions
   DB.query query
 
-selectDrafts :: MTrans m => m [Draft]
-selectDrafts = do
-  paramUserId <- authUserIdParam
-  let conditions = [paramToCondition [sql|users.id|] paramUserId]
-  query <- selectDraftsQuery `whereAllM` conditions <<+>> pagination
-  DB.query query
+selectDrafts :: MTrans m => m [Content]
+selectDrafts = DB.query =<< draftsQuery
 
 -----------------------------Post----------------------------------------------
-selectPost :: MDB m => Int -> m [Post]
-selectPost paramId = DB.query query
-  where
-    query = selectPostsQuery <+> template [sql|WHERE posts.id = {0}|] [toQuery paramId]
+selectPost :: MDB m => Int -> m [Content]
+selectPost paramId = do
+  conditions <-
+    sequenceA
+        [ return [sql|contents.is_draft = FALSE|],
+          paramToCondition [sql|contents.id|] $ Cache.ParamEq (Cache.Int paramId)
+        ]
+  let query = selectPostsQuery `whereAll` conditions
+  DB.query query
 
-selectPosts :: MTrans m => m [Post]
+selectPosts :: MTrans m => m [Content]
 selectPosts = DB.query =<< postsQuery
 
 -----------------------------Tag-----------------------------------------------

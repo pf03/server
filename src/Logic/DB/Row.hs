@@ -81,7 +81,9 @@ data Content = Content
     contentCreationDate :: Date,
     contentCategoryId :: Int,
     contentText :: Text,
-    contentPhoto :: Path
+    contentPhoto :: Path,
+    contentIsDraft :: Bool,
+    contentPost :: Maybe Int --the postId this draft is related to (when contentIsDraft = True)
   }
   deriving (Show, Generic, FromRow)
 
@@ -90,29 +92,6 @@ instance ToJSON Content
 instance Identifiable Content where
   getId = contentId
 
-data Post = Post
-  { postId :: Int,
-    postContentId :: Int
-  }
-  deriving (Show, Generic, FromRow)
-
-instance ToJSON Post
-
-instance Identifiable Post where
-  getId = postId
-
-data Draft = Draft
-  { draftId :: Int,
-    draftContentId :: Int,
-    draftPostId :: Maybe Int
-  }
-  deriving (Show, Generic, FromRow)
-
-instance ToJSON Draft
-
-instance Identifiable Draft where
-  getId = draftId
-
 data TagToContent = TagToContent
   { tagToContentContentId :: Int,
     tagToContentTagId :: Int
@@ -120,9 +99,6 @@ data TagToContent = TagToContent
   deriving (Show, Generic, FromRow)
 
 instance ToJSON TagToContent
-
--- instance Identifiable TagToContent where
---   getId = tagToContentId
 
 data Photo = Photo
   { photoId :: Int,
