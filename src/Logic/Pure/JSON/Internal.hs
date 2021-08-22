@@ -19,14 +19,14 @@ import Logic.Pure.JSON.Types
 -- Turn from 'Row' types to 'JSON' types
 
 turnContent :: Row.Content -> Author -> Category -> [Tag] -> Content
-turnContent (Row.Content contentId _ contentName contentCreationDate _ contentText contentMainPhoto (PGArray contentPhotos) contentIsDraft contentPostId) author category tags =
-  Content contentId author contentName contentCreationDate category contentText contentMainPhoto contentPhotos tags contentIsDraft contentPostId
+turnContent (Row.Content contentId _ name creationDate _ text mainPhoto (PGArray photos) isDraft postId) author category tags =
+  Content contentId author name creationDate category text mainPhoto photos tags isDraft postId
 
 turnAuthor :: Row.Author -> User -> Author
-turnAuthor (Row.Author authorId _ authorDescription) user = Author authorId user authorDescription
+turnAuthor (Row.Author authorId _ description) user = Author authorId user description
 
 turnComment :: Row.Comment -> User -> Comment
-turnComment (Row.Comment commentId _ _ commentCreationDate commentText) user = Comment commentId user commentCreationDate commentText
+turnComment (Row.Comment commentId _ _ creationDate text) user = Comment commentId user creationDate text
 
 -----------------------------Setters-------------------------------------------
 setContentTags :: [Tag] -> Content -> Content

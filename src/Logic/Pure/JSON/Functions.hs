@@ -109,9 +109,7 @@ uniteContents :: [Content] -> [Content]
 uniteContents = map (modifyContentTags filterById) . unite appendContent
   where
     appendContent :: Content -> Content -> Content
-    appendContent content1 content2 = setContentTags tags content1
-      where
-        tags = contentTags content1 <> contentTags content2
+    appendContent content1 content2 = setContentTags (contentTags content1 <> contentTags content2) content1
 
 evalAuthor :: Select.Author -> Author
 evalAuthor (author :. user) = turnAuthor author user
