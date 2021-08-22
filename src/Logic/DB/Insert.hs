@@ -15,9 +15,6 @@ import Interface.MCache.Types
         Category,
         Comment,
         Content,
-        Draft,
-        Photo,
-        Post,
         User
       ),
     Auth (AuthAdmin, AuthUser),
@@ -29,7 +26,7 @@ import Interface.MCache.Types
 import qualified Interface.MDB.Exports as DB
 import Interface.MDB.Templates (concatWith, list, toQuery, whereAll)
 import qualified Interface.MError.Exports as Error
-import Logic.DB.Select.Templates ( paramToCondition, paramToQuery, valToQuery, valListToQuery )
+import Logic.DB.Select.Templates (paramToCondition, paramToQuery, valListToQuery, valToQuery)
 
 ----------------------------------Migration------------------------------------
 
@@ -146,16 +143,16 @@ publish contentId = do
     DB.queryM
       [sql|SELECT post_id FROM contents WHERE contents.id = {0}|]
       [paramToQuery $ params ! "content_id"]
-  DB.update Content
-        [sql|UPDATE contents SET post_id = NULL, is_draft = FALSE WHERE id = {0}|]
-        [toQuery (contentId :: Int)] -- first publish
+  DB.update
+    Content
+    [sql|UPDATE contents SET post_id = NULL, is_draft = FALSE WHERE id = {0}|]
+    [toQuery (contentId :: Int)] -- first publish
   case mPostId :: Maybe Int of
     Nothing -> return ()
     Just postId -> do
       -- delete old content, because it's not used anywhere
       DB.delete Content [sql|DELETE FROM contents WHERE contents.id = {0} |] [toQuery (postId :: Int)]
       DB.execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [toQuery postId]
-      DB.delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [toQuery postId]
 
 ----------------------------------Comment--------------------------------------
 insertComment :: MTrans m => Int -> m ()
@@ -244,8 +241,8 @@ rowEither params eNameQueries = list <$> mapM helper eNameQueries
       Right query -> return query
 
 cell :: MError m => Param -> m Query
-cell (ParamEq v) = return $ valToQuery v
-cell (ParamAll list) = return $ valListToQuery list
+cell (ParamEq val) = return $ valToQuery val
+cell (ParamAll vals) = return $ valListToQuery vals
 cell ParamNo = return [sql|null|]
 cell param = Error.throw $ Error.patError "Insert.cell" param
 

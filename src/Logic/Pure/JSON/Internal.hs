@@ -1,16 +1,16 @@
 module Logic.Pure.JSON.Internal where
 
-import Common.Identifiable ( Identifiable(getId) )
+import Common.Identifiable (Identifiable (getId))
+import Database.PostgreSQL.Simple.Types (PGArray (PGArray))
 import Interface.Class (MError)
 import Interface.MCache.Types (Param (ParamIn, ParamNo), Val (Int))
 import qualified Interface.MError.Exports as Error
 import qualified Logic.DB.Row as Row
-import Database.PostgreSQL.Simple.Types ( PGArray(PGArray) )
 import Logic.Pure.JSON.Types
   ( Author (Author),
     Category (parent),
     Comment (Comment),
-    Content (Content, contentPhotos, contentTags),
+    Content (Content, contentTags),
     Tag,
     User,
   )
@@ -34,7 +34,6 @@ setContentTags tags content = content {contentTags = tags}
 
 modifyContentTags :: ([Tag] -> [Tag]) -> Content -> Content
 modifyContentTags f content = setContentTags (f $ contentTags content) content
-
 
 -----------------------------Data manipulation----------------------------------
 -- Here the JSON.Category type is used, which has already been checked for cyclic recurrence and correctness in JSON.evalCategory

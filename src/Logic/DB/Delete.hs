@@ -5,22 +5,7 @@ import Control.Monad.Identity (when)
 import Database.PostgreSQL.Simple.SqlQQ (sql)
 import Database.PostgreSQL.Simple.Types as SQL (Query)
 import Interface.Class (MDB, MTrans)
-import qualified Interface.MCache.Exports as Cache
-import Interface.MCache.Types
-  ( APIType
-      ( Author,
-        Category,
-        Comment,
-        Content,
-        Draft,
-        Photo,
-        Post,
-        Tag,
-        User
-      ),
-    Param (ParamEq),
-    Val (Int),
-  )
+import Interface.MCache.Types (APIType (Author, Category, Comment, Content, Tag, User))
 import qualified Interface.MDB.Exports as DB
 import Interface.MDB.Templates (toQuery)
 import Interface.MError.Exports as Error

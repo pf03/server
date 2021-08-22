@@ -6,7 +6,7 @@ import Database.PostgreSQL.Simple.SqlQQ (sql)
 import Interface.Class (MDB, MTrans)
 import qualified Interface.MCache.Exports as Cache
 import qualified Interface.MDB.Exports as DB
-import Interface.MDB.Templates (toQuery, whereAll, whereAllM, (<+>), (<<+>>))
+import Interface.MDB.Templates (toQuery, whereAll, (<+>))
 import Logic.DB.Select.Internal
   ( authUserIdParam,
     authorsQuery,
@@ -85,9 +85,9 @@ selectPost :: MDB m => Int -> m [Content]
 selectPost paramId = do
   conditions <-
     sequenceA
-        [ return [sql|contents.is_draft = FALSE|],
-          paramToCondition [sql|contents.id|] $ Cache.ParamEq (Cache.Int paramId)
-        ]
+      [ return [sql|contents.is_draft = FALSE|],
+        paramToCondition [sql|contents.id|] $ Cache.ParamEq (Cache.Int paramId)
+      ]
   let query = selectPostsQuery `whereAll` conditions
   DB.query query
 

@@ -3,7 +3,7 @@
 module Logic.Pure.JSON.Functions where
 
 import Common.Functions (Template (template), adjustM, maybeToList)
-import Common.Identifiable ( filterById, findById, unite )
+import Common.Identifiable (filterById, findById, unite)
 import Control.Monad.Except (when)
 import qualified Data.Map as M
 import Database.PostgreSQL.Simple (type (:.) ((:.)))
@@ -17,17 +17,14 @@ import qualified Interface.MError.Exports as Error
 import qualified Logic.DB.Row as Row
 import qualified Logic.DB.Select.Exports as Select
 import Logic.Pure.JSON.Internal
-    ( getChildCategories,
-      modifyContentTags,
-      setContentTags,
-      turnAuthor,
-      turnComment,
-      turnContent )
-import Logic.Pure.JSON.Types
-    ( Author,
-      Category(Category),
-      Comment,
-      Content(contentTags, contentPhotos) ) 
+  ( getChildCategories,
+    modifyContentTags,
+    setContentTags,
+    turnAuthor,
+    turnComment,
+    turnContent,
+  )
+import Logic.Pure.JSON.Types (Author, Category (Category), Comment, Content (contentTags))
 
 -----------------------------Evaluate------------------------------------------
 -- Evaluate from 'Select' types to 'JSON' types
@@ -112,10 +109,9 @@ uniteContents :: [Content] -> [Content]
 uniteContents = map (modifyContentTags filterById) . unite appendContent
   where
     appendContent :: Content -> Content -> Content
-    appendContent content1 content2 = setContentTags tags $ content1
+    appendContent content1 content2 = setContentTags tags content1
       where
         tags = contentTags content1 <> contentTags content2
-        photos = contentPhotos content1 <> contentPhotos content2
 
 evalAuthor :: Select.Author -> Author
 evalAuthor (author :. user) = turnAuthor author user

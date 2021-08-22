@@ -9,7 +9,7 @@ import Database.PostgreSQL.Simple.Types as SQL (Only (Only), Query)
 import Interface.Class (MCache, MError, MTrans)
 import qualified Interface.MCache.Exports as Cache
 import Interface.MCache.Types
-  ( APIType (Author, Category, Content, Photo, Tag, User),
+  ( APIType (Author, Category, Content, Tag, User),
     Auth (AuthAdmin, AuthNo, AuthUser),
     Param (ParamAll, ParamEq, ParamNo, ParamNull),
     ParamsMap,
