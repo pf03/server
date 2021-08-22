@@ -19,8 +19,8 @@ import Interface.MCache.Types
 import qualified Interface.MDB.Exports as DB
 import Interface.MDB.Templates (concatWith, toQuery, whereAllM)
 import qualified Interface.MError.Exports as Error
+import Logic.DB.Insert (checkExist, rowEither)
 import qualified Logic.DB.Insert as Insert
-import Logic.DB.Insert ( checkExist, rowEither ) 
 import Logic.DB.Select.Templates
   ( paramToCondition,
     paramToQuery,
@@ -35,7 +35,9 @@ updateUser paramId = do
   -- Login is required to generate new password
   [Only login] <- DB.query $ template [sql|SELECT users.user_login FROM users WHERE users.id = {0}|] [toQuery paramId]
   params <- Cache.addStrParam "user_login" login
-  DB.updateM User [sql|UPDATE users SET {0} WHERE id = {1}|]
+  DB.updateM
+    User
+    [sql|UPDATE users SET {0} WHERE id = {1}|]
     [updates params ["first_name", "last_name", "avatar", "pass"], return $ toQuery paramId]
 
 ----------------------------------Author---------------------------------------
@@ -44,7 +46,9 @@ updateAuthor paramId = do
   params <- Cache.addIdParam "id" paramId
   checkExist "id" [sql|SELECT 1 FROM authors WHERE authors.id = {0}|]
   checkExist "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
-  DB.updateM Author [sql|UPDATE authors SET {0} WHERE id = {1}|]
+  DB.updateM
+    Author
+    [sql|UPDATE authors SET {0} WHERE id = {1}|]
     [updates params ["user_id", "description"], return $ toQuery paramId]
 
 ----------------------------------Category-------------------------------------
@@ -53,7 +57,9 @@ updateCategory paramId = do
   params <- Cache.addIdParam "id" paramId
   checkExist "id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
   checkExist "parent_id" [sql|SELECT 1 FROM categories WHERE categories.parent_id = {0}|]
-  DB.updateM Category [sql|UPDATE categories SET {0} WHERE id = {1}|]
+  DB.updateM
+    Category
+    [sql|UPDATE categories SET {0} WHERE id = {1}|]
     [updates params ["parent_id", "category_name"], return $ toQuery paramId]
 
 ----------------------------------Tag------------------------------------------
@@ -61,7 +67,9 @@ updateTag :: MTrans m => Int -> m ()
 updateTag paramId = do
   params <- Cache.addIdParam "id" paramId
   checkExist "id" [sql|SELECT 1 FROM tags WHERE tags.id = {0}|]
-  DB.updateM Tag [sql|UPDATE tags SET tag_name = {0} WHERE id = {1}|]
+  DB.updateM
+    Tag
+    [sql|UPDATE tags SET tag_name = {0} WHERE id = {1}|]
     [paramToQuery $ params ! "tag_name", return $ toQuery paramId]
 
 updateTagToContent :: MTrans m => Action -> m ()
@@ -79,7 +87,9 @@ updateDraft paramId = do
   checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
   updateTagToContent Check
   ParamEq (Int contentId) <- Cache.getParam "content_id"
-  DB.updateM Content [sql|UPDATE contents SET {0} WHERE id = {1}|]
+  DB.updateM
+    Content
+    [sql|UPDATE contents SET {0} WHERE id = {1}|]
     [updates params ["content_name", "category_id", "content_text", "main_photo"], return $ toQuery contentId]
   updateTagToContent Execute
   updatePhotos
@@ -89,14 +99,12 @@ checkAuthExistDraft :: MTrans m => Int -> m ParamsMap
 checkAuthExistDraft paramId = do
   query <-
     [sql|
-        SELECT users.id, authors.id, contents.id FROM drafts
-        LEFT JOIN contents ON contents.id = drafts.content_id
+        SELECT users.id, authors.id, contents.id FROM contents
         LEFT JOIN authors ON authors.id = contents.author_id
         LEFT JOIN users ON users.id = authors.user_id
     |]
-      `whereAllM` [paramToCondition [sql|drafts.id|] $ ParamEq (Int paramId)]
+      `whereAllM` [paramToCondition [sql|contents.id|] $ ParamEq (Int paramId)]
   (userId, authorId, contentId) <- checkAuthExist paramId "draft_id" query
-  Cache.addIdParam_ "id" paramId
   Cache.addIdParam_ "user_id" userId
   Cache.addIdParam_ "author_id" authorId
   Cache.addIdParam "content_id" contentId
@@ -111,13 +119,20 @@ updatePost paramId = do
   Insert.insertTagToContent Check
   [Only contentId] <-
     DB.queryM
-      [sql|INSERT into contents (author_id, content_name, creation_date, category_id, content_text, main_photo) values {0} RETURNING id|]
-      [rowEither params [Left "author_id", Left "content_name", Right [sql|current_date|], Left "category_id", Left "content_text", Left "main_photo"]]
+      [sql|INSERT into contents (author_id, content_name, creation_date, category_id, content_text, main_photo, is_draft, post_id) values {0} RETURNING id|]
+      [ rowEither
+          params
+          [ Left "author_id",
+            Left "content_name",
+            Right [sql|current_date|],
+            Left "category_id",
+            Left "content_text",
+            Left "main_photo",
+            Right [sql|TRUE|],
+            Right $ toQuery paramId
+          ]
+      ]
   Cache.addChanged Insert Content 1
-  DB.insert
-    Draft
-    [sql|INSERT into drafts (content_id, post_id) values ({0}, {1})|]
-    [toQuery contentId, toQuery paramId]
   Cache.addIdParam_ "content_id" contentId -- update param
   Insert.insertTagToContent Execute
   Insert.insertPhotos
@@ -130,14 +145,12 @@ checkAuthExistPost :: MTrans m => Int -> m ParamsMap
 checkAuthExistPost paramId = do
   query <-
     [sql|
-        SELECT users.id, authors.id, contents.id FROM posts
-        LEFT JOIN contents ON contents.id = posts.content_id
+        SELECT users.id, authors.id, contents.id FROM contents
         LEFT JOIN authors ON authors.id = contents.author_id
         LEFT JOIN users ON users.id = authors.user_id
     |]
-      `whereAllM` [paramToCondition [sql|posts.id|] $ ParamEq (Int paramId)]
+      `whereAllM` [paramToCondition [sql|contents.id|] $ ParamEq (Int paramId)]
   (userId, authorId, contentId) <- checkAuthExist paramId "post_id" query
-  Cache.addIdParam_ "id" paramId
   Cache.addIdParam_ "user_id" userId
   Cache.addIdParam_ "author_id" authorId
   Cache.addIdParam "content_id" contentId

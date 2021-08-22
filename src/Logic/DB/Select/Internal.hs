@@ -124,10 +124,10 @@ postsQuery = do
       condition <- paramToCondition field param
       return $
         exists $
-          [sql| SELECT 1 FROM contents
-            LEFT JOIN tags_to_contents ON contents.id = tags_to_contents.content_id
+          [sql| SELECT 1 FROM contents AS contents_with_tag
+            LEFT JOIN tags_to_contents ON contents_with_tag.id = tags_to_contents.content_id
             LEFT JOIN tags ON tags.id = tags_to_contents.tag_id
-            WHERE contents.id = posts.content_id
+            WHERE contents_with_tag.id = contents.id
             AND |]
             <+> condition
 

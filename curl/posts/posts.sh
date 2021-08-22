@@ -19,7 +19,6 @@ curl --data "contains__like=haskell" ${URL}
 curl --data "order_by=fake" ${URL}
 curl --data "order_by=created_at" ${URL}
 curl --data "order_by=author_name" ${URL}
-curl --data "order_by=author_name" ${URL}
 curl --data "order_by=category_id" ${URL}
 curl --data "order_by=photos" ${URL}
 curl --data "page=1" ${URL}

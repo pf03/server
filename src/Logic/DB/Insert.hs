@@ -139,31 +139,23 @@ insertDraft = do
 
 ----------------------------------Post-----------------------------------------
 publish :: MTrans m => Int -> m ()
-publish paramId = do
-  params <- Cache.addIdParam "draft_id" paramId
-  checkExist "draft_id" [sql|SELECT 1 FROM drafts WHERE drafts.id = {0}|]
-  [(contentId, mPostId)] <-
+publish contentId = do
+  params <- Cache.addIdParam "content_id" contentId
+  checkExist "content_id" [sql|SELECT 1 FROM contents WHERE contents.id = {0}|]
+  [Only mPostId] <-
     DB.queryM
-      [sql|SELECT content_id, post_id FROM drafts WHERE drafts.id = {0}|]
-      [paramToQuery $ params ! "draft_id"]
-  case mPostId :: Maybe Int of
-    Nothing -> do
-      DB.insert
-        Post
-        [sql|INSERT into posts (content_id) values ({0})|]
+      [sql|SELECT post_id FROM contents WHERE contents.id = {0}|]
+      [paramToQuery $ params ! "content_id"]
+  DB.update Content
+        [sql|UPDATE contents SET post_id = NULL, is_draft = FALSE WHERE id = {0}|]
         [toQuery (contentId :: Int)] -- first publish
+  case mPostId :: Maybe Int of
+    Nothing -> return ()
     Just postId -> do
-      [Only oldContentId] <-
-        DB.query $
-          template
-            [sql|SELECT content_id FROM posts WHERE posts.id = {0}|]
-            [toQuery postId]
-      DB.update Post [sql|UPDATE posts SET content_id = {0} WHERE posts.id = {1}|] [toQuery contentId, toQuery postId]
       -- delete old content, because it's not used anywhere
-      DB.delete Content [sql|DELETE FROM contents WHERE contents.id = {0} |] [toQuery (oldContentId :: Int)]
-      DB.execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [toQuery oldContentId]
-      DB.delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [toQuery oldContentId]
-  DB.deleteM Draft [sql|DELETE FROM drafts WHERE drafts.id = {0}|] [paramToQuery $ params ! "draft_id"]
+      DB.delete Content [sql|DELETE FROM contents WHERE contents.id = {0} |] [toQuery (postId :: Int)]
+      DB.execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [toQuery postId]
+      DB.delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [toQuery postId]
 
 ----------------------------------Comment--------------------------------------
 insertComment :: MTrans m => Int -> m ()
