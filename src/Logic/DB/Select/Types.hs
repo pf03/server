@@ -13,7 +13,7 @@ type Author = Row.Author :. Row.User
 
 type Category = Row.Category
 
-type Content = Row.Content :. Row.Category :. Row.Author :. Row.User :. Maybe Row.TagToContent :. Maybe Row.Tag :. Maybe Row.Photo
+type Content = Row.Content :. Row.Category :. Row.Author :. Row.User :. Maybe Row.TagToContent :. Maybe Row.Tag
 
 type Tag = Row.Tag
 

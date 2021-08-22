@@ -1,4 +1,4 @@
-module Interface.MDB.Templates where 
+module Interface.MDB.Templates where
 
 import Common.Convert (Convert (..))
 import Common.Functions (Template (template), (<$$>))
@@ -10,7 +10,7 @@ import Database.PostgreSQL.Simple.Types (Query (Query))
 whereAll :: Query -> [Query] -> Query
 whereAll query0 conditions = concat2 [sql|WHERE|] query0 $ concatWithAND conditions
 
-whereAllM ::Monad m => Query -> [m Query] -> m Query
+whereAllM :: Monad m => Query -> [m Query] -> m Query
 whereAllM query0 mConditions = do
   (return . concat2 [sql|WHERE|] query0 . concatWithAND) <$$> mConditions
 
@@ -31,9 +31,9 @@ concat2 _ query1 query2 | query2 == mempty = query1
 concat2 splitter query1 query2 = query1 <+> splitter <+> query2
 
 (<+>) :: Query -> Query -> Query
-(<+>) q1 q2|q1 == mempty    = q2
-(<+>) q1 q2|q2 == mempty    = q1
-(<+>) q1 q2                 = q1 <> " " <> q2
+(<+>) q1 q2 | q1 == mempty = q2
+(<+>) q1 q2 | q2 == mempty = q1
+(<+>) q1 q2 = q1 <> " " <> q2
 
 (<<+>>) :: Monad m => m Query -> m Query -> m Query
 (<<+>>) mQuery1 mQuery2 = (<+>) <$> mQuery1 <*> mQuery2

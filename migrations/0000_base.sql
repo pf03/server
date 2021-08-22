@@ -40,6 +40,7 @@ CREATE TABLE contents (
     category_id INTEGER not null REFERENCES categories (id),
     content_text TEXT not null,
     main_photo VARCHAR (100)  not null,
+    photos VARCHAR (100) [] not null,
     is_draft BOOLEAN not null,
     news_id INTEGER REFERENCES contents (id)
 );
@@ -48,12 +49,6 @@ CREATE TABLE tags_to_contents (
     content_id INTEGER not null REFERENCES contents (id),
     tag_id INTEGER not null REFERENCES tags (id),
     PRIMARY KEY (content_id, tag_id)
-);
-
-CREATE TABLE photos (
-    id SERIAL PRIMARY KEY,
-    photo VARCHAR (100) not null,
-    content_id INTEGER not null REFERENCES contents (id)
 );
 
 CREATE TABLE comments (

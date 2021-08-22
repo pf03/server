@@ -17,9 +17,9 @@ data Content = Content
     contentCreationDate :: Row.Date,
     contentCategory :: Category,
     contentText :: Text,
-    contentPhoto :: Path,
+    contentMainPhoto :: Path,
+    contentPhotos :: [Path],
     contentTags :: [Tag],
-    contentPhotos :: [Photo],
     contentIsDraft :: Bool,
     contentPostId :: Maybe Int --the postId this draft is related to (when contentIsDraft = True)
   }
@@ -70,5 +70,3 @@ instance Identifiable Comment where
 type User = Row.User
 
 type Tag = Row.Tag
-
-type Photo = Row.Photo

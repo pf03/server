@@ -57,6 +57,7 @@ INSERT INTO contents (
     category_id,
     content_text,
     main_photo,
+    photos,
     is_draft,
     news_id
 )
@@ -68,6 +69,7 @@ VALUES
         6,
         'Sostoyalsya ocherednoj reliz kompilyatora Glasgow Haskell Compiler.',
         'logo.jpg',
+        '{"haskell.jpg", "open_source.jpg"}',
         FALSE,
         null
     ),(
@@ -77,6 +79,7 @@ VALUES
         2,
         'CHernovik: Ya pomnyu chudnoe mgnovenye:\nPeredo mnoj yavilas ty,\nKak mimoletnoe videnye,\nKak genij chistoj krasoty.',
         'pushkin.jpg',
+        '{"poem.jpg"}',
         TRUE,
         null
     ),(
@@ -86,17 +89,13 @@ VALUES
         2,
         'Ya pomnyu chudnoe mgnovenye:\nPeredo mnoj yavilas ty,\nKak mimoletnoe videnye,\nKak genij chistoj krasoty.',
         'pushkin.jpg',
+       '{"poem.jpg"}',
         FALSE,
         null
     );
 
 INSERT INTO tags_to_contents (content_id, tag_id) VALUES
     (1,1),(1,2),(1,5),(1,6),(1,9),(2,3),(3,3);
-
-INSERT INTO photos (photo, content_id) VALUES
-    ('haskell.jpg', 1),
-    ('open_source.jpg', 1),
-    ('poem.jpg', 2);
 
 INSERT INTO comments (news_id, user_id, creation_date, comment_text) VALUES
     (1, 2, '2020-03-21', 'Kakaya zamechatelnaya novost...'),

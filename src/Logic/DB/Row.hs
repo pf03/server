@@ -11,6 +11,7 @@ import Data.Text (Text, pack)
 import Database.PostgreSQL.Simple.FromField (FromField (..))
 import Database.PostgreSQL.Simple.FromRow (FromRow (..), field)
 import qualified Database.PostgreSQL.Simple.Time as Time
+import Database.PostgreSQL.Simple.Types (PGArray)
 import GHC.Generics (Generic)
 
 data Migration = Migration
@@ -81,13 +82,14 @@ data Content = Content
     contentCreationDate :: Date,
     contentCategoryId :: Int,
     contentText :: Text,
-    contentPhoto :: Path,
+    contentMainPhoto :: Path,
+    contentPhotos :: PGArray Path,
     contentIsDraft :: Bool,
     contentPost :: Maybe Int --the postId this draft is related to (when contentIsDraft = True)
   }
   deriving (Show, Generic, FromRow)
 
-instance ToJSON Content
+-- instance ToJSON Content
 
 instance Identifiable Content where
   getId = contentId
@@ -99,18 +101,6 @@ data TagToContent = TagToContent
   deriving (Show, Generic, FromRow)
 
 instance ToJSON TagToContent
-
-data Photo = Photo
-  { photoId :: Int,
-    photoPhoto :: Path,
-    photoContentId :: Int
-  }
-  deriving (Show, Generic, FromRow)
-
-instance ToJSON Photo
-
-instance Identifiable Photo where
-  getId = photoId
 
 data Comment = Comment
   { commentId :: Int,
@@ -131,13 +121,6 @@ instance FromRow (Maybe Tag) where
     mTagId <- field
     mTagName <- field
     return $ Tag <$> mTagId <*> mTagName
-
-instance FromRow (Maybe Photo) where
-  fromRow = do
-    mPhotoId <- field
-    mPhotoPhoto <- field
-    mPhotoContentId <- field
-    return $ Photo <$> mPhotoId <*> mPhotoPhoto <*> mPhotoContentId
 
 instance FromRow (Maybe TagToContent) where
   fromRow = do

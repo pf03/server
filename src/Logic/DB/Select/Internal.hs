@@ -56,8 +56,7 @@ selectDraftsQuery =
     LEFT JOIN authors ON authors.id = contents.author_id
     LEFT JOIN users ON users.id = authors.user_id
     LEFT JOIN tags_to_contents ON contents.id = tags_to_contents.content_id
-    LEFT JOIN tags ON tags.id = tags_to_contents.tag_id
-    LEFT JOIN photos ON photos.content_id = contents.id|]
+    LEFT JOIN tags ON tags.id = tags_to_contents.tag_id|]
 
 draftsQuery :: (MError m, MCache m) => m Query
 draftsQuery = do
@@ -77,8 +76,7 @@ selectPostsQuery =
     LEFT JOIN authors ON authors.id = contents.author_id
     LEFT JOIN users ON users.id = authors.user_id
     LEFT JOIN tags_to_contents ON contents.id = tags_to_contents.content_id
-    LEFT JOIN tags ON tags.id = tags_to_contents.tag_id
-    LEFT JOIN photos ON photos.content_id = contents.id|]
+    LEFT JOIN tags ON tags.id = tags_to_contents.tag_id|]
 
 postsQuery :: (MError m, MCache m) => m SQL.Query
 postsQuery = do
@@ -138,11 +136,7 @@ postsQuery = do
           "created_at" -> return [sql|contents.creation_date|]
           "author_name" -> return [sql|CONCAT_WS(' ', users.last_name, users.first_name)|]
           "category_id" -> return [sql|contents.category_id|]
-          "photos" ->
-            return $
-              brackets
-                [sql|SELECT COUNT(*) FROM photos WHERE
-                  photos.content_id = contents.id|]
+          "photos" -> return [sql|array_length(contents.photos, 1)|]
           _ -> Error.throw $ Error.DevError $ template "Wrong parameter {0} in function orderBy" [paramName]
     orderBy Cache.ParamNo = return [sql||]
     orderBy param = Error.throw $ Error.patError "Select.postsQuery (orderBy)" param

@@ -29,7 +29,7 @@ import Interface.MCache.Types
 import qualified Interface.MDB.Exports as DB
 import Interface.MDB.Templates (concatWith, list, toQuery, whereAll)
 import qualified Interface.MError.Exports as Error
-import Logic.DB.Select.Templates (paramToCondition, paramToQuery, valToQuery)
+import Logic.DB.Select.Templates ( paramToCondition, paramToQuery, valToQuery, valListToQuery )
 
 ----------------------------------Migration------------------------------------
 
@@ -119,7 +119,7 @@ insertDraft = do
   insertTagToContent Check
   [Only contentId] <-
     DB.queryM
-      [sql|INSERT into contents (author_id, content_name, creation_date, category_id, content_text, main_photo, is_draft, post_id) values {0} RETURNING id|]
+      [sql|INSERT into contents (author_id, content_name, creation_date, category_id, content_text, main_photo, photos, is_draft, post_id) values {0} RETURNING id|]
       [ rowEither
           params
           [ Left "author_id",
@@ -128,6 +128,7 @@ insertDraft = do
             Left "category_id",
             Left "content_text",
             Left "main_photo",
+            Left "photos",
             Right [sql|TRUE|],
             Right [sql|null|]
           ]
@@ -135,7 +136,6 @@ insertDraft = do
   Cache.addChanged Insert Content 1
   _ <- Cache.addIdParam "content_id" contentId
   insertTagToContent Execute
-  insertPhotos
 
 ----------------------------------Post-----------------------------------------
 publish :: MTrans m => Int -> m ()
@@ -172,16 +172,6 @@ insertComment postId = do
     Comment
     [sql|INSERT into comments (post_id, user_id, creation_date, comment_text) values {0}|]
     [rowEither params [Left "post_id", Left "user_id", Right [sql|current_date|], Left "comment_text"]]
-
-----------------------------------Photo----------------------------------------
-insertPhotos :: MTrans m => m ()
-insertPhotos = do
-  params <- Cache.getParams
-  unless (emptyParam $ params ! "photos") $ do
-    DB.insertM
-      Photo
-      [sql|INSERT into photos (photo, content_id) values {0}|]
-      [rows params ["photos", "content_id"]]
 
 ----------------------------------Common---------------------------------------
 
@@ -255,6 +245,7 @@ rowEither params eNameQueries = list <$> mapM helper eNameQueries
 
 cell :: MError m => Param -> m Query
 cell (ParamEq v) = return $ valToQuery v
+cell (ParamAll list) = return $ valListToQuery list
 cell ParamNo = return [sql|null|]
 cell param = Error.throw $ Error.patError "Insert.cell" param
 

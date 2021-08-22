@@ -17,7 +17,17 @@ import qualified Interface.MError.Exports as Error
 import qualified Logic.DB.Row as Row
 import qualified Logic.DB.Select.Exports as Select
 import Logic.Pure.JSON.Internal
-import Logic.Pure.JSON.Types 
+    ( getChildCategories,
+      modifyContentTags,
+      setContentTags,
+      turnAuthor,
+      turnComment,
+      turnContent )
+import Logic.Pure.JSON.Types
+    ( Author,
+      Category(Category),
+      Comment,
+      Content(contentTags, contentPhotos) ) 
 
 -----------------------------Evaluate------------------------------------------
 -- Evaluate from 'Select' types to 'JSON' types
@@ -89,20 +99,20 @@ evalContents :: MError m => [Category] -> [Select.Content] -> m [Content]
 evalContents categories list = uniteContents <$> mapM (evalContent categories) list
 
 evalContent :: MError m => [Category] -> Select.Content -> m Content
-evalContent categories (rowContent :. rowCategory :. rowAuthor :. user :. _ :. mTag :. mPhoto) = do
+evalContent categories (rowContent :. rowCategory :. rowAuthor :. user :. _ :. mTag) = do
   let author = turnAuthor rowAuthor user
   let contentId = Row.contentId rowContent
   let categoryId = Row.categoryId rowCategory
   category <-
     getCategoryById categoryId categories $
       template "Post {0} belongs to a category that does not exist {1}" [show contentId, show categoryId]
-  return $ turnContent rowContent author category (maybeToList mTag) (maybeToList mPhoto)
+  return $ turnContent rowContent author category (maybeToList mTag)
 
 uniteContents :: [Content] -> [Content]
-uniteContents = map (modifyContentTags filterById . modifyContentPhotos filterById) . unite appendContent
+uniteContents = map (modifyContentTags filterById) . unite appendContent
   where
     appendContent :: Content -> Content -> Content
-    appendContent content1 content2 = setContentTags tags . setContentPhotos photos $ content1
+    appendContent content1 content2 = setContentTags tags $ content1
       where
         tags = contentTags content1 <> contentTags content2
         photos = contentPhotos content1 <> contentPhotos content2

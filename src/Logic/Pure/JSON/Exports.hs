@@ -21,7 +21,6 @@ import Logic.Pure.JSON.Types as Types
     Category (..),
     Comment (..),
     Content (..),
-    Photo,
     Tag,
     User,
   )

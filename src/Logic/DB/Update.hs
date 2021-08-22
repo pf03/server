@@ -9,9 +9,9 @@ import Database.PostgreSQL.Simple.Types as SQL (Only (Only), Query)
 import Interface.Class (MCache, MError, MTrans)
 import qualified Interface.MCache.Exports as Cache
 import Interface.MCache.Types
-  ( APIType (Author, Category, Content, Draft, Photo, Tag, User),
+  ( APIType (Author, Category, Content, Photo, Tag, User),
     Auth (AuthAdmin, AuthNo, AuthUser),
-    Param (ParamEq, ParamNo, ParamNull),
+    Param (ParamAll, ParamEq, ParamNo, ParamNull),
     ParamsMap,
     QueryType (Insert),
     Val (Int),
@@ -24,6 +24,7 @@ import qualified Logic.DB.Insert as Insert
 import Logic.DB.Select.Templates
   ( paramToCondition,
     paramToQuery,
+    valListToQuery,
     valToQuery,
   )
 
@@ -90,9 +91,8 @@ updateDraft paramId = do
   DB.updateM
     Content
     [sql|UPDATE contents SET {0} WHERE id = {1}|]
-    [updates params ["content_name", "category_id", "content_text", "main_photo"], return $ toQuery contentId]
+    [updates params ["content_name", "category_id", "content_text", "main_photo", "photos"], return $ toQuery contentId]
   updateTagToContent Execute
-  updatePhotos
 
 -- | Draft existence check with authorization for update and delete requests
 checkAuthExistDraft :: MTrans m => Int -> m ParamsMap
@@ -119,7 +119,7 @@ updatePost paramId = do
   Insert.insertTagToContent Check
   [Only contentId] <-
     DB.queryM
-      [sql|INSERT into contents (author_id, content_name, creation_date, category_id, content_text, main_photo, is_draft, post_id) values {0} RETURNING id|]
+      [sql|INSERT into contents (author_id, content_name, creation_date, category_id, content_text, main_photo, photos, is_draft, post_id) values {0} RETURNING id|]
       [ rowEither
           params
           [ Left "author_id",
@@ -128,6 +128,7 @@ updatePost paramId = do
             Left "category_id",
             Left "content_text",
             Left "main_photo",
+            Left "photos",
             Right [sql|TRUE|],
             Right $ toQuery paramId
           ]
@@ -135,7 +136,6 @@ updatePost paramId = do
   Cache.addChanged Insert Content 1
   Cache.addIdParam_ "content_id" contentId -- update param
   Insert.insertTagToContent Execute
-  Insert.insertPhotos
 
 -- * Deleted user authentication will fail. The deleted author is bound to the deleted
 
@@ -164,13 +164,6 @@ checkAuthExistComment paramId = do
   let query = template [sql| SELECT user_id, 0, 0 FROM comments WHERE id = {0}|] [toQuery paramId]
   (\(a, _, _) -> a) <$> checkAuthExist paramId "comment_id" query
 
-----------------------------------Photo----------------------------------------
-updatePhotos :: MTrans m => m ()
-updatePhotos = withParam "photos" $ do
-  ParamEq (Int contentId) <- Cache.getParam "content_id"
-  DB.delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [toQuery contentId]
-  Insert.insertPhotos
-
 ----------------------------------Common---------------------------------------
 updates :: MError m => ParamsMap -> [BSName] -> m Query
 updates params names = concatWith "," <$> mapMaybeM helper names
@@ -184,6 +177,7 @@ updates params names = concatWith "," <$> mapMaybeM helper names
     upd field (ParamEq val) = return . Just $ template [sql|{0} = {1}|] [field, valToQuery val]
     upd _ ParamNo = return Nothing
     upd field ParamNull = return . Just $ template [sql|{0} = null|] [field]
+    upd field (ParamAll list) = return . Just $ template [sql|{0} = {1}|] [field, valListToQuery list]
     upd _ param = Error.throw $ Error.patError "Update.updates" param
 
 checkAuthExist :: MTrans m => Int -> BSName -> Query -> m (Int, Int, Int)

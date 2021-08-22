@@ -57,7 +57,6 @@ deleteAuthor paramId = do
 deletePost :: MTrans m => Int -> m ()
 deletePost contentId = do
   _ <- Update.checkAuthExistPost contentId
-  DB.delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [toQuery contentId]
   DB.execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [toQuery contentId]
   DB.delete Content [sql|DELETE FROM contents WHERE id = {0}|] [toQuery contentId] -- delete post and all its drafts
   DB.delete Comment [sql|DELETE FROM comments WHERE post_id = {0}|] [toQuery contentId]
@@ -65,7 +64,6 @@ deletePost contentId = do
 deleteDraft :: MTrans m => Int -> m ()
 deleteDraft contentId = do
   _ <- Update.checkAuthExistDraft contentId
-  DB.delete Photo [sql|DELETE FROM photos WHERE content_id = {0}|] [toQuery contentId]
   DB.execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [toQuery contentId]
   DB.delete Content [sql|DELETE FROM contents WHERE id = {0}|] [toQuery contentId]
 

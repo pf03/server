@@ -5,12 +5,12 @@ import Interface.Class (MError)
 import Interface.MCache.Types (Param (ParamIn, ParamNo), Val (Int))
 import qualified Interface.MError.Exports as Error
 import qualified Logic.DB.Row as Row
+import Database.PostgreSQL.Simple.Types ( PGArray(PGArray) )
 import Logic.Pure.JSON.Types
   ( Author (Author),
     Category (parent),
     Comment (Comment),
     Content (Content, contentPhotos, contentTags),
-    Photo,
     Tag,
     User,
   )
@@ -18,9 +18,9 @@ import Logic.Pure.JSON.Types
 -----------------------------Turn----------------------------------------------
 -- Turn from 'Row' types to 'JSON' types
 
-turnContent :: Row.Content -> Author -> Category -> [Tag] -> [Photo] -> Content
-turnContent (Row.Content contentId _ contentName contentCreationDate _ contentText contentPhoto contentIsDraft contentNewId) author category tags photos =
-  Content contentId author contentName contentCreationDate category contentText contentPhoto  tags photos contentIsDraft contentNewId
+turnContent :: Row.Content -> Author -> Category -> [Tag] -> Content
+turnContent (Row.Content contentId _ contentName contentCreationDate _ contentText contentMainPhoto (PGArray contentPhotos) contentIsDraft contentPostId) author category tags =
+  Content contentId author contentName contentCreationDate category contentText contentMainPhoto contentPhotos tags contentIsDraft contentPostId
 
 turnAuthor :: Row.Author -> User -> Author
 turnAuthor (Row.Author authorId _ authorDescription) user = Author authorId user authorDescription
@@ -32,14 +32,9 @@ turnComment (Row.Comment commentId _ _ commentCreationDate commentText) user = C
 setContentTags :: [Tag] -> Content -> Content
 setContentTags tags content = content {contentTags = tags}
 
-setContentPhotos :: [Photo] -> Content -> Content
-setContentPhotos photos content = content {contentPhotos = photos}
-
 modifyContentTags :: ([Tag] -> [Tag]) -> Content -> Content
 modifyContentTags f content = setContentTags (f $ contentTags content) content
 
-modifyContentPhotos :: ([Photo] -> [Photo]) -> Content -> Content
-modifyContentPhotos f post = setContentPhotos (f $ contentPhotos post) post
 
 -----------------------------Data manipulation----------------------------------
 -- Here the JSON.Category type is used, which has already been checked for cyclic recurrence and correctness in JSON.evalCategory

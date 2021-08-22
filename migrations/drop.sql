@@ -1,2 +1,1 @@
-DROP TABLE IF EXISTS  drafts, comments, migrations,
-    tags_to_contents, photos, posts, news, tags, contents, categories, authors, users;
+DROP TABLE IF EXISTS comments, migrations, tags_to_contents, tags, contents, categories, authors, users;

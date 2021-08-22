@@ -7,6 +7,7 @@ import Interface.Class ( MError )
 import qualified Interface.MCache.Exports as Cache
 import Interface.MDB.Templates ( inList, toQuery )
 import qualified Interface.MError.Exports as Error
+import qualified Interface.MDB.Templates as DB
 
 -----------------------------Templates-----------------------------------------
 paramToQuery :: MError m => Cache.Param -> m Query
@@ -17,6 +18,14 @@ valToQuery :: Cache.Val -> Query
 valToQuery (Cache.Int int) = toQuery int
 valToQuery (Cache.Str str) = template [sql|'{0}'|] [toQuery str]
 valToQuery (Cache.Date date) = template [sql|'{0}'|] [toQuery date]
+
+valListToQuery :: [Cache.Val] -> Query
+valListToQuery list = template [sql|'{{0}}'|] [DB.concatWith "," (map valToArrayItem list)] where
+  valToArrayItem :: Cache.Val -> Query
+  valToArrayItem (Cache.Int int) = template [sql|{0}, |] [toQuery int]
+  valToArrayItem (Cache.Str str) = template [sql|"{0}"|] [toQuery str]
+  valToArrayItem (Cache.Date date) = template [sql|"{0}"|] [toQuery date]
+
 
 paramToCondition :: MError m => Query -> Cache.Param -> m Query
 paramToCondition field param = case param of
