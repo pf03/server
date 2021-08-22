@@ -3,7 +3,7 @@ module Logic.DB.Select.Internal where
 import Common.Functions (Template (template), (<$$>))
 import Data.Map ((!))
 import Database.PostgreSQL.Simple.SqlQQ (sql)
-import Database.PostgreSQL.Simple.Types as SQL (Query)
+import Database.PostgreSQL.Simple.Types (Query)
 import Interface.Class (MCache, MError)
 import qualified Interface.MCache.Exports as Cache
 import Interface.MDB.Templates
@@ -12,6 +12,7 @@ import Interface.MDB.Templates
     exists,
     inSubQueryM,
     toQuery,
+    whereAll,
     whereAllM,
     (<+>),
     (<<+>>),
@@ -20,36 +21,45 @@ import qualified Interface.MError.Exports as Error
 import Logic.DB.Select.Templates (paramToCondition)
 
 -----------------------------Migration-----------------------------------------
-selectMigrationsQuery :: Query
-selectMigrationsQuery = [sql|SELECT * FROM migrations|]
+migrationsQuery :: Query
+migrationsQuery = [sql|SELECT * FROM migrations|]
 
 -----------------------------User----------------------------------------------
-selectUsersQuery :: Query
-selectUsersQuery = [sql|SELECT * FROM users|]
+usersQuery :: Query
+usersQuery = [sql|SELECT * FROM users|]
 
-usersQuery :: (MError m, MCache m) => m Query
-usersQuery = return selectUsersQuery <<+>> pagination
+userQuery :: Int -> Query
+userQuery userId = usersQuery <+> template [sql|WHERE users.id = {0}|] [toQuery userId]
+
+filteredUsersQuery :: (MError m, MCache m) => m Query
+filteredUsersQuery = return usersQuery <<+>> pagination
 
 -----------------------------Author--------------------------------------------
-selectAuthorsQuery :: SQL.Query
-selectAuthorsQuery =
+authorsQuery :: Query
+authorsQuery =
   [sql|SELECT * FROM authors
     LEFT JOIN users
     ON authors.user_id = users.id|]
 
-authorsQuery :: (MError m, MCache m) => m Query
-authorsQuery = return selectAuthorsQuery <<+>> pagination
+authorQuery :: Int -> Query
+authorQuery authorId = authorsQuery <+> template [sql|WHERE authors.id = {0}|] [toQuery authorId]
+
+filteredAuthorsQuery :: (MError m, MCache m) => m Query
+filteredAuthorsQuery = return authorsQuery <<+>> pagination
 
 -----------------------------Category------------------------------------------
-selectCategoriesQuery :: Query
-selectCategoriesQuery = [sql|SELECT * FROM categories|]
+categoriesQuery :: Query
+categoriesQuery = [sql|SELECT * FROM categories|]
 
-categoriesQuery :: (MError m, MCache m) => m Query
-categoriesQuery = return selectCategoriesQuery <<+>> pagination
+categoryQuery :: Int -> Query
+categoryQuery categoryId = categoriesQuery <+> template [sql|WHERE categories.id = {0}|] [toQuery categoryId]
 
------------------------------Draft---------------------------------------------
-selectDraftsQuery :: Query
-selectDraftsQuery =
+filteredCategoriesQuery :: (MError m, MCache m) => m Query
+filteredCategoriesQuery = return categoriesQuery <<+>> pagination
+
+-----------------------------Content-------------------------------------------
+contentsQuery :: Query
+contentsQuery =
   [sql|
     SELECT * FROM contents
     LEFT JOIN categories ON categories.id = contents.category_id
@@ -58,28 +68,37 @@ selectDraftsQuery =
     LEFT JOIN tags_to_contents ON contents.id = tags_to_contents.content_id
     LEFT JOIN tags ON tags.id = tags_to_contents.tag_id|]
 
-draftsQuery :: (MError m, MCache m) => m Query
-draftsQuery = do
+-----------------------------Draft---------------------------------------------
+draftQuery :: (MError m, MCache m) => Int -> m Query
+draftQuery contentId = do
+  paramUserId <- authUserIdParam
+  let conditions =
+        [ return [sql|contents.is_draft = TRUE|],
+          return $ template [sql|contents.id = {0}|] [toQuery contentId],
+          paramToCondition [sql|users.id|] paramUserId
+        ]
+  contentsQuery `whereAllM` conditions
+
+filteredDraftsQuery :: (MError m, MCache m) => m Query
+filteredDraftsQuery = do
   paramUserId <- authUserIdParam
   let conditions =
         [ return [sql|contents.is_draft = TRUE|],
           paramToCondition [sql|users.id|] paramUserId
         ]
-  selectDraftsQuery `whereAllM` conditions <<+>> pagination
+  contentsQuery `whereAllM` conditions <<+>> pagination
 
 -----------------------------Post----------------------------------------------
-selectPostsQuery :: Query
-selectPostsQuery =
-  [sql|
-    SELECT * FROM contents
-    LEFT JOIN categories ON categories.id = contents.category_id
-    LEFT JOIN authors ON authors.id = contents.author_id
-    LEFT JOIN users ON users.id = authors.user_id
-    LEFT JOIN tags_to_contents ON contents.id = tags_to_contents.content_id
-    LEFT JOIN tags ON tags.id = tags_to_contents.tag_id|]
+postQuery :: Int -> Query
+postQuery contentId =
+  let conditions =
+        [ [sql|contents.is_draft = FALSE|],
+          template [sql|contents.id = {0}|] [toQuery contentId]
+        ]
+   in contentsQuery `whereAll` conditions
 
-postsQuery :: (MError m, MCache m) => m SQL.Query
-postsQuery = do
+filteredPostsQuery :: (MError m, MCache m) => m Query
+filteredPostsQuery = do
   params <- Cache.getParams
   let conditions =
         [ return [sql|contents.is_draft = FALSE|],
@@ -91,7 +110,7 @@ postsQuery = do
           paramToCondition [sql|CONCAT_WS(' ', users.last_name, users.first_name)|] $ params ! "author_name",
           paramToCondition [sql|contents.content_text|] $ params ! "content_text"
         ]
-  selectPostsQuery `whereAllM` conditions <<+>> orderBy (params ! "order_by") <<+>> pagination
+  contentsQuery `whereAllM` conditions <<+>> orderBy (params ! "order_by") <<+>> pagination
   where
     postIdsSubQuery :: MError m => Query -> Cache.Param -> m Query
     postIdsSubQuery field (Cache.ParamAll vals) =
@@ -129,7 +148,7 @@ postsQuery = do
             AND |]
             <+> condition
 
-    orderBy :: MError m => Cache.Param -> m SQL.Query
+    orderBy :: MError m => Cache.Param -> m Query
     orderBy (Cache.ParamEq (Cache.Str paramName)) = return . template [sql|ORDER BY {0}|] <$$> [field]
       where
         field = case paramName of
@@ -142,29 +161,30 @@ postsQuery = do
     orderBy param = Error.throw $ Error.patError "Select.postsQuery (orderBy)" param
 
 -----------------------------Tag-----------------------------------------------
-selectTagsQuery :: Query
-selectTagsQuery = [sql|SELECT * FROM tags|]
+tagsQuery :: Query
+tagsQuery = [sql|SELECT * FROM tags|]
 
-tagsQuery :: (MError m, MCache m) => m Query
-tagsQuery = return selectTagsQuery <<+>> pagination
+tagQuery :: Int -> Query
+tagQuery tagId = tagsQuery <+> template [sql|WHERE tags.id = {0}|] [toQuery tagId]
+
+filteredTagsQuery :: (MError m, MCache m) => m Query
+filteredTagsQuery = return tagsQuery <<+>> pagination
 
 -----------------------------Comment-------------------------------------------
-selectCommentsQuery :: Query
-selectCommentsQuery =
+commentsQuery :: Query
+commentsQuery =
   [sql|
     SELECT * FROM comments
       LEFT JOIN posts ON posts.id = comments.post_id
-      LEFT JOIN users ON users.id = comments.user_id
-    |]
+      LEFT JOIN users ON users.id = comments.user_id|]
 
-commentsQuery :: (MError m, MCache m) => Int -> m Query
-commentsQuery postId = selectCommentsQuery `whereAllM` (return <$> conditions) <<+>> pagination
-  where
-    conditions :: [SQL.Query]
-    conditions = [template [sql|posts.id = {0}|] [toQuery postId]]
+filteredCommentsQuery :: (MError m, MCache m) => Int -> m Query
+filteredCommentsQuery postId = do
+  let conditions = [template [sql|posts.id = {0}|] [toQuery postId]]
+  commentsQuery `whereAllM` (return <$> conditions) <<+>> pagination
 
 -----------------------------Pagination----------------------------------------
-pagination :: (MError m, MCache m) => m SQL.Query
+pagination :: (MError m, MCache m) => m Query
 pagination = do
   param <- Cache.getParam "page"
   case param of
