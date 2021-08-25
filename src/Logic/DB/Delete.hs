@@ -41,7 +41,7 @@ deleteAuthor paramId = do
 
 deletePost :: MTrans m => Int -> m ()
 deletePost contentId = do
-  _ <- Update.checkAuthExistPost contentId
+  _ <- Update.checkAuthExistContent False contentId
   DB.delete Comment [sql|DELETE FROM comments WHERE post_id = {0}|] [toQuery contentId]
   DB.execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0} OR content_id IN
     (SELECT id FROM contents WHERE post_id = {0})|] [toQuery contentId] --delete tags binds to post and all its drafts
@@ -50,7 +50,7 @@ deletePost contentId = do
 
 deleteDraft :: MTrans m => Int -> m ()
 deleteDraft contentId = do
-  _ <- Update.checkAuthExistDraft contentId
+  _ <- Update.checkAuthExistContent True contentId
   DB.execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [toQuery contentId]
   DB.delete Content [sql|DELETE FROM contents WHERE id = {0}|] [toQuery contentId]
 
@@ -98,7 +98,7 @@ deleteTag paramId = do
 -----------------------------Private functions----------------------------------
 checkNotExist :: MDB m => Int -> String -> String -> Query -> m ()
 checkNotExist paramId name1 name2 templ = do
-  results <- DB.query $ template templ [toQuery paramId]
+  results <- DB.query templ [toQuery paramId]
   case results :: [(Int, String)] of
     [] -> return ()
     _ ->

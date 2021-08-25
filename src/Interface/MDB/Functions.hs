@@ -22,16 +22,21 @@ eHandler query0 err = do
   Error.throw Error.dbErrorDefault
 
 -- | Query that returns a value
-query :: (MDB m, Show r, FromRow r) => Query -> m [r]
-query query0 = do
+query_ :: (MDB m, Show r, FromRow r) => Query -> m [r]
+query_ query0 = do
   Log.writeDebugM query0
   -- LiftIO cannot be used because error handling is lost
   Error.catch (dbQuery query0) $ eHandler query0
 
+query :: (MDB m, Show r, FromRow r) => Query -> [Query] -> m [r]
+query query0 queries = do
+  let query1 = template query0 queries
+  query_ query1
+
 queryM :: (MDB m, Show r, FromRow r) => Query -> [m Query] -> m [r]
 queryM query0 queries = do
   query1 <- templateM query0 queries
-  query query1
+  query_ query1
 
 -- | Query that returns the number of changes without automatic recording the number of changed entities
 execute :: MDB m => Query -> [Query] -> m Int64

@@ -24,55 +24,55 @@ import Logic.DB.Select.Types (Author, Category, Comment, Content, Migration, Tag
 
 -----------------------------Migration----------------------------------------------
 selectAllMigrations :: MDB m => m [Migration]
-selectAllMigrations = DB.query migrationsQuery
+selectAllMigrations = DB.query_ migrationsQuery
 
 -----------------------------User----------------------------------------------
 selectUser :: MDB m => Int -> m (Maybe User)
-selectUser userId = listToMaybe <$> DB.query (userQuery userId)
+selectUser userId = listToMaybe <$> DB.query_ (userQuery userId)
 
 selectUsers :: MTrans m => m [User]
-selectUsers = DB.query =<< filteredUsersQuery
+selectUsers = DB.query_ =<< filteredUsersQuery
 
 -----------------------------Author--------------------------------------------
 selectAuthor :: MDB m => Int -> m (Maybe Author)
-selectAuthor authorId = listToMaybe <$> DB.query (authorQuery authorId)
+selectAuthor authorId = listToMaybe <$> DB.query_ (authorQuery authorId)
 
 selectAuthors :: MTrans m => m [Author]
-selectAuthors = DB.query =<< filteredAuthorsQuery
+selectAuthors = DB.query_ =<< filteredAuthorsQuery
 
 -----------------------------Category------------------------------------------
 selectCategory :: MDB m => Int -> m (Maybe Category)
-selectCategory categoryId = listToMaybe <$> DB.query (categoryQuery categoryId)
+selectCategory categoryId = listToMaybe <$> DB.query_ (categoryQuery categoryId)
 
 selectCategories :: MTrans m => m [Category]
-selectCategories = DB.query =<< filteredCategoriesQuery
+selectCategories = DB.query_ =<< filteredCategoriesQuery
 
 -- * All categories without pagination are needed to evaluate parent categories
 
 selectAllCategories :: MDB m => m [Category]
-selectAllCategories = DB.query categoriesQuery
+selectAllCategories = DB.query_ categoriesQuery
 
 -----------------------------Draft---------------------------------------------
 selectDraft :: MTrans m => Int -> m [Content]
-selectDraft contentId = DB.query =<< draftQuery contentId
+selectDraft contentId = DB.query_ =<< draftQuery contentId
 
 selectDrafts :: MTrans m => m [Content]
-selectDrafts = DB.query =<< filteredDraftsQuery
+selectDrafts = DB.query_ =<< filteredDraftsQuery
 
 -----------------------------Post----------------------------------------------
 selectPost :: MDB m => Int -> m [Content]
-selectPost contentId = DB.query $ postQuery contentId
+selectPost contentId = DB.query_ $ postQuery contentId
 
 selectPosts :: MTrans m => m [Content]
-selectPosts = DB.query =<< filteredPostsQuery
+selectPosts = DB.query_ =<< filteredPostsQuery
 
 -----------------------------Tag-----------------------------------------------
 selectTag :: MDB m => Int -> m (Maybe Tag)
-selectTag tagId = listToMaybe <$> DB.query (tagQuery tagId)
+selectTag tagId = listToMaybe <$> DB.query_ (tagQuery tagId)
 
 selectTags :: MTrans m => m [Tag]
-selectTags = DB.query =<< filteredTagsQuery
+selectTags = DB.query_ =<< filteredTagsQuery
 
 -----------------------------Comment-------------------------------------------
 selectComments :: MTrans m => Int -> m [Comment]
-selectComments postId = DB.query =<< filteredCommentsQuery postId
+selectComments postId = DB.query_ =<< filteredCommentsQuery postId

@@ -2,15 +2,19 @@ module Interface.MDB.Exports (module Class, module Functions) where
 
 import Interface.MDB.Class as Class (MDB (..), MTrans)
 import Interface.MDB.Functions as Functions
-    ( query,
-      execute,
-      execute_,
-      insert,
-      update,
+    ( _execute,
+      _executeM,
       delete,
-      queryM,
+      deleteM,
+      eHandler,
+      execute,
       executeM,
       executeM_,
+      execute_,
+      insert,
       insertM,
+      query,
+      queryM,
+      update,
       updateM,
-      deleteM )
+      query_ )

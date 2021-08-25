@@ -17,13 +17,12 @@ import Interface.MCache.Types
     Val (Int),
   )
 import qualified Interface.MDB.Exports as DB
-import Interface.MDB.Templates (concatWith, toQuery, whereAllM)
+import Interface.MDB.Templates (concatWith, toQuery)
 import qualified Interface.MError.Exports as Error
 import Logic.DB.Insert (checkExist, rowEither)
 import qualified Logic.DB.Insert as Insert
 import Logic.DB.Select.Templates
-  ( paramToCondition,
-    paramToQuery,
+  ( paramToQuery,
     valListToQuery,
     valToQuery,
   )
@@ -34,7 +33,7 @@ updateUser paramId = do
   _ <- Cache.addIdParam "id" paramId
   checkExist "id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
   -- Login is required to generate new password
-  [Only login] <- DB.query $ template [sql|SELECT users.user_login FROM users WHERE users.id = {0}|] [toQuery paramId]
+  [Only login] <- DB.query [sql|SELECT users.user_login FROM users WHERE users.id = {0}|] [toQuery paramId]
   params <- Cache.addStrParam "user_login" login
   DB.updateM
     User
@@ -80,10 +79,37 @@ updateTagToContent Execute = withParam "tag_id" $ do
   DB.execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [toQuery cid]
   Insert.insertTagToContent Execute
 
+----------------------------------Content----------------------------------------
+
+-- | Content existence check with authorization for update and delete requests
+
+-- * Authentication as deleted user will fail. The deleted author is bound to the deleted
+
+-- user. Thus, posts with deleted authors and users will be able to edit
+-- only admin
+
+checkAuthExistContent :: MTrans m => Bool -> Int -> m ParamsMap
+checkAuthExistContent isDraft paramId = do
+  let query =
+        template
+          [sql|
+
+        SELECT users.id, authors.id, contents.id FROM contents
+        LEFT JOIN authors ON authors.id = contents.author_id
+        LEFT JOIN users ON users.id = authors.user_id
+        WHERE contents.id = {0} 
+        AND contents.is_draft={1}|]
+          [toQuery paramId, if isDraft then [sql|TRUE|] else [sql|FALSE|]]
+  let paramName = if isDraft then "draft_id" else "post_id"
+  (userId, authorId, contentId) <- checkAuthExist paramId paramName query
+  Cache.addIdParam_ "user_id" userId
+  Cache.addIdParam_ "author_id" authorId
+  Cache.addIdParam "content_id" contentId
+
 ----------------------------------Draft----------------------------------------
 updateDraft :: MTrans m => Int -> m ()
 updateDraft paramId = do
-  _ <- checkAuthExistDraft paramId
+  _ <- checkAuthExistContent True paramId
   params <- Cache.getParams
   checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
   updateTagToContent Check
@@ -94,25 +120,10 @@ updateDraft paramId = do
     [updates params ["content_name", "category_id", "content_text", "main_photo", "photos"], return $ toQuery contentId]
   updateTagToContent Execute
 
--- | Draft existence check with authorization for update and delete requests
-checkAuthExistDraft :: MTrans m => Int -> m ParamsMap
-checkAuthExistDraft paramId = do
-  query <-
-    [sql|
-        SELECT users.id, authors.id, contents.id FROM contents
-        LEFT JOIN authors ON authors.id = contents.author_id
-        LEFT JOIN users ON users.id = authors.user_id
-    |]
-      `whereAllM` [paramToCondition [sql|contents.id|] $ ParamEq (Int paramId)]
-  (userId, authorId, contentId) <- checkAuthExist paramId "draft_id" query
-  Cache.addIdParam_ "user_id" userId
-  Cache.addIdParam_ "author_id" authorId
-  Cache.addIdParam "content_id" contentId
-
 ----------------------------------Post-----------------------------------------
 updatePost :: MTrans m => Int -> m ()
 updatePost paramId = do
-  params <- checkAuthExistPost paramId
+  params <- checkAuthExistContent False paramId
   when (params ! "author_id" == ParamEq (Int 1)) $
     Error.throwDB "Unable to create draft from deleted author with id = 1" []
   checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
@@ -136,24 +147,6 @@ updatePost paramId = do
   Cache.addChanged Insert Content 1
   Cache.addIdParam_ "content_id" contentId -- update param
   Insert.insertTagToContent Execute
-
--- * Deleted user authentication will fail. The deleted author is bound to the deleted
-
--- user. Thus, posts with deleted authors and users will be able to edit
--- only admin
-checkAuthExistPost :: MTrans m => Int -> m ParamsMap
-checkAuthExistPost paramId = do
-  query <-
-    [sql|
-        SELECT users.id, authors.id, contents.id FROM contents
-        LEFT JOIN authors ON authors.id = contents.author_id
-        LEFT JOIN users ON users.id = authors.user_id
-    |]
-      `whereAllM` [paramToCondition [sql|contents.id|] $ ParamEq (Int paramId)]
-  (userId, authorId, contentId) <- checkAuthExist paramId "post_id" query
-  Cache.addIdParam_ "user_id" userId
-  Cache.addIdParam_ "author_id" authorId
-  Cache.addIdParam "content_id" contentId
 
 ----------------------------------Comment--------------------------------------
 
@@ -182,7 +175,7 @@ updates params names = concatWith "," <$> mapMaybeM helper names
 
 checkAuthExist :: MTrans m => Int -> BSName -> Query -> m (Int, Int, Int)
 checkAuthExist paramId name query = do
-  exist <- DB.query query
+  exist <- DB.query_ query
   case exist of
     [] -> Error.throwDB "Entity {0} = {1} is not exist" [show name, show paramId]
     [(userId, authorId, contentId)] -> do

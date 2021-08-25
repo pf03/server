@@ -1,6 +1,6 @@
 module Logic.DB.Insert where
 
-import Common.Functions (Template (template), templateM, (<<$>>))
+import Common.Functions (templateM, (<<$>>))
 import Common.Types (Action (..), BSName)
 import Control.Monad.Identity (unless, when)
 import Data.Map ((!))
@@ -136,23 +136,27 @@ insertDraft = do
 
 ----------------------------------Post-----------------------------------------
 publish :: MTrans m => Int -> m ()
-publish contentId = do
-  params <- Cache.addIdParam "content_id" contentId
-  checkExist "content_id" [sql|SELECT 1 FROM contents WHERE contents.id = {0}|]
-  [Only mPostId] <-
-    DB.queryM
-      [sql|SELECT post_id FROM contents WHERE contents.id = {0}|]
-      [paramToQuery $ params ! "content_id"]
-  DB.update
-    Content
-    [sql|UPDATE contents SET post_id = NULL, is_draft = FALSE WHERE id = {0}|]
-    [toQuery (contentId :: Int)] -- first publish
+publish draftId = do
+  Cache.addIdParam_ "draft_id" draftId
+  checkExist "draft_id" [sql|SELECT 1 FROM contents WHERE id = {0} AND is_draft = TRUE|]
+  [Only mPostId] <- DB.query [sql|SELECT post_id FROM contents WHERE id = {0}|] [toQuery draftId]
   case mPostId :: Maybe Int of
-    Nothing -> return ()
+    Nothing ->
+      DB.update
+        Content
+        [sql|UPDATE contents SET post_id = NULL, is_draft = FALSE WHERE id = {0}|]
+        [toQuery draftId] -- first publish
     Just postId -> do
-      -- delete old content, because it's not used anywhere
-      DB.delete Content [sql|DELETE FROM contents WHERE contents.id = {0} |] [toQuery (postId :: Int)]
       DB.execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [toQuery postId]
+      DB.update
+        Content
+        [sql|UPDATE contents SET
+          (content_name, creation_date, category_id, content_text, main_photo, photos) =
+              (SELECT content_name, creation_date, category_id, content_text, main_photo, photos  FROM contents WHERE id = {1})
+          WHERE id = {0}|]
+        [toQuery postId, toQuery draftId] -- turn draft to post with old postId
+      DB.execute_ [sql|UPDATE tags_to_contents SET content_id = {0} WHERE content_id = {1}|] [toQuery postId, toQuery draftId]
+      DB.delete Content [sql|DELETE FROM contents WHERE contents.id = {0} |] [toQuery (draftId :: Int)]
 
 ----------------------------------Comment--------------------------------------
 insertComment :: MTrans m => Int -> m ()
@@ -163,7 +167,7 @@ insertComment postId = do
     Error.throw $
       Error.DBError
         "Unable to create comment from deleted author with id = 1"
-  checkExist "post_id" [sql|SELECT 1 FROM posts WHERE posts.id = {0}|]
+  checkExist "post_id" [sql|SELECT 1 FROM contents WHERE id = {0} and is_draft = FALSE|]
   checkExist "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
   DB.insertM
     Comment
@@ -180,7 +184,7 @@ checkExist name templ = do
     ParamNo -> return ()
     ParamNull -> return ()
     ParamEq (Int paramId) -> do
-      exist <- DB.query $ template templ [toQuery paramId]
+      exist <- DB.query templ [toQuery paramId]
       case exist :: [Only Int] of
         [] -> Error.throwDB "Entity {0} = {1} is not exist" [show name, show paramId]
         _ -> return ()
@@ -189,7 +193,7 @@ checkExist name templ = do
 -- | Check for all entities existence
 checkExistAll :: MTrans m => BSName -> [Int] -> Query -> m ()
 checkExistAll name ids templ = do
-  exist <- fromOnly <<$>> DB.query templ
+  exist <- fromOnly <<$>> DB.query_ templ
   when (length exist /= length ids) $ do
     let notExist = filter (`notElem` exist) ids
     Error.throwDB "Entities \"{0}\" from list {1} are not exist" [show name, show notExist]
@@ -200,7 +204,7 @@ checkNotExist description name templ = do
   case param of
     ParamNo -> return ()
     ParamEq v -> do
-      exist <- DB.query $ template templ [valToQuery v]
+      exist <- DB.query templ [valToQuery v]
       case exist :: [Only Int] of
         [] -> return ()
         _ -> Error.throwDB "Entity \"{2}\" with {0} = {1} is already exist" [show name, toString v, description]
@@ -267,7 +271,7 @@ addAuthAuthorIdParam = do
           WHERE users.id = {0}
       |]
       [paramToQuery paramUserId]
-  mAuthorId <- fromOnly <<$>> listToMaybe <$> DB.query query
+  mAuthorId <- fromOnly <<$>> listToMaybe <$> DB.query_ query
   case mAuthorId :: (Maybe Int) of
     Nothing -> Error.throw $ Error.AuthError "This feature is only available for authors"
     Just 1 -> Error.throw $ Error.AuthError "Unable to authenticate deleted author"
