@@ -54,14 +54,15 @@ nothingCase :: Either Error.Error ParamsMap
 nothingCase = parseParams (API Insert [Author]) [("user_id", Just "1"), ("description", Nothing)]
 
 -- for debug only
--- showTest :: IO ()
--- showTest = showCases (router "path" <$> wrongRouterCases <*> return AuthNo)
+showTest :: IO ()
+showTest = showCases (router "path" <$> wrongRouterCases <*> return AuthNo)
 
--- showCases :: Show a => [Either Error.Error a] -> IO ()
--- showCases = mapM_ $ \case0 -> do
---   case case0 of
---     Left err -> print err
---     Right _ -> putStrLn "right!"
+-- for debug only
+showCases :: Show a => [Either Error.Error a] -> IO ()
+showCases = mapM_ $ \case0 -> do
+  case case0 of
+    Left err -> print err
+    Right _ -> putStrLn "right!"
 
 insertAuthorWrongCases :: [Either Error.Error ParamsMap]
 insertAuthorWrongCases =
@@ -144,8 +145,8 @@ selectPostRightCases =
         [("tag_id", "2")],
         [("tag_id__in", "[2,3]")],
         [("tag_id__all", "[1,2,3002]")],
-        [("name", "bar")],
-        [("text__like", "foo")],
+        [("content_name", "bar")],
+        [("content_text__like", "foo")],
         [("contains__like", "Vasya")],
         [("order_by", "created_at")],
         [("order_by", "author_name")],
@@ -156,8 +157,8 @@ selectPostRightCases =
           ("author_name__like", "foo"),
           ("category_id__in", "[2,3]"),
           ("tag_id", "2"),
-          ("name", "bar"),
-          ("text__like", "foo"),
+          ("content_name", "bar"),
+          ("content_text__like", "foo"),
           ("contains__like", "Vasya"),
           ("order_by", "created_at"),
           ("page", "2")
