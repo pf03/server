@@ -53,17 +53,6 @@ testParseParams = describe "Logic.parseParams" $ do
 nothingCase :: Either Error.Error ParamsMap
 nothingCase = parseParams (API Insert [Author]) [("user_id", Just "1"), ("description", Nothing)]
 
--- for debug only
-showTest :: IO ()
-showTest = showCases (router "path" <$> wrongRouterCases <*> return AuthNo)
-
--- for debug only
-showCases :: Show a => [Either Error.Error a] -> IO ()
-showCases = mapM_ $ \case0 -> do
-  case case0 of
-    Left err -> print err
-    Right _ -> putStrLn "right!"
-
 insertAuthorWrongCases :: [Either Error.Error ParamsMap]
 insertAuthorWrongCases =
   parseParams (API Insert [Author])
