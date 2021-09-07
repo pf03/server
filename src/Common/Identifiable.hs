@@ -16,6 +16,7 @@ setById updated = map helper
     helper curValue = if getId curValue == wantedId then updated else curValue
 
 -- * Should not break sort
+
 updateInsertById :: Identifiable a => (a -> a) -> a -> [a] -> [a]
 updateInsertById func updated list = res
   where

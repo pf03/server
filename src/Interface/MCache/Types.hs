@@ -1,6 +1,6 @@
 module Interface.MCache.Types where
 
-import Common.Types ( BSName )
+import Common.Types (BSName)
 import Data.Aeson (ToJSON)
 import Data.Int (Int64)
 import qualified Data.Map as M
@@ -21,11 +21,11 @@ newtype Changed = Changed (M.Map String (M.Map String Int64)) deriving (Show, Ge
 instance ToJSON Changed
 
 instance Semigroup Changed where
-    (<>) = mappend
+  (<>) = mappend
 
 instance Monoid Changed where
-    mempty = Changed mempty
-    mappend (Changed map1) (Changed map2) = Changed $ M.unionWith (M.unionWith (+)) map1 map2
+  mempty = Changed mempty
+  mappend (Changed map1) (Changed map2) = Changed $ M.unionWith (M.unionWith (+)) map1 map2
 
 --Auth--
 data Auth = AuthNo | AuthUser Int | AuthAdmin Int deriving (Show, Eq)

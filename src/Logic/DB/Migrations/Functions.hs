@@ -1,14 +1,15 @@
 module Logic.DB.Migrations.Functions where
 
-import Logic.DB.Migrations.Internal
-    ( pathMigration,
-      getNamesList,
-      checkMigrations,
-      migrate,
-      executeFile )
-import Interface.Class ( MDB )
-import Common.Functions ( readLnT )
+import Common.Functions (readLnT)
+import Interface.Class (MDB)
 import qualified Interface.MLog.Exports as Log
+import Logic.DB.Migrations.Internal
+  ( checkMigrations,
+    executeFile,
+    getNamesList,
+    migrate,
+    pathMigration,
+  )
 import qualified Logic.DB.Select.Exports as Select
 
 dbInit :: MDB m => m ()

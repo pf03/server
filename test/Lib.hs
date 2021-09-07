@@ -1,6 +1,6 @@
 module Lib where
 
-import Test.Hspec ( HasCallStack, shouldSatisfy, Expectation )
+import Test.Hspec (Expectation, HasCallStack, shouldSatisfy)
 
 --ALL of cases SHOULD SATISFY to one predicate
 allShouldSatisfy :: (HasCallStack, Show a) => [a] -> (a -> Bool) -> Expectation

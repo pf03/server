@@ -1,4 +1,5 @@
 module Transformer.Functions (module Transformer.Functions, runConfig, exceptToMaybe) where
+
 import qualified Interface.MError.Exports as Error
 import qualified Logic.IO.Config as Config
 import Transformer.Internal

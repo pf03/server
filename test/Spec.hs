@@ -49,7 +49,7 @@ testParseParams = describe "Logic.parseParams" $ do
     noParamsRightCase `shouldSatisfy` isRight
     withParamRightCase `shouldSatisfy` isRight
 
--- Request error: Required parameter "description" is not specified  
+-- Request error: Required parameter "description" is not specified
 nothingCase :: Either Error.Error ParamsMap
 nothingCase = parseParams (API Insert [Author]) [("user_id", Just "1"), ("description", Nothing)]
 
@@ -210,7 +210,6 @@ wrongRouterCases =
     ["drafts", "3", "create"],
     ["categories", "delete"]
   ]
-
 forAllRouterCases :: [PathInfo]
 forAllRouterCases =
   [ ["login"],

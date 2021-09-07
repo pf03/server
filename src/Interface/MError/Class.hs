@@ -2,7 +2,7 @@ module Interface.MError.Class where
 
 import Control.Monad.Except (ExceptT, MonadIO (..))
 import Control.Monad.Trans.Except (catchE, throwE)
-import Interface.MError.Types ( Error )
+import Interface.MError.Types (Error)
 
 class MonadFail m => MError m where
   throw :: Error -> m a

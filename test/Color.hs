@@ -1,6 +1,6 @@
 module Color where
 
-import Common.Functions (template)
+import Common.Template (template)
 import System.Console.ANSI
   ( Color (..),
     ColorIntensity (..),

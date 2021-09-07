@@ -25,7 +25,7 @@ import qualified Logic.IO.Upload as Upload
 import qualified Logic.Pure.API as API
 import qualified Logic.Pure.JSON.Exports as JSON
 import qualified Logic.Pure.Params.Functions as Params
-import Network.HTTP.Types ( parseQuery )
+import Network.HTTP.Types (parseQuery)
 import qualified Network.Wai.Internal as Wai
 
 getJSON :: MTrans m => Wai.Request -> m LC.ByteString

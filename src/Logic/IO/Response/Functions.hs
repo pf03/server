@@ -4,14 +4,14 @@ import Common.Convert (Convert (convert), ConvertL (convertL))
 import Common.Functions (splitOnLast)
 import Interface.Class (MTrans)
 import qualified Interface.MCache.Exports as Cache
-import Interface.MCache.Types as Cache ( API(API), APIType(Image), QueryType(Load) )
+import Interface.MCache.Types as Cache (API (API), APIType (Image), QueryType (Load))
 import qualified Interface.MError.Exports as Error
 import qualified Interface.MLog.Exports as Log
 import qualified Logic.IO.Photos as Photos
-import Network.HTTP.Types ( hContentType, internalServerError500, status200 ) 
+import Logic.IO.Response.Internal (getJSON)
+import Network.HTTP.Types (hContentType, internalServerError500, status200)
 import qualified Network.Wai as Wai
-import Network.Wai.Internal as Wai ( Request, Response )
-import Logic.IO.Response.Internal ( getJSON )
+import Network.Wai.Internal as Wai (Request, Response)
 
 get :: MTrans m => Request -> m Response
 get req = do
