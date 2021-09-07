@@ -4,15 +4,12 @@ import Control.Monad.Except (forM)
 import Data.Aeson (Options (fieldLabelModifier), defaultOptions)
 import Data.Char (toLower)
 import qualified Data.Map as M
-import Data.Maybe (catMaybes, fromJust)
+import Data.Maybe (catMaybes)
 
 mapMaybeM :: Monad m => (a -> m (Maybe b)) -> [a] -> m [b]
 mapMaybeM f list = do
   mb <- forM list f
   return $ catMaybes mb
-
-jLookup :: Eq a => a -> [(a, b)] -> b
-jLookup key list = fromJust $ lookup key list
 
 (<<$>>) :: (Monad m, Monad n) => (a -> b) -> m (n a) -> m (n b)
 (<<$>>) f mna = do

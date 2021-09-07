@@ -1,6 +1,6 @@
 module Logic.Pure.Params.Internal where
 
-import Common.Functions (jLookup, (<<$>>))
+import Common.Functions ((<<$>>))
 import Common.Template (Template (template))
 import Common.Types (BS, BSName)
 import Control.Monad.Except (forM_, when)
@@ -9,7 +9,7 @@ import qualified Data.ByteString as B
 import Data.ByteString.Internal (c2w)
 import Data.List (find)
 import qualified Data.Map as M
-import Data.Maybe (mapMaybe)
+import Data.Maybe (catMaybes, mapMaybe)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import Interface.Class (MError)
@@ -158,7 +158,7 @@ possibleParamDescs (API queryType apiType) = M.fromList <$> list
       _ -> Error.throw $ Error.patError "Params.possibleParamDesc" apiType
 
 possibleParams :: BSName -> ParamDesc -> [BSKey]
-possibleParams bsName (ParamDesc templs0 _ _ _) = (flip fmap) templs0 $ \templ -> bsName <> jLookup templ templates
+possibleParams bsName (ParamDesc templs0 _ _ _) = catMaybes $ (flip fmap) templs0 $ \templ -> (Just bsName) <> lookup templ templates
 
 concatParams :: M.Map BSName ParamDesc -> [BSKey]
 concatParams = concat . M.mapWithKey possibleParams
@@ -219,7 +219,7 @@ findTemplate queryString name paramDesc@(ParamDesc _ _ must0 _) = do
 checkParam :: (BS, Maybe BS) -> BSName -> ParamDesc -> Maybe (Templ, BSKey, Maybe BSValue)
 checkParam (param, mValue) name (ParamDesc ts _ _ _) = res
   where
-    mTempl = find (\tpl -> param == name <> jLookup tpl templates) ts
+    mTempl = find (\tpl -> Just param == Just name <> lookup tpl templates) ts
     res = case mTempl of
       Nothing -> Nothing
       Just templ -> Just (templ, param, mValue)
