@@ -1,7 +1,7 @@
 module Logic.IO.File where
 
 import Common.Convert (Convert (convert))
-import Common.Functions (splitOnLast)
+import Common.Functions (breakOnLast)
 import Common.Template (Template (template))
 import Common.Types (BS, FileName, LBS)
 import Control.Exception as Exception (IOException)
@@ -37,7 +37,7 @@ writeResponseJSON json = do
 getFreeName :: (MIOError m) => FilePath -> FileName -> m FileName
 getFreeName path fileName = do
   items <- Error.liftEIO $ listDirectory path
-  let (name, extension) = splitOnLast '.' fileName
+  let (name, extension) = breakOnLast '.' fileName
   let allNames =
         filter (`notElem` items) $
           fileName : map (\n -> name <> "_" <> show n <> "." <> extension) [1 :: Int, 2 ..]

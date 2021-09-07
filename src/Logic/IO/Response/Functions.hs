@@ -1,7 +1,7 @@
 module Logic.IO.Response.Functions where
 
 import Common.Convert (Convert (convert), ConvertL (convertL))
-import Common.Functions (splitOnLast)
+import Common.Functions (breakOnLast)
 import Interface.Class (MTrans)
 import qualified Interface.MCache.Exports as Cache
 import Interface.MCache.Types as Cache (API (API), APIType (Image), QueryType (Load))
@@ -20,7 +20,7 @@ get req = do
   api <- Cache.getAPI
   case api of
     API Load [Image fn] -> do
-      let (_, extension) = splitOnLast '.' fn
+      let (_, extension) = breakOnLast '.' fn
       return $
         Wai.responseFile
           status200

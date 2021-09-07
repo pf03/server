@@ -1,9 +1,9 @@
 module Logic.DB.Migrations.Internal where
 
-import Common.Functions (printT)
 import Common.Template (Template (template))
 import Common.Types (FileName)
 import Control.Monad (unless, zipWithM_)
+import Control.Monad.IO.Class (MonadIO (liftIO))
 import Data.List (isPrefixOf, isSuffixOf, sort)
 import Database.PostgreSQL.Simple.Types (Query (Query))
 import Interface.Class (MDB, MError, MIOError, MLog)
@@ -25,11 +25,11 @@ pathMigration name = template "{0}/{1}" [pathMigrations, name]
 getNamesList :: MIOError m => m [FileName]
 getNamesList = do
   items <- Error.liftEIO $ listDirectory pathMigrations
-  printT items
+  liftIO $ print items
   let files = sort $ filter checkFormat items
   unless (all (uncurry checkOrder) $ zip [0 :: Int ..] files) $
     Error.throwIO "Check the order of numbers in migration files!" []
-  printT files
+  liftIO $ print files
   return files
   where
     -- Check format of file names 0000_migration_name.sql

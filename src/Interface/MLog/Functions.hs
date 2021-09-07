@@ -2,7 +2,6 @@ module Interface.MLog.Functions where
 
 import qualified Common.Color as Color
 import Common.Convert (Convert (convert))
-import Common.Functions (putStrLnT)
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
 import qualified Data.ByteString as B
@@ -121,7 +120,7 @@ writeMessageIO (Config colorEnabled terminalEnabled fileEnabled minLevel) (Setti
         if level == Info
           then Color.setScheme colorScheme
           else Color.setColor $ getColor level
-      when terminalEnabled $ putStrLnT logText
+      when terminalEnabled $ liftIO . putStrLn $ logText
       when fileEnabled $ writeToFile logText
       when (colorEnabled && terminalEnabled) Color.resetColorScheme
   where

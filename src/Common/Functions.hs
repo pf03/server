@@ -1,33 +1,15 @@
 module Common.Functions where
 
-import Control.Monad.Except (MonadIO (..), forM)
+import Control.Monad.Except (forM)
 import Data.Aeson (Options (fieldLabelModifier), defaultOptions)
 import Data.Char (toLower)
 import qualified Data.Map as M
 import Data.Maybe (catMaybes, fromJust)
 
-ifJust :: Monad m => Maybe a -> m () -> m ()
-ifJust ma m = case ma of
-  Just _ -> m
-  _ -> return ()
-
-printT :: (MonadIO m, Show a) => a -> m ()
-printT = liftIO . print
-
-putStrLnT :: MonadIO m => String -> m ()
-putStrLnT = liftIO . putStrLn
-
-readLnT :: MonadIO m => m String
-readLnT = liftIO getLine
-
 mapMaybeM :: Monad m => (a -> m (Maybe b)) -> [a] -> m [b]
 mapMaybeM f list = do
   mb <- forM list f
   return $ catMaybes mb
-
-maybeToList :: Maybe a -> [a]
-maybeToList Nothing = []
-maybeToList (Just a) = [a]
 
 jLookup :: Eq a => a -> [(a, b)] -> b
 jLookup key list = fromJust $ lookup key list
@@ -55,14 +37,8 @@ adjustM kl def k m = do
     Nothing -> return def
   return $ M.insert k newa m
 
-splitOnFst :: Eq a => a -> [a] -> ([a], [a])
-splitOnFst _ [] = ([], [])
-splitOnFst a xs | a `notElem` xs = ([], xs)
-splitOnFst a (x : xs) | a == x = ([], xs)
-splitOnFst a (x : xs) = let (b, c) = splitOnFst a xs in (x : b, c)
-
-splitOnLast :: Eq a => a -> [a] -> ([a], [a])
-splitOnLast a list = let (b, c) = splitOnFst a (reverse list) in (reverse c, reverse b)
+breakOnLast :: Eq a => a -> [a] -> ([a], [a])
+breakOnLast a list = let (b, c) = break (== a) (reverse list) in (reverse c, reverse b)
 
 -- For JSON correct parsing
 deletePrefixOptions :: Int -> Options

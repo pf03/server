@@ -1,6 +1,5 @@
 module Logic.IO.Upload where
 
-import Common.Functions (putStrLnT)
 import Common.Template (Template (template))
 import Common.Types (Path)
 import Control.Monad.Except (MonadIO (..))
@@ -36,7 +35,7 @@ saveBinary request path = do
       bs <- Error.liftEIO str
       if bs == mempty
         then do
-          putStrLnT $ template "Successfully written {0} file parts" [show n]
+          liftIO . putStrLn $ template "Successfully written {0} file parts" [show n]
           Cache.addChanged Upload Photo 1
         else do
           Error.liftEIO $ B.appendFile path bs

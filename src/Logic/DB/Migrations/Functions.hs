@@ -1,6 +1,6 @@
 module Logic.DB.Migrations.Functions where
 
-import Common.Functions (readLnT)
+import Control.Monad.IO.Class (MonadIO (liftIO))
 import Interface.Class (MDB)
 import qualified Interface.MLog.Exports as Log
 import Logic.DB.Migrations.Internal
@@ -31,7 +31,7 @@ run = do
 dbDrop :: MDB m => m ()
 dbDrop = do
   Log.writeWarnM "Warning! All database tables will be dropped Y/N"
-  answer <- readLnT
+  answer <- liftIO getLine
   case answer of
     "N" -> Log.writeInfoM "Exit from the migration program"
     "Y" -> dbDropForce
