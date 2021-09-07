@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: f97f3dd66a4d94e12f55accb2adc9ff5a45db5f8997ccd20ecaf310c39989121
+-- hash: fcec16e8ddaa899d6d546db757d1cd07cfda72945e0f8c96fb8772777b1a4278
 
 name:           server
 version:        0.1.0.0
@@ -33,6 +33,7 @@ library
       Common.Convert
       Common.Functions
       Common.Identifiable
+      Common.Template
       Common.Types
       Interface.Class
       Interface.MCache.Class

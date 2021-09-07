@@ -1,6 +1,7 @@
 module Logic.DB.Update where
 
-import Common.Functions (Template (template), mapMaybeM)
+import Common.Functions (mapMaybeM)
+import Common.Template (Template (template))
 import Common.Types (Action (..), BSName)
 import Control.Monad.Identity (when)
 import Data.Map as M ((!))

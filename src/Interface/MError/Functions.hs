@@ -1,17 +1,21 @@
 module Interface.MError.Functions where
 
-import Common.Functions ( Template(template) )
-import Common.Types ( LBS )
+import Common.Template (Template (template))
+import Common.Types (LBS)
 import qualified Control.Exception as E
-import Control.Monad.Except ( MonadIO(liftIO) ) 
-import Interface.MError.Class ( MError(..), MIOError ) 
-import Interface.MError.Types ( Error(..) ) 
-import qualified Data.Text                  as T
-import qualified Data.Text.Encoding         as T
+import Control.Monad.Except (MonadIO (liftIO))
+import Data.Aeson (FromJSON, eitherDecode)
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
+import Database.PostgreSQL.Simple (SqlError (sqlErrorMsg))
+import Interface.MError.Class (MError (..), MIOError)
+import Interface.MError.Types (Error (..))
 import Network.HTTP.Types
-    ( badRequest400, internalServerError500, unauthorized401, Status )
-import Data.Aeson ( eitherDecode, FromJSON )
-import Database.PostgreSQL.Simple ( SqlError(sqlErrorMsg) )
+  ( Status,
+    badRequest400,
+    internalServerError500,
+    unauthorized401,
+  )
 
 -----------------------------MError--------------------------------------------
 liftE :: MError m => Either Error a -> m a
@@ -55,14 +59,14 @@ eDecode :: (MError m, FromJSON a) => LBS -> m a
 eDecode bs = catchEither (eitherDecode bs) ParseError
 
 getStatus :: Error -> Status
-getStatus (ParseError _)   = internalServerError500
+getStatus (ParseError _) = internalServerError500
 getStatus (RequestError _) = badRequest400
-getStatus (ConfigError _)  = internalServerError500
-getStatus (DBError _)      = badRequest400
-getStatus (IOError _)      = internalServerError500
-getStatus (AuthError _)    = unauthorized401
-getStatus (DevError _)     = internalServerError500
-getStatus (SomeError _)    = internalServerError500
+getStatus (ConfigError _) = internalServerError500
+getStatus (DBError _) = badRequest400
+getStatus (IOError _) = internalServerError500
+getStatus (AuthError _) = unauthorized401
+getStatus (DevError _) = internalServerError500
+getStatus (SomeError _) = internalServerError500
 
 -----------------------------Errors--------------------------------------------
 errorDefault :: Error
@@ -77,7 +81,7 @@ dbErrorDefault = DBError "A database error has occurred. Contact the administrat
 authErrorWrong :: Error
 authErrorWrong = AuthError "Wrong authorization"
 
-patError :: Show a => String -> a -> Error 
+patError :: Show a => String -> a -> Error
 patError func pat = DevError $ template "Wrong pattern in function \"{0}\": {1}" [func, show pat]
 
 throwDB :: (MError m) => String -> [String] -> m a

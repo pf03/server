@@ -1,33 +1,36 @@
 module Logic.Pure.Params.Internal where
 
-import Logic.Pure.Params.Types
-    ( BSTempl,
-      BSValue,
-      BSKey,
-      ParamDesc(ParamDesc),
-      ParamType(..),
-      Templ(..) )
-import Common.Functions( (<<$>>), jLookup, Template(template) )
+import Common.Functions (jLookup, (<<$>>))
+import Common.Template (Template (template))
 import Common.Types (BS, BSName)
 import Control.Monad.Except (forM_, when)
+import Data.Bifunctor (Bifunctor (second))
 import qualified Data.ByteString as B
+import Data.ByteString.Internal (c2w)
 import Data.List (find)
 import qualified Data.Map as M
+import Data.Maybe (mapMaybe)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import Interface.Class (MError)
 import Interface.MCache.Types
-    ( Val(Str, Int, Date),
-      Param(ParamLike, ParamNull, ParamNo, ParamEq, ParamIn, ParamAll, ParamLt, ParamGt, ParamBt),
-      APIType(Id, Photo, Image, User, Author, Category, Tag, Draft,Comment, Post),
-      QueryType(Update, Auth, Upload, Load, Select, SelectById, Delete,Insert),
-      API(..) )
+  ( API (..),
+    APIType (Author, Category, Comment, Draft, Id, Image, Photo, Post, Tag, User),
+    Param (ParamAll, ParamBt, ParamEq, ParamGt, ParamIn, ParamLike, ParamLt, ParamNo, ParamNull),
+    QueryType (Auth, Delete, Insert, Load, Select, SelectById, Update, Upload),
+    Val (Date, Int, Str),
+  )
 import qualified Interface.MError.Exports as Error
+import Logic.Pure.Params.Types
+  ( BSKey,
+    BSTempl,
+    BSValue,
+    ParamDesc (ParamDesc),
+    ParamType (..),
+    Templ (..),
+  )
 import Network.HTTP.Types.URI (Query)
 import Text.Read (readEither)
-import Data.ByteString.Internal ( c2w )
-import Data.Bifunctor ( Bifunctor(second) )
-import Data.Maybe (mapMaybe)
 
 -----------------------------Params map----------------------------------------
 
@@ -182,10 +185,11 @@ checkParams api queries paramDesc = do
 
 -- For sql injection protection!
 escapeQuotes :: Query -> Query
-escapeQuotes = map (second ( doubleQuotes <$>)) where
-  quote = c2w '\'' --39
-  doubleQuotes :: BSValue -> BSValue
-  doubleQuotes = B.concatMap (\word8 -> if word8 == quote then "''" else B.singleton word8)
+escapeQuotes = map (second (doubleQuotes <$>))
+  where
+    quote = c2w '\'' --39
+    doubleQuotes :: BSValue -> BSValue
+    doubleQuotes = B.concatMap (\word8 -> if word8 == quote then "''" else B.singleton word8)
 
 parseParam :: MError m => Query -> BSName -> ParamDesc -> m Param
 parseParam queries bsName paramDesc@(ParamDesc _ paramType0 _ nullable0) = do

@@ -1,11 +1,12 @@
 module Logic.DB.Migrations.Internal where
 
-import Common.Types ( FileName )
-import Interface.Class ( MIOError, MError, MLog, MDB )
-import Common.Functions ( Template(template), printT)
-import Control.Monad ( unless, zipWithM_ )
-import Data.List ( sort, isPrefixOf, isSuffixOf )
-import Database.PostgreSQL.Simple.Types ( Query(Query) )
+import Common.Functions (printT)
+import Common.Template (Template (template))
+import Common.Types (FileName)
+import Control.Monad (unless, zipWithM_)
+import Data.List (isPrefixOf, isSuffixOf, sort)
+import Database.PostgreSQL.Simple.Types (Query (Query))
+import Interface.Class (MDB, MError, MIOError, MLog)
 import qualified Interface.MDB.Exports as DB
 import qualified Interface.MError.Exports as Error
 import qualified Interface.MLog.Exports as Log
@@ -13,7 +14,7 @@ import qualified Logic.DB.Insert as Insert
 import qualified Logic.DB.Row as Row
 import qualified Logic.DB.Select.Exports as Select
 import qualified Logic.IO.File as File
-import System.Directory ( listDirectory )
+import System.Directory (listDirectory)
 
 pathMigrations :: FilePath
 pathMigrations = "migrations"
@@ -51,8 +52,7 @@ checkMigrations migrations names = do
     checkMigration migration name =
       if Row.migrationName migration == name
         then Log.writeInfoM $ template "Migration {0} is already applied..." [name]
-        else
-          Error.throwDB"Database migration name: {0} does not match the file name: {1}" [Row.migrationName migration, name]
+        else Error.throwDB "Database migration name: {0} does not match the file name: {1}" [Row.migrationName migration, name]
 
 migrate :: MDB m => [FileName] -> m ()
 migrate = mapM_ $ \name -> do

@@ -1,11 +1,11 @@
 module Logic.IO.Emulate where
 
-import Interface.Class ( MTrans ) 
-import Common.Functions ( Template(template) )
-import Control.Monad ( forM )
+import Common.Convert (Convert (convert))
+import Common.Template (Template (template))
+import Control.Monad (forM)
 import qualified Data.ByteString.Char8 as BC
-import qualified Interface.MCache.Exports as Cache 
-import Common.Convert ( Convert(convert) )
+import Interface.Class (MTrans)
+import qualified Interface.MCache.Exports as Cache
 import qualified Interface.MError.Exports as Error
 import qualified Interface.MLog.Exports as Log
 import qualified Logic.DB.Auth as Auth
@@ -46,6 +46,7 @@ writeTokens = do
     templ paramName (Auth.Token token) = template "{0}=\"Authorization: {1}\"" [paramName, token]
 
     calcFakeToken :: Auth.Token -> Auth.Token
-    calcFakeToken (Auth.Token token) = if last token == '0' 
-        then Auth.Token $ init token <> "1" 
+    calcFakeToken (Auth.Token token) =
+      if last token == '0'
+        then Auth.Token $ init token <> "1"
         else Auth.Token $ init token <> "0"

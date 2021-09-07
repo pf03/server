@@ -1,6 +1,6 @@
 module Logic.DB.Delete where
 
-import Common.Functions (Template (template))
+import Common.Template (Template (template))
 import Control.Monad.Identity (when)
 import Database.PostgreSQL.Simple.SqlQQ (sql)
 import Database.PostgreSQL.Simple.Types as SQL (Query)
@@ -43,8 +43,10 @@ deletePost :: MTrans m => Int -> m ()
 deletePost contentId = do
   _ <- Update.checkAuthExistContent False contentId
   DB.delete Comment [sql|DELETE FROM comments WHERE post_id = {0}|] [toQuery contentId]
-  DB.execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0} OR content_id IN
-    (SELECT id FROM contents WHERE post_id = {0})|] [toQuery contentId] --delete tags binds to post and all its drafts
+  DB.execute_
+    [sql|DELETE FROM tags_to_contents WHERE content_id = {0} OR content_id IN
+    (SELECT id FROM contents WHERE post_id = {0})|]
+    [toQuery contentId] --delete tags binds to post and all its drafts
   DB.delete Content [sql|DELETE FROM contents WHERE post_id = {0}|] [toQuery contentId] -- delete all post drafts
   DB.delete Content [sql|DELETE FROM contents WHERE id = {0}|] [toQuery contentId] -- delete post
 

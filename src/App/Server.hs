@@ -1,6 +1,6 @@
 module App.Server where
 
-import Common.Functions (Template (template))
+import Common.Template (Template (template))
 import qualified Data.ByteString as B
 import qualified Interface.MLog.Exports as Log
 import Logic.IO.Config (Config, ConfigWarp (warpPort))

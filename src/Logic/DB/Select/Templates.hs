@@ -1,13 +1,13 @@
 module Logic.DB.Select.Templates where
 
-import Common.Functions (Template (template))
+import Common.Template (Template (template))
 import Database.PostgreSQL.Simple.SqlQQ (sql)
 import Database.PostgreSQL.Simple.Types as SQL (Query)
-import Interface.Class ( MError ) 
+import Interface.Class (MError)
 import qualified Interface.MCache.Exports as Cache
-import Interface.MDB.Templates ( inList, toQuery )
-import qualified Interface.MError.Exports as Error
+import Interface.MDB.Templates (inList, toQuery)
 import qualified Interface.MDB.Templates as DB
+import qualified Interface.MError.Exports as Error
 
 -----------------------------Templates-----------------------------------------
 paramToQuery :: MError m => Cache.Param -> m Query
@@ -20,12 +20,12 @@ valToQuery (Cache.Str str) = template [sql|'{0}'|] [toQuery str]
 valToQuery (Cache.Date date) = template [sql|'{0}'|] [toQuery date]
 
 valListToQuery :: [Cache.Val] -> Query
-valListToQuery list = template [sql|'{{0}}'|] [DB.concatWith "," (map valToArrayItem list)] where
-  valToArrayItem :: Cache.Val -> Query
-  valToArrayItem (Cache.Int int) = template [sql|{0}, |] [toQuery int]
-  valToArrayItem (Cache.Str str) = template [sql|"{0}"|] [toQuery str]
-  valToArrayItem (Cache.Date date) = template [sql|"{0}"|] [toQuery date]
-
+valListToQuery list = template [sql|'{{0}}'|] [DB.concatWith "," (map valToArrayItem list)]
+  where
+    valToArrayItem :: Cache.Val -> Query
+    valToArrayItem (Cache.Int int) = template [sql|{0}, |] [toQuery int]
+    valToArrayItem (Cache.Str str) = template [sql|"{0}"|] [toQuery str]
+    valToArrayItem (Cache.Date date) = template [sql|"{0}"|] [toQuery date]
 
 paramToCondition :: MError m => Query -> Cache.Param -> m Query
 paramToCondition field param = case param of

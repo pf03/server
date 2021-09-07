@@ -1,7 +1,7 @@
 module Logic.DB.Auth where
 
 import Common.Convert (Convert (convert))
-import Common.Functions (Template (template))
+import Common.Template (Template (template))
 import Control.Monad.Identity (when)
 import qualified Crypto.Hash.MD5 as MD5 (hash)
 import Data.Aeson (FromJSON, ToJSON)
@@ -15,8 +15,8 @@ import Data.Word (Word8)
 import Database.PostgreSQL.Simple.SqlQQ (sql)
 import GHC.Generics (Generic)
 import Interface.Class (MCache, MError, MIOError, MTrans)
-import Interface.MCache.Types ( Auth(AuthAdmin, AuthNo, AuthUser) )
 import qualified Interface.MCache.Exports as Cache
+import Interface.MCache.Types (Auth (AuthAdmin, AuthNo, AuthUser))
 import qualified Interface.MDB.Exports as DB
 import qualified Interface.MError.Exports as Error
 import qualified Interface.MLog.Exports as Log
@@ -36,11 +36,14 @@ instance FromJSON Token
 login :: MTrans m => m Token
 login = do
   pars <- Cache.getParams
-  users <- DB.queryM
-        [sql|
+  users <-
+    DB.queryM
+      [sql|
+
         SELECT id, is_admin FROM users
         WHERE user_login = {0} and pass = md5 (CONCAT_WS(' ', {0}, {1}))
-    |] [paramToQuery $ pars ! "user_login", paramToQuery $ pars ! "pass"]
+    |]
+      [paramToQuery $ pars ! "user_login", paramToQuery $ pars ! "pass"]
   case users :: [(Int, Bool)] of
     [(userId, isAdmin)] -> do
       Log.writeDebugM users

@@ -1,6 +1,6 @@
 module Interface.MDB.Functions where
 
-import Common.Functions ( Template(template), templateM )
+import Common.Template (Template (template), templateM)
 import Data.Int (Int64)
 import Database.PostgreSQL.Simple (FromRow)
 import Database.PostgreSQL.Simple.Types (Query)
@@ -50,7 +50,6 @@ executeM query0 queries = do
   query1 <- templateM query0 queries
   Log.writeDebugM query1
   Error.catch (dbExecute query1) $ eHandler query1
-
 
 -- | Query without automatic recording of the number of changed entities
 execute_ :: MDB m => Query -> [Query] -> m ()

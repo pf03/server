@@ -1,12 +1,13 @@
 module Logic.IO.Upload where
 
-import Interface.Class ( MIOError, MCache )
-import Common.Functions (Template (template), putStrLnT)
+import Common.Functions (putStrLnT)
+import Common.Template (Template (template))
 import Common.Types (Path)
 import Control.Monad.Except (MonadIO (..))
 import qualified Data.ByteString as B
+import Interface.Class (MCache, MIOError)
 import qualified Interface.MCache.Exports as Cache
-import Interface.MCache.Types ( APIType(Photo), QueryType(Upload) )
+import Interface.MCache.Types (APIType (Photo), QueryType (Upload))
 import qualified Interface.MError.Exports as Error
 import Network.Wai as Wai
   ( Request (requestBodyLength),
@@ -21,8 +22,11 @@ saveBinary request path = do
   case fileSize of
     ChunkedBody ->
       Error.throwRequest "Unknown file size. Please select a file less than 5MB ({0} B)" [show maxFileSize]
-    KnownLength n | n >= maxFileSize -> Error.throwRequest "The file size is {0} B. Please select a file less than 5 MB ({1} B)" 
-        [show n, show maxFileSize]
+    KnownLength n
+      | n >= maxFileSize ->
+        Error.throwRequest
+          "The file size is {0} B. Please select a file less than 5 MB ({1} B)"
+          [show n, show maxFileSize]
     _ -> return ()
   Error.liftEIO $ B.writeFile path mempty
   stream 0 (getRequestBodyChunk request)
@@ -49,6 +53,7 @@ streamOne = loop (0 :: Int)
         then do
           liftIO $ putStrLn $ template "Successfully read {0} parts of the request body" [show n]
           return a
-        else if n >= 1
+        else
+          if n >= 1
             then Error.throwRequest "The request body is too long. The request body should consist of no more than one chunk" []
             else (a <>) <$> loop (n + 1) source

@@ -1,7 +1,8 @@
 module Interface.MDB.Templates where
 
 import Common.Convert (Convert (..))
-import Common.Functions (Template (template), (<$$>))
+import Common.Functions ((<$$>))
+import Common.Template (Template (template))
 import Database.PostgreSQL.Simple.SqlQQ (sql)
 import Database.PostgreSQL.Simple.Types (Query (Query))
 

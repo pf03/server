@@ -1,6 +1,6 @@
 module Logic.Pure.API where
 
-import Common.Functions (Template (template))
+import Common.Template (Template (template))
 import Common.Types (PathInfo)
 import qualified Data.ByteString as B
 import Data.Text (Text, unpack)

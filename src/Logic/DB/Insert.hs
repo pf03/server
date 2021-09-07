@@ -1,6 +1,7 @@
 module Logic.DB.Insert where
 
-import Common.Functions (templateM, (<<$>>))
+import Common.Functions ((<<$>>))
+import Common.Template (templateM)
 import Common.Types (Action (..), BSName)
 import Control.Monad.Identity (unless, when)
 import Data.Map ((!))

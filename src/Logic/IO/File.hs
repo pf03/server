@@ -1,7 +1,8 @@
 module Logic.IO.File where
 
 import Common.Convert (Convert (convert))
-import Common.Functions (Template (template), splitOnLast)
+import Common.Functions (splitOnLast)
+import Common.Template (Template (template))
 import Common.Types (BS, FileName, LBS)
 import Control.Exception as Exception (IOException)
 import Control.Monad (when)

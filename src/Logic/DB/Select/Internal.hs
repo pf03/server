@@ -1,6 +1,7 @@
 module Logic.DB.Select.Internal where
 
-import Common.Functions (Template (template), (<$$>))
+import Common.Functions ((<$$>))
+import Common.Template (Template (template))
 import Data.Map ((!))
 import Database.PostgreSQL.Simple.SqlQQ (sql)
 import Database.PostgreSQL.Simple.Types (Query)

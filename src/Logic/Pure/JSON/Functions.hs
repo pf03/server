@@ -1,7 +1,8 @@
 module Logic.Pure.JSON.Functions where
 
-import Common.Functions (Template (template), adjustM, maybeToList)
+import Common.Functions (adjustM, maybeToList)
 import Common.Identifiable (filterById, findById, unite)
+import Common.Template (Template (template))
 import Control.Monad.Except (when)
 import qualified Data.Map as M
 import Database.PostgreSQL.Simple (type (:.) ((:.)))
