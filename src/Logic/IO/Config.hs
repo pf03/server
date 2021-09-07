@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveGeneric #-}
-
 module Logic.IO.Config where
 
 import Control.Exception (IOException)

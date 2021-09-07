@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveGeneric #-}
-
 module Logic.DB.Auth where
 
 import Common.Convert (Convert (convert))

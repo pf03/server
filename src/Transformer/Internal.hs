@@ -1,6 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-
 module Transformer.Internal where
 
 import Control.Monad.Except (ExceptT, MonadIO, runExceptT, void)

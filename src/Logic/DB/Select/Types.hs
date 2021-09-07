@@ -1,5 +1,3 @@
-{-# LANGUAGE TypeOperators #-}
-
 module Logic.DB.Select.Types where
 
 import Database.PostgreSQL.Simple.Types as SQL (type (:.))

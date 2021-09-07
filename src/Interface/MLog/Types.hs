@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveGeneric #-}
-
 module Interface.MLog.Types where
 
 import Common.Functions (deletePrefixOptions)

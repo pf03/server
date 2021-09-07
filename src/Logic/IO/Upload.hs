@@ -1,5 +1,3 @@
-{-# LANGUAGE FlexibleInstances #-}
-
 module Logic.IO.Upload where
 
 import Interface.Class ( MIOError, MCache )

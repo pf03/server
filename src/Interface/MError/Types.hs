@@ -1,5 +1,3 @@
-{-# LANGUAGE FlexibleInstances #-}
-
 module Interface.MError.Types where
 
 import qualified Control.Exception as E

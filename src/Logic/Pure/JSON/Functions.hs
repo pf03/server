@@ -1,5 +1,3 @@
-{-# LANGUAGE ExplicitNamespaces #-}
-
 module Logic.Pure.JSON.Functions where
 
 import Common.Functions (Template (template), adjustM, maybeToList)

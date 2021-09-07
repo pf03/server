@@ -1,5 +1,3 @@
-{-# LANGUAGE FlexibleInstances #-}
-
 module Interface.MError.Class where
 
 import Control.Monad.Except (ExceptT, MonadIO (..))

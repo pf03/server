@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveGeneric #-}
-
 module Interface.MCache.Types where
 
 import Common.Types ( BSName )

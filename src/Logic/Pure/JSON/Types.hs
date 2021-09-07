@@ -1,6 +1,3 @@
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE FlexibleInstances #-}
-
 module Logic.Pure.JSON.Types where
 
 import Common.Identifiable (Identifiable (..))
