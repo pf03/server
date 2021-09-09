@@ -16,7 +16,7 @@ import Database.PostgreSQL.Simple.SqlQQ (sql)
 import GHC.Generics (Generic)
 import Interface.Class (MCache, MError, MIOError, MTrans)
 import qualified Interface.MCache.Exports as Cache
-import Interface.MCache.Types (Auth (AuthAdmin, AuthNo, AuthUser))
+import Interface.MCache.Types (Auth (Admin, Authorized, Unauthorized))
 import qualified Interface.MDB.Exports as DB
 import qualified Interface.MError.Exports as Error
 import qualified Interface.MLog.Exports as Log
@@ -60,7 +60,7 @@ auth :: (MIOError m, MCache m) => Wai.Request -> m ()
 auth request = do
   let headers = Wai.requestHeaders request
   case lookup "Authorization" headers of
-    Nothing -> Cache.setAuth AuthNo
+    Nothing -> Cache.setAuth Unauthorized
     Just auth0 -> do
       date <- Error.liftEIO getCurrentTime
       checkAuth date (Token $ BC.unpack auth0)
@@ -74,10 +74,10 @@ checkAuth date token0 = do
     then do
       correctToken <- genToken date userId role
       if correctToken == token0 && role == "user"
-        then Cache.setAuth $ AuthUser userId
+        then Cache.setAuth $ Authorized userId
         else
           if correctToken == token0 && role == "admin"
-            then Cache.setAuth $ AuthAdmin userId
+            then Cache.setAuth $ Admin userId
             else Error.throwAuth "Wrong token!" []
     else Error.throwAuth "Wrong token date!" []
 

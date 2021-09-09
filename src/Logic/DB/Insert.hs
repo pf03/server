@@ -11,14 +11,8 @@ import Database.PostgreSQL.Simple.Types as SQL (Only (..), Query)
 import Interface.Class (MCache, MDB, MError, MTrans)
 import qualified Interface.MCache.Exports as Cache
 import Interface.MCache.Types
-  ( APIType
-      ( Author,
-        Category,
-        Comment,
-        Content,
-        User
-      ),
-    Auth (AuthAdmin, AuthUser),
+  ( APIType (Author, Category, Comment, Content, User),
+    Auth (Admin, Authorized),
     Param (ParamAll, ParamEq, ParamIn, ParamNo, ParamNull),
     ParamsMap,
     QueryType (Insert),
@@ -284,6 +278,6 @@ addAuthUserIdParam :: (MError m, MCache m) => m ParamsMap
 addAuthUserIdParam = do
   auth <- Cache.getAuth
   case auth of
-    AuthAdmin userId -> Cache.addIdParam "user_id" userId
-    AuthUser userId -> Cache.addIdParam "user_id" userId
+    Admin userId -> Cache.addIdParam "user_id" userId
+    Authorized userId -> Cache.addIdParam "user_id" userId
     _ -> Error.throw Error.authErrorDefault

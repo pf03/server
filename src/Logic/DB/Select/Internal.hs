@@ -206,6 +206,6 @@ authUserIdParam :: (MError m, MCache m) => m Cache.Param
 authUserIdParam = do
   auth <- Cache.getAuth
   case auth of
-    Cache.AuthAdmin _ -> return Cache.ParamNo
-    Cache.AuthUser userId -> return $ Cache.ParamEq (Cache.Int userId)
+    Cache.Admin _ -> return Cache.ParamNo
+    Cache.Authorized userId -> return $ Cache.ParamEq (Cache.Int userId)
     _ -> Error.throw Error.authErrorDefault

@@ -8,7 +8,7 @@ import Interface.MCache.Class (MCache (..))
 import Interface.MCache.Types
   ( API (..),
     APIType (Id),
-    Auth (AuthNo),
+    Auth (Unauthorized),
     Cache (..),
     Changed (..),
     Param (ParamEq),
@@ -105,7 +105,7 @@ resetCache :: MCache m => m ()
 resetCache = setCache defaultCache
 
 defaultCache :: Cache
-defaultCache = Cache {changed = mempty, auth = AuthNo, params = mempty, api = API Empty []}
+defaultCache = Cache {changed = mempty, auth = Unauthorized, params = mempty, api = API Empty []}
 
 getAuth :: MCache m => m Auth
 getAuth = getsCache auth

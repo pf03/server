@@ -11,7 +11,7 @@ import Interface.Class (MCache, MError, MTrans)
 import qualified Interface.MCache.Exports as Cache
 import Interface.MCache.Types
   ( APIType (Author, Category, Content, Tag, User),
-    Auth (AuthAdmin, AuthNo, AuthUser),
+    Auth (Admin, Authorized, Unauthorized),
     Param (ParamAll, ParamEq, ParamNo, ParamNull),
     ParamsMap,
     QueryType (Insert),
@@ -182,9 +182,9 @@ checkAuthExist paramId name query = do
     [(userId, authorId, contentId)] -> do
       a <- Cache.getAuth
       case a of
-        AuthNo -> Error.throw Error.authErrorDefault
-        AuthAdmin _ -> return (userId, authorId, contentId) -- admin can EDIT all contents (moderation)
-        AuthUser authUserId | userId == authUserId -> return (userId, authorId, contentId) -- user can EDIT only his own contents
+        Unauthorized -> Error.throw Error.authErrorDefault
+        Admin _ -> return (userId, authorId, contentId) -- admin can EDIT all contents (moderation)
+        Authorized authUserId | userId == authUserId -> return (userId, authorId, contentId) -- user can EDIT only his own contents
         _ -> Error.throw Error.authErrorWrong
     res -> Error.throw $ Error.DevError $ template "Wrong query result {0} in function Update.checkAuthExist" [show res]
 
