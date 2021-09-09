@@ -12,9 +12,9 @@ import Interface.MCache.Types
     Cache (..),
     Changed (..),
     Param (ParamEq),
+    ParamValue (IntParam, StringParam),
     ParamsMap,
     QueryType (..),
-    Val (Int, Str),
   )
 
 getsCache :: MCache m => (Cache -> a) -> m a
@@ -86,7 +86,7 @@ getParam name = getsCache (\cache -> params cache M.! name)
 
 -- | For example "user_id", "tag_id"
 addIdParam :: MCache m => BSName -> Int -> m ParamsMap
-addIdParam name paramId = modifyParams $ M.insert name (ParamEq (Int paramId))
+addIdParam name paramId = modifyParams $ M.insert name (ParamEq (IntParam paramId))
 
 addIdParam_ :: MCache m => BSName -> Int -> m ()
 addIdParam_ name paramId = do
@@ -94,7 +94,7 @@ addIdParam_ name paramId = do
   return ()
 
 addStrParam :: MCache m => BSName -> String -> m ParamsMap
-addStrParam name str = modifyParams $ M.insert name (ParamEq (Str str))
+addStrParam name str = modifyParams $ M.insert name (ParamEq (StringParam str))
 
 addStrParam_ :: MCache m => BSName -> String -> m ()
 addStrParam_ name str = do

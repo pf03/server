@@ -30,7 +30,7 @@ import Interface.MCache.Types as Types
     Cache (..),
     Changed (..),
     Param (..),
+    ParamValue (..),
     ParamsMap,
     QueryType (..),
-    Val (..),
   )

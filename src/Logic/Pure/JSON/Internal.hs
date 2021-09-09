@@ -3,7 +3,7 @@ module Logic.Pure.JSON.Internal where
 import Common.Identifiable (Identifiable (getId))
 import Database.PostgreSQL.Simple.Types (PGArray (PGArray))
 import Interface.Class (MError)
-import Interface.MCache.Types (Param (ParamIn, ParamNo), Val (Int))
+import Interface.MCache.Types (Param (ParamIn, ParamNo), ParamValue (IntParam))
 import qualified Interface.MError.Exports as Error
 import qualified Logic.DB.Row as Row
 import Logic.Pure.JSON.Types
@@ -42,9 +42,9 @@ getChildCategories :: MError m => Param -> [Category] -> m Param
 getChildCategories (ParamIn vals) categories =
   if length filtered == length categories
     then return ParamNo
-    else return . ParamIn . map (Int . getId) $ filtered
+    else return . ParamIn . map (IntParam . getId) $ filtered
   where
-    categoryIds = map (\(Int categoryId) -> categoryId) vals
+    categoryIds = map (\(IntParam categoryId) -> categoryId) vals
     filtered = filter helper categories
     helper :: Category -> Bool
     helper category = (getId category `elem` categoryIds) || maybe False helper (parent category)

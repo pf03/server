@@ -31,18 +31,18 @@ data Auth = Unauthorized | Authorized Int | Admin Int deriving (Show, Eq)
 type ParamsMap = M.Map BSName Param
 
 data Param
-  = ParamEq {paramEq :: Val}
-  | ParamIn [Val]
-  | ParamAll [Val]
-  | ParamLt Val
-  | ParamGt Val
-  | ParamBt (Val, Val)
-  | ParamLike Val
+  = ParamEq {paramEq :: ParamValue}
+  | ParamIn [ParamValue]
+  | ParamAll [ParamValue]
+  | ParamLt ParamValue
+  | ParamGt ParamValue
+  | ParamBt (ParamValue, ParamValue)
+  | ParamLike ParamValue
   | ParamNull
   | ParamNo
   deriving (Show, Eq)
 
-data Val = Str {valStr :: String} | Int {valInt :: Int} | Date {valDate :: Date} deriving (Show, Eq)
+data ParamValue = StringParam String | IntParam Int | DateParam Date deriving (Show, Eq)
 
 data API = API QueryType [APIType] deriving (Show)
 

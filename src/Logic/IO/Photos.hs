@@ -3,7 +3,7 @@ module Logic.IO.Photos where
 import Common.Types (FileName)
 import Interface.Class (MCache, MIOError)
 import qualified Interface.MCache.Exports as Cache
-import Interface.MCache.Types (Param (ParamEq), Val (Int, Str))
+import Interface.MCache.Types (Param (ParamEq), ParamValue (IntParam, StringParam))
 import qualified Interface.MError.Exports as Error
 import qualified Logic.IO.File as File
 import qualified Logic.IO.Upload as Upload
@@ -16,7 +16,7 @@ photosPath = "photos"
 -- | Uploading a photo to the server
 upload :: (MIOError m, MCache m) => Request -> m ()
 upload request = do
-  ParamEq (Str name) <- Cache.getParam "name"
+  ParamEq (StringParam name) <- Cache.getParam "name"
   freeName <- File.getFreeName photosPath name
   let path = photosPath <> "/" <> freeName
   Upload.saveBinary request path
@@ -29,7 +29,7 @@ load name = Error.catch (File.checkExist photosPath name) $ \_ -> do
 -- | Returns photo filenames
 select :: (MIOError m, MCache m) => m [FilePath]
 select = do
-  ParamEq (Int page) <- Cache.getParam "page"
+  ParamEq (IntParam page) <- Cache.getParam "page"
   items <- Error.liftEIO $ listDirectory photosPath
   let quantity = 20
   return $

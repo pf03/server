@@ -13,9 +13,9 @@ import Interface.MCache.Types
   ( APIType (Author, Category, Content, Tag, User),
     Auth (Admin, Authorized, Unauthorized),
     Param (ParamAll, ParamEq, ParamNo, ParamNull),
+    ParamValue (IntParam),
     ParamsMap,
     QueryType (Insert),
-    Val (Int),
   )
 import qualified Interface.MDB.Exports as DB
 import Interface.MDB.Templates (concatWith, toQuery)
@@ -76,7 +76,7 @@ updateTag paramId = do
 updateTagToContent :: MTrans m => Action -> m ()
 updateTagToContent Check = withParam "tag_id" $ Insert.insertTagToContent Check
 updateTagToContent Execute = withParam "tag_id" $ do
-  ParamEq (Int cid) <- Cache.getParam "content_id"
+  ParamEq (IntParam cid) <- Cache.getParam "content_id"
   DB.execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [toQuery cid]
   Insert.insertTagToContent Execute
 
@@ -114,7 +114,7 @@ updateDraft paramId = do
   params <- Cache.getParams
   checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
   updateTagToContent Check
-  ParamEq (Int contentId) <- Cache.getParam "content_id"
+  ParamEq (IntParam contentId) <- Cache.getParam "content_id"
   DB.updateM
     Content
     [sql|UPDATE contents SET {0} WHERE id = {1}|]
@@ -125,7 +125,7 @@ updateDraft paramId = do
 updatePost :: MTrans m => Int -> m ()
 updatePost paramId = do
   params <- checkAuthExistContent False paramId
-  when (params ! "author_id" == ParamEq (Int 1)) $
+  when (params ! "author_id" == ParamEq (IntParam 1)) $
     Error.throwDB "Unable to create draft from deleted author with id = 1" []
   checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
   Insert.insertTagToContent Check

@@ -10,8 +10,8 @@ import Database.PostgreSQL.Simple (type (:.) ((:.)))
 import Interface.Class (MError)
 import Interface.MCache.Types
   ( Param (ParamEq, ParamNo, ParamNull),
+    ParamValue (IntParam),
     ParamsMap,
-    Val (Int),
   )
 import qualified Interface.MError.Exports as Error
 import qualified Logic.DB.Row as Row
@@ -61,7 +61,7 @@ checkCyclicCategory categoryId params categories = do
   case params M.! "parent_id" of
     ParamNo -> return ()
     ParamNull -> return () -- root category
-    ParamEq (Int parentId) -> do
+    ParamEq (IntParam parentId) -> do
       grandParents <- getParents parentId categories
       when (categoryId `elem` grandParents) $
         Error.throwDB

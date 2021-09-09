@@ -150,7 +150,7 @@ filteredPostsQuery = do
             <+> condition
 
     orderBy :: MError m => Cache.Param -> m Query
-    orderBy (Cache.ParamEq (Cache.Str paramName)) = return . template [sql|ORDER BY {0}|] <$$> [field]
+    orderBy (Cache.ParamEq (Cache.StringParam paramName)) = return . template [sql|ORDER BY {0}|] <$$> [field]
       where
         field = case paramName of
           "created_at" -> return [sql|contents.creation_date|]
@@ -189,7 +189,7 @@ pagination :: (MError m, MCache m) => m Query
 pagination = do
   param <- Cache.getParam "page"
   case param of
-    Cache.ParamEq (Cache.Int page) ->
+    Cache.ParamEq (Cache.IntParam page) ->
       return $
         template
           [sql|LIMIT {0} OFFSET {1}|]
@@ -207,5 +207,5 @@ authUserIdParam = do
   auth <- Cache.getAuth
   case auth of
     Cache.Admin _ -> return Cache.ParamNo
-    Cache.Authorized userId -> return $ Cache.ParamEq (Cache.Int userId)
+    Cache.Authorized userId -> return $ Cache.ParamEq (Cache.IntParam userId)
     _ -> Error.throw Error.authErrorDefault

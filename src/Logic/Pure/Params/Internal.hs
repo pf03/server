@@ -17,8 +17,8 @@ import Interface.MCache.Types
   ( API (..),
     APIType (Author, Category, Comment, Draft, Id, Image, Photo, Post, Tag, User),
     Param (ParamAll, ParamBt, ParamEq, ParamGt, ParamIn, ParamLike, ParamLt, ParamNo, ParamNull),
+    ParamValue (..),
     QueryType (Auth, Delete, Insert, Load, Select, SelectById, Update, Upload),
-    Val (Date, Int, Str),
   )
 import qualified Interface.MError.Exports as Error
 import Logic.Pure.Params.Types
@@ -240,40 +240,40 @@ readParamAny paramType mTuple _ = do
 
 readParamPage :: MError m => Maybe (Templ, BSKey, BSValue) -> m Param
 readParamPage mTuple = case mTuple of
-  Nothing -> return $ ParamEq (Int 1)
-  _ -> readParam Int "Int" mTuple
+  Nothing -> return $ ParamEq (IntParam 1)
+  _ -> readParam IntParam "Int" mTuple
 
 readParamInt :: MError m => Maybe (Templ, BSKey, BSValue) -> m Param
 readParamInt mTuple = case mTuple of
   Just (Like, param, _) ->
     Error.throwRequest "The \"param__like\" template is only valid for string parameters: {0}" [show param]
-  _ -> readParam Int "Int" mTuple
+  _ -> readParam IntParam "Int" mTuple
 
 readParamStr :: MError m => Maybe (Templ, BSKey, BSValue) -> m Param
-readParamStr = readParam Str "String"
+readParamStr = readParam StringParam "String"
 
 readParamDate :: MError m => Maybe (Templ, BSKey, BSValue) -> m Param
 readParamDate mTuple = case mTuple of
   Just (Like, param, _) ->
     Error.throwRequest "The \"param__like\" template is only valid for string parameters: {0}" [show param]
-  _ -> readParam Date "Date" mTuple
+  _ -> readParam DateParam "Date" mTuple
 
 readParamSort :: MError m => [BSName] -> Maybe (Templ, BSKey, BSValue) -> m Param
 readParamSort list mTuple = do
   case mTuple of
     Just (Eq, param, bs) ->
       if bs `elem` list
-        then readParam Str "String" mTuple
+        then readParam StringParam "String" mTuple
         else Error.throwRequest "The parameter {0} must be an element of the list {1}" [show param, show list]
     Just (_, param, _) ->
       Error.throwRequest "Only template \"eq\" is valid for collation: {0}" [show param]
-    Nothing -> readParam Str "String" mTuple
+    Nothing -> readParam StringParam "String" mTuple
 
 readParamFileName :: MError m => [BSName] -> Maybe (Templ, BSKey, BSValue) -> m Param
 readParamFileName list mTuple = case mTuple of
   Just (Eq, param, bs) ->
     if any (checkFormat bs) list
-      then readParam Str "String" mTuple
+      then readParam StringParam "String" mTuple
       else Error.throwRequest "Parameter {0} must be a filename with one of the following extensions: {1}, in the format \"foo.png\"" [show param, show list]
   _ -> Error.throw $ Error.patError "Params.readParamFileName" mTuple
   where
@@ -283,7 +283,7 @@ readParamFileName list mTuple = case mTuple of
     checkFormat bs format | takeEnd (1 + B.length format) bs == "." <> format = True where takeEnd n xs = B.drop (B.length xs - n) xs
     checkFormat _ _ = False
 
-readParam :: (MError m, Read a) => (a -> Val) -> String -> Maybe (Templ, BSKey, BSValue) -> m Param
+readParam :: (MError m, Read a) => (a -> ParamValue) -> String -> Maybe (Templ, BSKey, BSValue) -> m Param
 readParam constructor constructorStr mTuple = do
   let paramType = constructorStr
   let listType = template "[{0}]" [paramType]

@@ -14,9 +14,9 @@ import Interface.MCache.Types
   ( APIType (Author, Category, Comment, Content, User),
     Auth (Admin, Authorized),
     Param (ParamAll, ParamEq, ParamIn, ParamNo, ParamNull),
+    ParamValue (..),
     ParamsMap,
     QueryType (Insert),
-    Val (Date, Int, Str, valInt),
   )
 import qualified Interface.MDB.Exports as DB
 import Interface.MDB.Templates (concatWith, list, toQuery, whereAll)
@@ -89,8 +89,8 @@ insertTag = do
 insertTagToContent :: MTrans m => Action -> m ()
 insertTagToContent Check = do
   params <- Cache.getParams
-  let tagIds = valInt <$> (\(Cache.ParamAll vs) -> vs) (params ! "tag_id") -- :: [Val]
-  condition <- paramToCondition [sql|id|] $ ParamIn (Int <$> tagIds)
+  let tagIds = (\(IntParam par) -> par) <$> (\(ParamAll vs) -> vs) (params ! "tag_id")
+  condition <- paramToCondition [sql|id|] $ ParamIn (IntParam <$> tagIds)
   checkExistAll "tag_id" tagIds $ [sql|SELECT id FROM tags|] `whereAll` [condition]
 insertTagToContent Execute = do
   params <- Cache.getParams
@@ -103,7 +103,7 @@ insertTagToContent Execute = do
 insertDraft :: MTrans m => m ()
 insertDraft = do
   params <- addAuthAuthorIdParam
-  when (params ! "author_id" == ParamEq (Int 1)) $
+  when (params ! "author_id" == ParamEq (IntParam 1)) $
     Error.throw $
       Error.DBError
         "Unable to create draft from deleted author with id = 1"
@@ -158,7 +158,7 @@ insertComment :: MTrans m => Int -> m ()
 insertComment postId = do
   _ <- addAuthUserIdParam
   params <- Cache.addIdParam "post_id" postId
-  when (params ! "user_id" == ParamEq (Int 1)) $
+  when (params ! "user_id" == ParamEq (IntParam 1)) $
     Error.throw $
       Error.DBError
         "Unable to create comment from deleted author with id = 1"
@@ -178,7 +178,7 @@ checkExist name templ = do
   case param of
     ParamNo -> return ()
     ParamNull -> return ()
-    ParamEq (Int paramId) -> do
+    ParamEq (IntParam paramId) -> do
       exist <- DB.query templ [toQuery paramId]
       case exist :: [Only Int] of
         [] -> Error.throwDB "Entity {0} = {1} is not exist" [show name, show paramId]
@@ -205,10 +205,10 @@ checkNotExist description name templ = do
         _ -> Error.throwDB "Entity \"{2}\" with {0} = {1} is already exist" [show name, toString v, description]
     _ -> Error.throw $ Error.patError "Insert.checkNotExist" param
   where
-    toString :: Val -> String
-    toString (Int n) = show n
-    toString (Str str) = show str
-    toString (Date date) = show date
+    toString :: ParamValue -> String
+    toString (IntParam n) = show n
+    toString (StringParam str) = show str
+    toString (DateParam date) = show date
 
 row :: MError m => ParamsMap -> [BSName] -> m Query
 row params names = list <$> mapM (\name -> cell (params ! name)) names
