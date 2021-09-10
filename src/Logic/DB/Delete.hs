@@ -8,9 +8,9 @@ import Interface.Class (MDB, MTrans)
 import Interface.MCache.Types (APIType (Author, Category, Comment, Content, Tag, User))
 import qualified Interface.MDB.Exports as DB
 import Interface.MDB.Templates (toQuery)
-import Interface.MError.Exports as Error
+import Interface.MError.Exports
   ( Error (DBError),
-    MError (throw),
+    MError (throwServerError),
   )
 import qualified Interface.MError.Exports as Error
 import qualified Logic.DB.Update as Update
@@ -27,15 +27,15 @@ import qualified Logic.DB.Update as Update
 -----------------------------Public functions----------------------------------
 deleteUser :: MTrans m => Int -> m ()
 deleteUser paramId = do
-  when (paramId == 1) $ Error.throw $ DBError "Unable to delete default user with id = 1"
-  when (paramId == 2) $ Error.throw $ DBError "Unable to delete admin with id = 2"
+  when (paramId == 1) $ throwServerError $ DBError "Unable to delete default user with id = 1"
+  when (paramId == 2) $ throwServerError $ DBError "Unable to delete admin with id = 2"
   DB.update Author [sql|UPDATE authors SET user_id = 1 WHERE user_id = {0}|] [toQuery paramId]
   DB.update Comment [sql|UPDATE comments SET user_id = 1 WHERE user_id = {0}|] [toQuery paramId]
   DB.delete User [sql|DELETE FROM users WHERE id = {0}|] [toQuery paramId]
 
 deleteAuthor :: MTrans m => Int -> m ()
 deleteAuthor paramId = do
-  when (paramId == 1) $ Error.throw $ DBError "Unable to delete default author with id = 1"
+  when (paramId == 1) $ throwServerError $ DBError "Unable to delete default author with id = 1"
   DB.update Content [sql|UPDATE contents SET author_id = 1 WHERE author_id = {0}|] [toQuery paramId]
   DB.delete Author [sql|DELETE FROM authors WHERE id = {0}|] [toQuery paramId]
 

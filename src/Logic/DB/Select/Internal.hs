@@ -156,9 +156,9 @@ filteredPostsQuery = do
           "author_name" -> return [sql|CONCAT_WS(' ', users.last_name, users.first_name)|]
           "category_id" -> return [sql|contents.category_id|]
           "photos" -> return [sql|array_length(contents.photos, 1)|]
-          _ -> Error.throw $ Error.DevError $ template "Wrong parameter {0} in function orderBy" [paramName]
+          _ -> Error.throwServerError $ Error.DevError $ template "Wrong parameter {0} in function orderBy" [paramName]
     orderBy Cache.ParamNo = return [sql||]
-    orderBy param = Error.throw $ Error.patError "Select.postsQuery (orderBy)" param
+    orderBy param = Error.throwServerError $ Error.patError "Select.postsQuery (orderBy)" param
 
 -----------------------------Tag-----------------------------------------------
 tagsQuery :: Query
@@ -195,7 +195,7 @@ pagination = do
           [toQuery quantity, toQuery $ (page -1) * quantity]
       where
         quantity = 20
-    _ -> Error.throw $ Error.patError "Select.pagination" param
+    _ -> Error.throwServerError $ Error.patError "Select.pagination" param
 
 -----------------------------Auth----------------------------------------------
 
@@ -207,4 +207,4 @@ authUserIdParam = do
   case auth of
     Cache.Admin _ -> return Cache.ParamNo
     Cache.Authorized userId -> return $ Cache.ParamEq (Cache.IntParam userId)
-    _ -> Error.throw Error.authErrorDefault
+    _ -> Error.throwServerError Error.authErrorDefault

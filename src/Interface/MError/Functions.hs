@@ -20,17 +20,17 @@ import Network.HTTP.Types
 -----------------------------MError--------------------------------------------
 liftE :: MError m => Either Error a -> m a
 liftE ea = case ea of
-  Left err -> throw err
+  Left err -> throwServerError err
   Right a -> return a
 
 catchEither :: MError m => Either b a -> (b -> Error) -> m a
 catchEither eba handler = case eba of
-  Left b -> throw $ handler b
+  Left b -> throwServerError $ handler b
   Right a -> return a
 
 toEither :: MError m => m a -> m (Either Error a)
 toEither ma = do
-  catch (Right <$> ma) $ \err -> return $ Left err
+  catchServerError (Right <$> ma) $ \err -> return $ Left err
 
 -----------------------------MIOError------------------------------------------
 catchEIO :: (MIOError m, E.Exception e) => IO a -> (e -> Error) -> m a
@@ -85,13 +85,13 @@ patError :: Show a => String -> a -> Error
 patError func pat = DevError $ template "Wrong pattern in function \"{0}\": {1}" [func, show pat]
 
 throwDB :: (MError m) => String -> [String] -> m a
-throwDB str args = throw $ DBError $ template str args
+throwDB str args = throwServerError $ DBError $ template str args
 
 throwAuth :: (MError m) => String -> [String] -> m a
-throwAuth str args = throw $ AuthError $ template str args
+throwAuth str args = throwServerError $ AuthError $ template str args
 
 throwIO :: (MError m) => String -> [String] -> m a
-throwIO str args = throw $ IOError $ template str args
+throwIO str args = throwServerError $ IOError $ template str args
 
 throwRequest :: (MError m) => String -> [String] -> m a
-throwRequest str args = throw $ RequestError $ template str args
+throwRequest str args = throwServerError $ RequestError $ template str args

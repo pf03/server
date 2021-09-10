@@ -17,10 +17,10 @@ import Transformer.Types
 -----------------------------Run------------------------------------------
 runConfig :: (MIOError m) => m Config.Config
 runConfig = do
-  config <- Error.catch Config.readConfig $ \err -> do
+  config <- Error.catchServerError Config.readConfig $ \err -> do
     Log.writeCritical Log.defaultConfig logSettings0 "Error config read while run the transformer:"
     Log.writeCritical Log.defaultConfig logSettings0 $ show err
-    Error.throw err
+    Error.throwServerError err
   let logConfig0 = Config.log config
   Log.writeInfo logConfig0 logSettings0 "Config read successfully..."
   return config
@@ -28,10 +28,10 @@ runConfig = do
 runConnection :: (MIOError m) => Config.Config -> m Connection
 runConnection config = do
   let logConfig0 = Config.log config
-  connection <- Error.catch (connectDB . Config.getConnectInfo . Config.db $ config) $ \err -> do
+  connection <- Error.catchServerError (connectDB . Config.getConnectInfo . Config.db $ config) $ \err -> do
     Log.writeCritical logConfig0 logSettings0 "Error DB connection while start the transformer: "
     Log.writeCritical logConfig0 logSettings0 $ show err
-    Error.throw err
+    Error.throwServerError err
   Log.writeInfo logConfig0 logSettings0 "DB connected successfully..."
   return connection
 
@@ -39,10 +39,10 @@ getValue :: Config.Config -> Connection -> Transformer a -> ExceptT Error.Error 
 getValue config connection m = do
   let state = configToState config connection
   let logConfig0 = Config.log config
-  (a, _) <- Error.catch (runStateT (getTransformer m) state) $ \err -> do
+  (a, _) <- Error.catchServerError (runStateT (getTransformer m) state) $ \err -> do
     Log.writeError logConfig0 logSettings0 "Application error: "
     Log.writeError logConfig0 logSettings0 $ show err
-    Error.throw err
+    Error.throwServerError err
   return a
 
 showValue :: (MonadIO m, Show a) => Config.Config -> a -> m ()

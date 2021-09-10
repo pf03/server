@@ -104,9 +104,7 @@ insertDraft :: MTrans m => m ()
 insertDraft = do
   params <- addAuthAuthorIdParam
   when (params ! "author_id" == ParamEq (IntParam 1)) $
-    Error.throw $
-      Error.DBError
-        "Unable to create draft from deleted author with id = 1"
+    Error.throwDB "Unable to create draft from deleted author with id = 1" []
   checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
   insertTagToContent Check
   [Only contentId] <-
@@ -159,9 +157,7 @@ insertComment postId = do
   _ <- addAuthUserIdParam
   params <- Cache.addIdParam "post_id" postId
   when (params ! "user_id" == ParamEq (IntParam 1)) $
-    Error.throw $
-      Error.DBError
-        "Unable to create comment from deleted author with id = 1"
+    Error.throwDB "Unable to create comment from deleted author with id = 1" []
   checkExist "post_id" [sql|SELECT 1 FROM contents WHERE id = {0} and is_draft = FALSE|]
   checkExist "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
   DB.insertM
@@ -183,7 +179,7 @@ checkExist name templ = do
       case exist :: [Only Int] of
         [] -> Error.throwDB "Entity {0} = {1} is not exist" [show name, show paramId]
         _ -> return ()
-    _ -> Error.throw $ Error.patError "Insert.checkExist" param
+    _ -> Error.throwServerError $ Error.patError "Insert.checkExist" param
 
 -- | Check for all entities existence
 checkExistAll :: MTrans m => BSName -> [Int] -> Query -> m ()
@@ -203,7 +199,7 @@ checkNotExist description name templ = do
       case exist :: [Only Int] of
         [] -> return ()
         _ -> Error.throwDB "Entity \"{2}\" with {0} = {1} is already exist" [show name, toString v, description]
-    _ -> Error.throw $ Error.patError "Insert.checkNotExist" param
+    _ -> Error.throwServerError $ Error.patError "Insert.checkNotExist" param
   where
     toString :: ParamValue -> String
     toString (IntParam n) = show n
@@ -243,13 +239,13 @@ cell :: MError m => Param -> m Query
 cell (ParamEq val) = return $ valToQuery val
 cell (ParamAll vals) = return $ valListToQuery vals
 cell ParamNo = return [sql|null|]
-cell param = Error.throw $ Error.patError "Insert.cell" param
+cell param = Error.throwServerError $ Error.patError "Insert.cell" param
 
 cellByNumber :: MError m => Param -> Int -> m Query
 cellByNumber (ParamEq v) _ = return $ valToQuery v
 cellByNumber (ParamAll vs) n = return $ valToQuery (vs !! n)
 cellByNumber ParamNo _ = return [sql|null|]
-cellByNumber param _ = Error.throw $ Error.patError "Insert.cellByNumber" param
+cellByNumber param _ = Error.throwServerError $ Error.patError "Insert.cellByNumber" param
 
 -- * Admin can CREATE only his own publications
 
@@ -268,8 +264,8 @@ addAuthAuthorIdParam = do
       [paramToQuery paramUserId]
   mAuthorId <- fromOnly <<$>> listToMaybe <$> DB.query_ query
   case mAuthorId :: (Maybe Int) of
-    Nothing -> Error.throw $ Error.AuthError "This feature is only available for authors"
-    Just 1 -> Error.throw $ Error.AuthError "Unable to authenticate deleted author"
+    Nothing -> Error.throwServerError $ Error.AuthError "This feature is only available for authors"
+    Just 1 -> Error.throwServerError $ Error.AuthError "Unable to authenticate deleted author"
     Just authorId -> Cache.addIdParam "author_id" authorId
 
 -- * Admin can CREATE only his own publications (comments)
@@ -280,4 +276,4 @@ addAuthUserIdParam = do
   case auth of
     Admin userId -> Cache.addIdParam "user_id" userId
     Authorized userId -> Cache.addIdParam "user_id" userId
-    _ -> Error.throw Error.authErrorDefault
+    _ -> Error.throwServerError Error.authErrorDefault

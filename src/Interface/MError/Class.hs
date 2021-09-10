@@ -5,19 +5,19 @@ import Control.Monad.Trans.Except (catchE, throwE)
 import Interface.MError.Types (Error)
 
 class MonadFail m => MError m where
-  throw :: Error -> m a
-  catch :: m a -> (Error -> m a) -> m a
+  throwServerError :: Error -> m a
+  catchServerError :: m a -> (Error -> m a) -> m a
 
 class (MError m, MonadIO m) => MIOError m
 
 instance MError (Either Error) where
-  throw = Left
-  catch ma f = case ma of
+  throwServerError = Left
+  catchServerError ma f = case ma of
     Left err -> f err
     Right a -> Right a
 
 instance MError (ExceptT Error IO) where
-  throw = throwE
-  catch = catchE
+  throwServerError = throwE
+  catchServerError = catchE
 
 instance MIOError (ExceptT Error IO)

@@ -45,12 +45,12 @@ getJSON request = do
   Log.writeDebugM requestBody
   params <-
     if apiType `elem` [Auth, Delete, Insert, Update]
-      then Error.catch (Log.withLogM $ Params.parseParams api queryStringBody) $
+      then Error.catchServerError (Log.withLogM $ Params.parseParams api queryStringBody) $
         \(Error.RequestError err) ->
           Error.throwRequest
             "{0}.\n Attention: parameters for this request must be passed in the request body by the x-www-form-urlencoded method"
             [err]
-      else Error.catch (Log.withLogM $ Params.parseParams api (queryString <> queryStringBody)) $
+      else Error.catchServerError (Log.withLogM $ Params.parseParams api (queryString <> queryStringBody)) $
         \(Error.RequestError err) ->
           Error.throwRequest
             "{0}.\n Attention: parameters for this request can be passed both in the query string and in the request body by the x-www-form-urlencoded method"
@@ -100,7 +100,7 @@ evalJSON api req = case api of
   API SelectById [Tag, Id n] -> encode $ Select.selectTag n
   API SelectById [Post, Id n] -> encode $ getPost n
   API SelectById [Draft, Id n] -> encode $ getDraft n
-  _ -> Error.throw $ Error.patError "Response.evalJSON" api
+  _ -> Error.throwServerError $ Error.patError "Response.evalJSON" api
 
 encode :: MTrans m => (Typeable a, ToJSON a) => m a -> m LC.ByteString
 encode ta = do

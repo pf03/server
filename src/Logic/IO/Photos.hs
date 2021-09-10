@@ -23,7 +23,7 @@ upload request = do
 
 -- | View photo (only error handling)
 load :: MIOError m => FileName -> m ()
-load name = Error.catch (File.checkExist photosPath name) $ \_ -> do
+load name = Error.catchServerError (File.checkExist photosPath name) $ \_ -> do
   Error.throwRequest "Photo {0} is not exist" [name]
 
 -- | Returns photo filenames

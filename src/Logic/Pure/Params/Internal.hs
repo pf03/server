@@ -53,10 +53,10 @@ possibleParamDescs (API queryType apiType) = M.fromList <$> list
           return
             [ param "name" [Eq] (ParamTypeFileName ["jpg", "png", "bmp"]) True
             ]
-        _ -> Error.throw $ Error.patError "Params.possibleParamDesc" apiType
+        _ -> Error.throwServerError $ Error.patError "Params.possibleParamDesc" apiType
       Load -> case apiType of
         [Image _] -> return []
-        _ -> Error.throw $ Error.patError "Params.possibleParamDesc" apiType
+        _ -> Error.throwServerError $ Error.patError "Params.possibleParamDesc" apiType
       Select -> case apiType of
         [Post] ->
           return $
@@ -110,7 +110,7 @@ possibleParamDescs (API queryType apiType) = M.fromList <$> list
           return
             [ param "comment_text" [Eq] ParamTypeStr True
             ]
-        _ -> Error.throw $ Error.patError "Params.possibleParamDesc" apiType
+        _ -> Error.throwServerError $ Error.patError "Params.possibleParamDesc" apiType
       -- An additional requirement - at least one of the parameters is present for Update (Params.checkParams)
       Update -> case apiType of
         User : _ ->
@@ -154,8 +154,8 @@ possibleParamDescs (API queryType apiType) = M.fromList <$> list
               param "tag_id" [All] ParamTypeInt True,
               param "photos" [All] ParamTypeStr True
             ]
-        _ -> Error.throw $ Error.patError "Params.possibleParamDesc" apiType
-      _ -> Error.throw $ Error.patError "Params.possibleParamDesc" apiType
+        _ -> Error.throwServerError $ Error.patError "Params.possibleParamDesc" apiType
+      _ -> Error.throwServerError $ Error.patError "Params.possibleParamDesc" apiType
 
 possibleParams :: BSName -> ParamDesc -> [BSKey]
 possibleParams bsName (ParamDesc templs0 _ _ _) = catMaybes $ (flip fmap) templs0 $ \templ -> (Just bsName) <> lookup templ templates
@@ -275,7 +275,7 @@ readParamFileName list mTuple = case mTuple of
     if any (checkFormat bs) list
       then readParam StringParam "String" mTuple
       else Error.throwRequest "Parameter {0} must be a filename with one of the following extensions: {1}, in the format \"foo.png\"" [show param, show list]
-  _ -> Error.throw $ Error.patError "Params.readParamFileName" mTuple
+  _ -> Error.throwServerError $ Error.patError "Params.readParamFileName" mTuple
   where
     --check the file format, for example "foo.png"
     checkFormat :: BS -> BS -> Bool

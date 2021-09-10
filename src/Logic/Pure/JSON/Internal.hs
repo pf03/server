@@ -49,4 +49,4 @@ getChildCategories (ParamIn vals) categories =
     helper :: Category -> Bool
     helper category = (getId category `elem` categoryIds) || maybe False helper (parent category)
 getChildCategories ParamNo _ = return ParamNo
-getChildCategories param _ = Error.throw $ Error.patError "JSON.getChildCategories" param
+getChildCategories param _ = Error.throwServerError $ Error.patError "JSON.getChildCategories" param

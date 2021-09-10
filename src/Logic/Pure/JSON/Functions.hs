@@ -67,7 +67,7 @@ checkCyclicCategory categoryId params categories = do
         Error.throwDB
           "Category {0} has category {2} in the parent list {1}. Unable to create cyclic category"
           [show parentId, show grandParents, show categoryId]
-    param -> Error.throw $ Error.patError "JSON.checkCyclicCategory" param
+    param -> Error.throwServerError $ Error.patError "JSON.checkCyclicCategory" param
 
 getParents :: MError m => Int -> [Select.Category] -> m [Int]
 getParents = loop []

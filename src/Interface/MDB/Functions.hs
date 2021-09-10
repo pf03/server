@@ -19,14 +19,14 @@ eHandler query0 err = do
   Log.writeErrorM "An error occurred in the request:"
   Log.writeErrorM $ show query0
   Log.writeErrorM $ show err
-  Error.throw Error.dbErrorDefault
+  Error.throwServerError Error.dbErrorDefault
 
 -- | Query that returns a value
 query_ :: (MDB m, Show r, FromRow r) => Query -> m [r]
 query_ query0 = do
   Log.writeDebugM query0
   -- LiftIO cannot be used because error handling is lost
-  Error.catch (dbQuery query0) $ eHandler query0
+  Error.catchServerError (dbQuery query0) $ eHandler query0
 
 query :: (MDB m, Show r, FromRow r) => Query -> [Query] -> m [r]
 query query0 queries = do
@@ -43,13 +43,13 @@ execute :: MDB m => Query -> [Query] -> m Int64
 execute query0 queries = do
   let query1 = template query0 queries
   Log.writeDebugM query1
-  Error.catch (dbExecute query1) $ eHandler query1
+  Error.catchServerError (dbExecute query1) $ eHandler query1
 
 executeM :: MDB m => Query -> [m Query] -> m Int64
 executeM query0 queries = do
   query1 <- templateM query0 queries
   Log.writeDebugM query1
-  Error.catch (dbExecute query1) $ eHandler query1
+  Error.catchServerError (dbExecute query1) $ eHandler query1
 
 -- | Query without automatic recording of the number of changed entities
 execute_ :: MDB m => Query -> [Query] -> m ()
@@ -67,14 +67,14 @@ _execute :: MTrans m => Cache.QueryType -> Cache.APIType -> Query -> [Query] -> 
 _execute queryType apiType query0 queries = do
   let query1 = template query0 queries
   Log.writeDebugM query1
-  rows <- Error.catch (dbExecute query1) $ eHandler query1
+  rows <- Error.catchServerError (dbExecute query1) $ eHandler query1
   Cache.addChanged queryType apiType rows
 
 _executeM :: MTrans m => Cache.QueryType -> Cache.APIType -> Query -> [m Query] -> m ()
 _executeM queryType apiType query0 queries = do
   query1 <- templateM query0 queries
   Log.writeDebugM query1
-  rows <- Error.catch (dbExecute query1) $ eHandler query1
+  rows <- Error.catchServerError (dbExecute query1) $ eHandler query1
   Cache.addChanged queryType apiType rows
 
 -- | Insert query with automatic recording of the number of changed entities

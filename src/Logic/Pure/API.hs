@@ -67,7 +67,7 @@ router path ["tags", n] _ = withInt path n $ \paramId -> API SelectById [Tag, Id
 router path ["posts", n] _ = withInt path n $ \paramId -> API SelectById [Post, Id paramId]
 router path ["drafts", n] _ = withInt path n $ \paramId -> API SelectById [Draft, Id paramId]
 --UNKNOWN---
-router path _ _ = Error.throw $ unknownPathError path
+router path _ _ = Error.throwServerError $ unknownPathError path
 
 eReadInt :: MError m => B.ByteString -> Text -> m Int
 eReadInt path text = do
@@ -85,15 +85,15 @@ withUserE :: MError m => Auth -> m API -> m API
 withUserE auth mApi = do
   api <- mApi
   case auth of
-    Unauthorized -> Error.throw Error.authErrorDefault
+    Unauthorized -> Error.throwServerError Error.authErrorDefault
     _ -> return api
 
 withUser :: MError m => Auth -> API -> m API
-withUser Unauthorized _ = Error.throw Error.authErrorDefault
+withUser Unauthorized _ = Error.throwServerError Error.authErrorDefault
 withUser _ api = return api
 
 withAuth :: MError m => Auth -> (Int -> API) -> m API
-withAuth Unauthorized _ = Error.throw Error.authErrorDefault
+withAuth Unauthorized _ = Error.throwServerError Error.authErrorDefault
 withAuth (Admin userId) f = return $ f userId
 withAuth (Authorized userId) f = return $ f userId
 

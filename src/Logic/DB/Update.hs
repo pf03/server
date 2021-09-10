@@ -172,7 +172,7 @@ updates params names = concatWith "," <$> mapMaybeM helper names
     upd _ ParamNo = return Nothing
     upd field ParamNull = return . Just $ template [sql|{0} = null|] [field]
     upd field (ParamAll list) = return . Just $ template [sql|{0} = {1}|] [field, valListToQuery list]
-    upd _ param = Error.throw $ Error.patError "Update.updates" param
+    upd _ param = Error.throwServerError $ Error.patError "Update.updates" param
 
 checkAuthExist :: MTrans m => Int -> BSName -> Query -> m (Int, Int, Int)
 checkAuthExist paramId name query = do
@@ -182,11 +182,11 @@ checkAuthExist paramId name query = do
     [(userId, authorId, contentId)] -> do
       a <- Cache.getAuth
       case a of
-        Unauthorized -> Error.throw Error.authErrorDefault
+        Unauthorized -> Error.throwServerError Error.authErrorDefault
         Admin _ -> return (userId, authorId, contentId) -- admin can EDIT all contents (moderation)
         Authorized authUserId | userId == authUserId -> return (userId, authorId, contentId) -- user can EDIT only his own contents
-        _ -> Error.throw Error.authErrorWrong
-    res -> Error.throw $ Error.DevError $ template "Wrong query result {0} in function Update.checkAuthExist" [show res]
+        _ -> Error.throwServerError Error.authErrorWrong
+    res -> Error.throwServerError $ Error.DevError $ template "Wrong query result {0} in function Update.checkAuthExist" [show res]
 
 withParam :: MCache m => BSName -> m () -> m ()
 withParam name m = do

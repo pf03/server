@@ -11,7 +11,7 @@ import qualified Interface.MError.Exports as Error
 
 paramToQuery :: MError m => Cache.Param -> m Query
 paramToQuery (Cache.ParamEq val) = return $ valToQuery val
-paramToQuery param = Error.throw $ Error.patError "Select.paramToQuery" param
+paramToQuery param = Error.throwServerError $ Error.patError "Select.paramToQuery" param
 
 valToQuery :: Cache.ParamValue -> Query
 valToQuery (Cache.IntParam int) = toQuery int
@@ -37,4 +37,4 @@ paramToCondition field param = case param of
   Cache.ParamLike val -> return $ template [sql|{0} = {1}|] [field, valToQuery val]
   Cache.ParamNo -> return [sql|TRUE|]
   Cache.ParamNull -> return $ template [sql|{0} = null|] [field]
-  _ -> Error.throw $ Error.patError "Select.paramToCondition" param
+  _ -> Error.throwServerError $ Error.patError "Select.paramToCondition" param

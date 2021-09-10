@@ -43,11 +43,11 @@ instance MLog Transformer where
     Log.writeMessageIO logConfig0 logSettings0 logLevel0 str
 
 instance MError Transformer where
-  throw :: Error.Error -> Transformer a
-  throw err = Transformer $ do
+  throwServerError :: Error.Error -> Transformer a
+  throwServerError err = Transformer $ do
     lift $ throwE err
-  catch :: Transformer a -> (Error.Error -> Transformer a) -> Transformer a
-  catch ta f = Transformer $ do
+  catchServerError :: Transformer a -> (Error.Error -> Transformer a) -> Transformer a
+  catchServerError ta f = Transformer $ do
     StateT $ \state -> catchE (runStateT (getTransformer ta) state) $ \err ->
       runStateT (getTransformer $ f err) state
 
