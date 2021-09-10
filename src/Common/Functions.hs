@@ -18,11 +18,6 @@ mapMaybeM f list = do
 
 infixl 4 <<$>>
 
-(<$$>) :: Monad m => ([a] -> m b) -> [m a] -> m b
-(<$$>) f list = sequenceA list >>= f
-
-infixl 4 <$$>
-
 forMapWithKeyM :: Monad m => M.Map k v -> (k -> v -> m w) -> m (M.Map k w)
 forMapWithKeyM mp f = sequence $ M.mapWithKey f mp
 

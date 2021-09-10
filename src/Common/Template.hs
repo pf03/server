@@ -1,6 +1,5 @@
 module Common.Template where
 
-import Common.Functions ((<$$>))
 import Common.Types (BS)
 import qualified Data.ByteString.Char8 as BC
 import Data.List.Split (splitOn)
@@ -42,4 +41,6 @@ instance Template Query where
   template (Query str) args = Query $ template str $ map fromQuery args
 
 templateM :: (Template s, Monad m) => s -> [m s] -> m s
-templateM str mArgs = return . template str <$$> mArgs
+templateM str mArgs = do
+  args <- sequenceA mArgs
+  return $ template str args

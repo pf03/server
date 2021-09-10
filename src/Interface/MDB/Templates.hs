@@ -1,8 +1,7 @@
 module Interface.MDB.Templates where
 
 import Common.Convert (Convert (..))
-import Common.Functions ((<$$>))
-import Common.Template (Template (template))
+import Common.Template (Template (template), templateM)
 import Database.PostgreSQL.Simple.SqlQQ (sql)
 import Database.PostgreSQL.Simple.Types (Query (Query))
 
@@ -13,7 +12,8 @@ whereAll query0 conditions = concat2 [sql|WHERE|] query0 $ concatWithAND conditi
 
 whereAllM :: Monad m => Query -> [m Query] -> m Query
 whereAllM query0 mConditions = do
-  (return . concat2 [sql|WHERE|] query0 . concatWithAND) <$$> mConditions
+  conditions <- sequenceA mConditions
+  return $ concat2 [sql|WHERE|] query0 . concatWithAND $ conditions
 
 concatWithOR :: [Query] -> Query
 concatWithOR = concatWith [sql|OR|]
@@ -47,7 +47,7 @@ inSubQuery :: Query -> Query -> Query
 inSubQuery field subQuery = template [sql|{0} IN ({1})|] [field, subQuery]
 
 inSubQueryM :: Monad m => Query -> m Query -> m Query
-inSubQueryM field subQuery = return . template [sql|{0} IN ({1})|] <$$> [return field, subQuery]
+inSubQueryM field mSubQuery = templateM [sql|{0} IN ({1})|] [return field, mSubQuery]
 
 exists :: Query -> Query
 exists query0 = template [sql|EXISTS ({0})|] [query0]

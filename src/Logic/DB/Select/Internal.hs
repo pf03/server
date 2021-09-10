@@ -1,7 +1,6 @@
 module Logic.DB.Select.Internal where
 
-import Common.Functions ((<$$>))
-import Common.Template (Template (template))
+import Common.Template (Template (template), templateM)
 import Data.Map ((!))
 import Database.PostgreSQL.Simple.SqlQQ (sql)
 import Database.PostgreSQL.Simple.Types (Query)
@@ -150,9 +149,9 @@ filteredPostsQuery = do
             <+> condition
 
     orderBy :: MError m => Cache.Param -> m Query
-    orderBy (Cache.ParamEq (Cache.StringParam paramName)) = return . template [sql|ORDER BY {0}|] <$$> [field]
+    orderBy (Cache.ParamEq (Cache.StringParam paramName)) = templateM [sql|ORDER BY {0}|] [mField]
       where
-        field = case paramName of
+        mField = case paramName of
           "created_at" -> return [sql|contents.creation_date|]
           "author_name" -> return [sql|CONCAT_WS(' ', users.last_name, users.first_name)|]
           "category_id" -> return [sql|contents.category_id|]
