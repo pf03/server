@@ -175,12 +175,15 @@ commentsQuery :: Query
 commentsQuery =
   [sql|
     SELECT * FROM comments
-      LEFT JOIN posts ON posts.id = comments.post_id
+      LEFT JOIN contents ON contents.id = comments.post_id
       LEFT JOIN users ON users.id = comments.user_id|]
 
 filteredCommentsQuery :: (MError m, MCache m) => Int -> m Query
 filteredCommentsQuery postId = do
-  let conditions = [template [sql|posts.id = {0}|] [toQuery postId]]
+  let conditions =
+        [ template [sql|contents.id = {0}|] [toQuery postId],
+          [sql|contents.is_draft = FALSE|]
+        ]
   commentsQuery `whereAllM` (return <$> conditions) <<+>> pagination
 
 -----------------------------Pagination----------------------------------------
