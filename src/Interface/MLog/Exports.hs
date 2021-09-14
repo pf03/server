@@ -2,17 +2,13 @@ module Interface.MLog.Exports (module Class, module Functions, module Types) whe
 
 import Interface.MLog.Class as Class (MLog (..))
 import Interface.MLog.Functions as Functions
-  ( debugOff,
-    debugOn,
-    defaultConfig,
+  ( defaultConfig,
     defaultSettings,
     getConfigSettings,
-    resetSettings,
     setColorScheme,
     withLogM,
     writeCritical,
     writeCriticalM,
-    writeDebug,
     writeDebugM,
     writeError,
     writeErrorM,
@@ -22,7 +18,6 @@ import Interface.MLog.Functions as Functions
     writeInfoM,
     writeMessageIO,
     writeMessageM,
-    writeWarn,
     writeWarnM,
   )
 import Interface.MLog.Types as Types

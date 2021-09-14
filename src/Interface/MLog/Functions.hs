@@ -16,16 +16,6 @@ import Interface.MLog.Types
 import System.Console.ANSI (Color (Blue, Green, Magenta, Red, Yellow))
 
 -----------------------------MLog----------------------------------------------
-debugOff :: MLog m => m ()
-debugOff = do
-  Settings colorScheme _ <- getSettings
-  setSettings colorScheme False
-
-debugOn :: MLog m => m ()
-debugOn = do
-  Settings colorScheme _ <- getSettings
-  setSettings colorScheme True
-
 setColorScheme :: MLog m => ColorScheme -> m ()
 setColorScheme colorScheme = do
   Settings _ logEnable <- getSettings
@@ -36,11 +26,6 @@ getConfigSettings = do
   config <- getConfig
   settings <- getSettings
   return (config, settings)
-
-resetSettings :: MLog m => m ()
-resetSettings = do
-  let Settings colorScheme logEnable = defaultSettings
-  setSettings colorScheme logEnable
 
 defaultSettings :: Settings
 defaultSettings = Settings BlackScheme True
@@ -59,8 +44,6 @@ withLogM m = do
   a <- m
   writeDebugM a
   return a
-
--- * An exception has been made for debug information - it can be of any type Show a, not just a String
 
 writeDebugM :: (MLog m, Show a) => a -> m ()
 writeDebugM a = writeMessageM Debug (show a)
@@ -88,17 +71,11 @@ writeMessageM level str = do
   message config settings level str
 
 -----------------------------MonadIO-------------------------------------------
-writeDebug :: (MonadIO m, Show a) => Config -> Settings -> a -> m ()
-writeDebug logConfig logSettings a = writeMessageIO logConfig logSettings Debug (show a)
-
 writeInfo :: MonadIO m => Config -> Settings -> String -> m ()
 writeInfo logConfig logSettings = writeMessageIO logConfig logSettings Info
 
 writeInfoColor :: MonadIO m => Config -> ColorScheme -> String -> m ()
 writeInfoColor logConfig colorScheme = writeMessageIO logConfig (Settings colorScheme False) Info
-
-writeWarn :: MonadIO m => Config -> Settings -> String -> m ()
-writeWarn logConfig logSettings = writeMessageIO logConfig logSettings Warn
 
 writeError :: MonadIO m => Config -> Settings -> String -> m ()
 writeError logConfig logSettings = writeMessageIO logConfig logSettings Error
@@ -107,9 +84,6 @@ writeCritical :: MonadIO m => Config -> Settings -> String -> m ()
 writeCritical logConfig logSettings = writeMessageIO logConfig logSettings Critical
 
 -----------------------------Default implementation----------------------------
--- The default implementation of the MLog type class for the IO monad.
--- In pure code, for example for testing, you can replace this implementation with another one,
--- for example based on writerT, or empty return () implementation
 -- Info can be shown in different color schemes, and for other levels the color corresponds to the level
 writeMessageIO :: MonadIO m => Config -> Settings -> Level -> String -> m ()
 writeMessageIO (Config colorEnabled terminalEnabled fileEnabled minLevel) (Settings colorScheme debugMode) level text = do
@@ -129,7 +103,7 @@ writeMessageIO (Config colorEnabled terminalEnabled fileEnabled minLevel) (Setti
 
     getColor :: Level -> Color
     getColor Debug = Green
-    getColor Info = Blue -- here you can use different color schemes for the convenience of displaying information
+    getColor Info = Blue
     getColor Warn = Magenta
     getColor Error = Yellow
     getColor Critical = Red
