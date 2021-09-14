@@ -14,23 +14,26 @@ import qualified Logic.DB.Select.Exports as Select
 
 dbInit :: MDB m => m ()
 dbInit = do
-  Log.writeWarnM "Database initialization and migrations in progress..."
+  Log.setColorScheme Log.CyanScheme
+  Log.writeInfoM "Database initialization and migrations in progress..."
   namesList <- getNamesList
   migrate namesList
-  Log.writeWarnM "Database initialization and all migrations completed successfully"
+  Log.writeInfoM "Database initialization and all migrations completed successfully"
 
 run :: MDB m => m ()
 run = do
-  Log.writeWarnM "Migrations in progress..."
+  Log.setColorScheme Log.CyanScheme
+  Log.writeInfoM "Migrations in progress..."
   migrations <- Select.selectAllMigrations
   namesList <- getNamesList
   namesTodo <- checkMigrations migrations namesList
   migrate namesTodo
-  Log.writeWarnM "All migrations completed successfully"
+  Log.writeInfoM "All migrations completed successfully"
 
 dbDrop :: MDB m => m ()
 dbDrop = do
-  Log.writeWarnM "Warning! All database tables will be dropped Y/N"
+  Log.setColorScheme Log.CyanScheme
+  Log.writeInfoM "Warning! All database tables will be dropped Y/N"
   answer <- liftIO getLine
   case answer of
     "N" -> Log.writeInfoM "Exit from the migration program"
@@ -39,6 +42,7 @@ dbDrop = do
 
 dbDropForce :: MDB m => m ()
 dbDropForce = do
+  Log.setColorScheme Log.CyanScheme
   executeFile $ pathMigration "drop.sql"
   Log.writeWarnM "All database tables are dropped by user choice"
 

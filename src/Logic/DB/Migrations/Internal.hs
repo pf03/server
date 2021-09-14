@@ -56,7 +56,7 @@ checkMigrations migrations names = do
 
 migrate :: MDB m => [FileName] -> m ()
 migrate = mapM_ $ \name -> do
-  Log.writeWarnM $ template "Migration in progress: {0}..." [name]
+  Log.writeInfoM $ template "Migration in progress: {0}..." [name]
   executeFile $ pathMigration name
   Insert.insertMigration name
 
