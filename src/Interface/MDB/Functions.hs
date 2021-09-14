@@ -78,9 +78,6 @@ _executeM queryType apiType query0 queries = do
   Cache.addChanged queryType apiType rows
 
 -- | Insert query with automatic recording of the number of changed entities
-insert :: MTrans m => Cache.APIType -> Query -> [Query] -> m ()
-insert = _execute Cache.Insert
-
 insertM :: MTrans m => Cache.APIType -> Query -> [m Query] -> m ()
 insertM = _executeM Cache.Insert
 
@@ -94,6 +91,3 @@ updateM = _executeM Cache.Update
 -- | Delete query with automatic recording of the number of changed entities
 delete :: MTrans m => Cache.APIType -> Query -> [Query] -> m ()
 delete = _execute Cache.Delete
-
-deleteM :: MTrans m => Cache.APIType -> Query -> [m Query] -> m ()
-deleteM = _executeM Cache.Delete
