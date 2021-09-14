@@ -173,20 +173,20 @@ withParamRightCase = parseParams (API Update [Draft]) [("category_id", Just "1")
 testRouter :: Spec
 testRouter = describe "API.router" $ do
   it "throws request error" $ do
-    (router "path" <$> wrongRouterCases <*> return AuthNo) `allShouldSatisfy` isRequestError
-    (router "path" <$> wrongRouterCases <*> return (AuthUser 3)) `allShouldSatisfy` isRequestError
-    (router "path" <$> wrongRouterCases <*> return (AuthAdmin 1)) `allShouldSatisfy` isRequestError
-    (router "path" <$> forAdminRouterCases <*> return AuthNo) `allShouldSatisfy` isRequestError
-    (router "path" <$> forAdminRouterCases <*> return (AuthUser 3)) `allShouldSatisfy` isRequestError
+    (router "path" <$> wrongRouterCases <*> return Unauthorized) `allShouldSatisfy` isRequestError
+    (router "path" <$> wrongRouterCases <*> return (Authorized 3)) `allShouldSatisfy` isRequestError
+    (router "path" <$> wrongRouterCases <*> return (Admin 1)) `allShouldSatisfy` isRequestError
+    (router "path" <$> forAdminRouterCases <*> return Unauthorized) `allShouldSatisfy` isRequestError
+    (router "path" <$> forAdminRouterCases <*> return (Authorized 3)) `allShouldSatisfy` isRequestError
   it "throws auth error" $ do
-    (router "path" <$> forUserRouterCases <*> return AuthNo) `allShouldSatisfy` isAuthError
+    (router "path" <$> forUserRouterCases <*> return Unauthorized) `allShouldSatisfy` isAuthError
   it "returns result" $ do
-    (router "path" <$> forAllRouterCases <*> return AuthNo) `allShouldSatisfy` isRight
-    (router "path" <$> forAllRouterCases <*> return (AuthUser 3)) `allShouldSatisfy` isRight
-    (router "path" <$> forAllRouterCases <*> return (AuthAdmin 1)) `allShouldSatisfy` isRight
-    (router "path" <$> forUserRouterCases <*> return (AuthUser 3)) `allShouldSatisfy` isRight
-    (router "path" <$> forUserRouterCases <*> return (AuthAdmin 1)) `allShouldSatisfy` isRight
-    (router "path" <$> forAdminRouterCases <*> return (AuthAdmin 1)) `allShouldSatisfy` isRight
+    (router "path" <$> forAllRouterCases <*> return Unauthorized) `allShouldSatisfy` isRight
+    (router "path" <$> forAllRouterCases <*> return (Authorized 3)) `allShouldSatisfy` isRight
+    (router "path" <$> forAllRouterCases <*> return (Admin 1)) `allShouldSatisfy` isRight
+    (router "path" <$> forUserRouterCases <*> return (Authorized 3)) `allShouldSatisfy` isRight
+    (router "path" <$> forUserRouterCases <*> return (Admin 1)) `allShouldSatisfy` isRight
+    (router "path" <$> forAdminRouterCases <*> return (Admin 1)) `allShouldSatisfy` isRight
 
 router :: B.ByteString -> PathInfo -> Auth -> Either Error.Error API
 router = API.router
