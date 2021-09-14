@@ -32,7 +32,9 @@ addChanged _ (Id _) _ = return ()
 addChanged Select _ _ = return ()
 addChanged SelectById _ _ = return ()
 addChanged queryType apiType n = do
-  let newChange = Changed $ M.fromList [(queryTypeHelper queryType, M.fromList [(apiTypeHelper apiType, n)])]
+  let apiTypeChanged = M.fromList [(apiTypeHelper apiType, n)]
+  let queryTypeChanged = M.fromList [(queryTypeHelper queryType, apiTypeChanged)]
+  let newChange = Changed queryTypeChanged
   modifyCache $ \cache -> cache {changed = changed cache <> newChange}
   where
     apiTypeHelper :: APIType -> String
