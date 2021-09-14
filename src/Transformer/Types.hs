@@ -54,10 +54,10 @@ instance MError Transformer where
 instance MIOError Transformer
 
 instance MDB Transformer where
-  dbQuery query = do
+  mdbQuery query = do
     ConnectionDB connection <- Transformer $ gets connectionDB
     Error.liftEIO $ SQL.query_ connection query
-  dbExecute query = do
+  mdbExecute query = do
     ConnectionDB connection <- Transformer $ gets connectionDB
     Error.liftEIO $ SQL.execute_ connection query
 

@@ -22,72 +22,72 @@ eHandler query0 err = do
   Error.throwServerError Error.dbErrorDefault
 
 -- | Query that returns a value
-query_ :: (MDB m, Show r, FromRow r) => Query -> m [r]
-query_ query0 = do
+dbQuery_ :: (MDB m, Show r, FromRow r) => Query -> m [r]
+dbQuery_ query0 = do
   Log.writeDebugM query0
   -- LiftIO cannot be used because error handling is lost
-  Error.catchServerError (dbQuery query0) $ eHandler query0
+  Error.catchServerError (mdbQuery query0) $ eHandler query0
 
-query :: (MDB m, Show r, FromRow r) => Query -> [Query] -> m [r]
-query query0 queries = do
+dbQuery :: (MDB m, Show r, FromRow r) => Query -> [Query] -> m [r]
+dbQuery query0 queries = do
   let query1 = template query0 queries
-  query_ query1
+  dbQuery_ query1
 
-queryM :: (MDB m, Show r, FromRow r) => Query -> [m Query] -> m [r]
-queryM query0 queries = do
+dbQueryM :: (MDB m, Show r, FromRow r) => Query -> [m Query] -> m [r]
+dbQueryM query0 queries = do
   query1 <- templateM query0 queries
-  query_ query1
+  dbQuery_ query1
 
 -- | Query that returns the number of changes without automatic recording the number of changed entities
-execute :: MDB m => Query -> [Query] -> m Int64
-execute query0 queries = do
+dbExecute :: MDB m => Query -> [Query] -> m Int64
+dbExecute query0 queries = do
   let query1 = template query0 queries
   Log.writeDebugM query1
-  Error.catchServerError (dbExecute query1) $ eHandler query1
+  Error.catchServerError (mdbExecute query1) $ eHandler query1
 
-executeM :: MDB m => Query -> [m Query] -> m Int64
-executeM query0 queries = do
+dbExecuteM :: MDB m => Query -> [m Query] -> m Int64
+dbExecuteM query0 queries = do
   query1 <- templateM query0 queries
   Log.writeDebugM query1
-  Error.catchServerError (dbExecute query1) $ eHandler query1
+  Error.catchServerError (mdbExecute query1) $ eHandler query1
 
 -- | Query without automatic recording of the number of changed entities
-execute_ :: MDB m => Query -> [Query] -> m ()
-execute_ query0 queries = do
-  n <- execute query0 queries
+dbExecute_ :: MDB m => Query -> [Query] -> m ()
+dbExecute_ query0 queries = do
+  n <- dbExecute query0 queries
   Log.writeDebugM $ template "Query executed, {0} rows changed" [show n]
 
-executeM_ :: MDB m => Query -> [m Query] -> m ()
-executeM_ query0 queries = do
-  n <- executeM query0 queries
+dbExecuteM_ :: MDB m => Query -> [m Query] -> m ()
+dbExecuteM_ query0 queries = do
+  n <- dbExecuteM query0 queries
   Log.writeDebugM $ template "Query executed, {0} rows changed" [show n]
 
 -- | Helper function for automatic recording of the number of changed entities
-_execute :: MTrans m => Cache.QueryType -> Cache.APIType -> Query -> [Query] -> m ()
-_execute queryType apiType query0 queries = do
+_dbExecute :: MTrans m => Cache.QueryType -> Cache.APIType -> Query -> [Query] -> m ()
+_dbExecute queryType apiType query0 queries = do
   let query1 = template query0 queries
   Log.writeDebugM query1
-  rows <- Error.catchServerError (dbExecute query1) $ eHandler query1
+  rows <- Error.catchServerError (mdbExecute query1) $ eHandler query1
   Cache.addChanged queryType apiType rows
 
-_executeM :: MTrans m => Cache.QueryType -> Cache.APIType -> Query -> [m Query] -> m ()
-_executeM queryType apiType query0 queries = do
+_dbExecuteM :: MTrans m => Cache.QueryType -> Cache.APIType -> Query -> [m Query] -> m ()
+_dbExecuteM queryType apiType query0 queries = do
   query1 <- templateM query0 queries
   Log.writeDebugM query1
-  rows <- Error.catchServerError (dbExecute query1) $ eHandler query1
+  rows <- Error.catchServerError (mdbExecute query1) $ eHandler query1
   Cache.addChanged queryType apiType rows
 
 -- | Insert query with automatic recording of the number of changed entities
-insertM :: MTrans m => Cache.APIType -> Query -> [m Query] -> m ()
-insertM = _executeM Cache.Insert
+dbInsertM :: MTrans m => Cache.APIType -> Query -> [m Query] -> m ()
+dbInsertM = _dbExecuteM Cache.Insert
 
 -- | Update query with automatic recording of the number of changed entities
-update :: MTrans m => Cache.APIType -> Query -> [Query] -> m ()
-update = _execute Cache.Update
+dbUpdate :: MTrans m => Cache.APIType -> Query -> [Query] -> m ()
+dbUpdate = _dbExecute Cache.Update
 
-updateM :: MTrans m => Cache.APIType -> Query -> [m Query] -> m ()
-updateM = _executeM Cache.Update
+dbUpdateM :: MTrans m => Cache.APIType -> Query -> [m Query] -> m ()
+dbUpdateM = _dbExecuteM Cache.Update
 
 -- | Delete query with automatic recording of the number of changed entities
-delete :: MTrans m => Cache.APIType -> Query -> [Query] -> m ()
-delete = _execute Cache.Delete
+dbDelete :: MTrans m => Cache.APIType -> Query -> [Query] -> m ()
+dbDelete = _dbExecute Cache.Delete

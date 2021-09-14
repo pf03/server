@@ -37,7 +37,7 @@ login :: MTrans m => m Token
 login = do
   pars <- Cache.getParams
   users <-
-    DB.queryM
+    DB.dbQueryM
       [sql|
 
         SELECT id, is_admin FROM users

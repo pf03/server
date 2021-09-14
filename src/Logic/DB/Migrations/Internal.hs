@@ -65,4 +65,4 @@ executeFile :: MDB m => FilePath -> m ()
 executeFile path = do
   queryBS <- File.read path
   let query = Query queryBS
-  DB.execute_ query []
+  DB.dbExecute_ query []

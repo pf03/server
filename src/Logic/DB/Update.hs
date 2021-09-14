@@ -34,9 +34,9 @@ updateUser paramId = do
   _ <- Cache.addIdParam "id" paramId
   checkExist "id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
   -- Login is required to generate new password
-  [Only login] <- DB.query [sql|SELECT users.user_login FROM users WHERE users.id = {0}|] [toQuery paramId]
+  [Only login] <- DB.dbQuery [sql|SELECT users.user_login FROM users WHERE users.id = {0}|] [toQuery paramId]
   params <- Cache.addStrParam "user_login" login
-  DB.updateM
+  DB.dbUpdateM
     User
     [sql|UPDATE users SET {0} WHERE id = {1}|]
     [updates params ["first_name", "last_name", "avatar", "pass"], return $ toQuery paramId]
@@ -47,7 +47,7 @@ updateAuthor paramId = do
   params <- Cache.addIdParam "id" paramId
   checkExist "id" [sql|SELECT 1 FROM authors WHERE authors.id = {0}|]
   checkExist "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
-  DB.updateM
+  DB.dbUpdateM
     Author
     [sql|UPDATE authors SET {0} WHERE id = {1}|]
     [updates params ["user_id", "description"], return $ toQuery paramId]
@@ -58,7 +58,7 @@ updateCategory paramId = do
   params <- Cache.addIdParam "id" paramId
   checkExist "id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
   checkExist "parent_id" [sql|SELECT 1 FROM categories WHERE categories.parent_id = {0}|]
-  DB.updateM
+  DB.dbUpdateM
     Category
     [sql|UPDATE categories SET {0} WHERE id = {1}|]
     [updates params ["parent_id", "category_name"], return $ toQuery paramId]
@@ -68,7 +68,7 @@ updateTag :: MTrans m => Int -> m ()
 updateTag paramId = do
   params <- Cache.addIdParam "id" paramId
   checkExist "id" [sql|SELECT 1 FROM tags WHERE tags.id = {0}|]
-  DB.updateM
+  DB.dbUpdateM
     Tag
     [sql|UPDATE tags SET tag_name = {0} WHERE id = {1}|]
     [paramToQuery $ params ! "tag_name", return $ toQuery paramId]
@@ -77,7 +77,7 @@ updateTagToContent :: MTrans m => Action -> m ()
 updateTagToContent Check = withParam "tag_id" $ Insert.insertTagToContent Check
 updateTagToContent Execute = withParam "tag_id" $ do
   ParamEq (IntParam cid) <- Cache.getParam "content_id"
-  DB.execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [toQuery cid]
+  DB.dbExecute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [toQuery cid]
   Insert.insertTagToContent Execute
 
 ----------------------------------Content----------------------------------------
@@ -115,7 +115,7 @@ updateDraft paramId = do
   checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
   updateTagToContent Check
   ParamEq (IntParam contentId) <- Cache.getParam "content_id"
-  DB.updateM
+  DB.dbUpdateM
     Content
     [sql|UPDATE contents SET {0} WHERE id = {1}|]
     [updates params ["content_name", "category_id", "content_text", "main_photo", "photos"], return $ toQuery contentId]
@@ -130,7 +130,7 @@ updatePost paramId = do
   checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
   Insert.insertTagToContent Check
   [Only contentId] <-
-    DB.queryM
+    DB.dbQueryM
       [sql|INSERT into contents (author_id, content_name, creation_date, category_id, content_text, main_photo, photos, is_draft, post_id) values {0} RETURNING id|]
       [ rowEither
           params
@@ -176,7 +176,7 @@ updates params names = concatWith "," <$> mapMaybeM helper names
 
 checkAuthExist :: MTrans m => Int -> BSName -> Query -> m (Int, Int, Int)
 checkAuthExist paramId name query = do
-  exist <- DB.query_ query
+  exist <- DB.dbQuery_ query
   case exist of
     [] -> Error.throwDB "Entity {0} = {1} is not exist" [show name, show paramId]
     [(userId, authorId, contentId)] -> do

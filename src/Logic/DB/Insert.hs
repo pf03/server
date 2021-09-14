@@ -27,7 +27,7 @@ import Logic.DB.Select.Templates (paramToCondition, paramToQuery, valListToQuery
 
 insertMigration :: MDB m => String -> m ()
 insertMigration name = do
-  DB.execute_ [sql|INSERT into migrations (migration_name) values ('{0}')|] [toQuery name]
+  DB.dbExecute_ [sql|INSERT into migrations (migration_name) values ('{0}')|] [toQuery name]
 
 ----------------------------------User-----------------------------------------
 insertUser :: MTrans m => m ()
@@ -35,7 +35,7 @@ insertUser = do
   params <- Cache.getParams
   checkNotExist "user" "user_login" [sql|SELECT 1 FROM users WHERE users.user_login = {0}|]
   passQuery <- templateM [sql|md5 (CONCAT_WS(' ', {0}, {1}))|] [cell (params ! "user_login"), cell (params ! "pass")]
-  DB.insertM
+  DB.dbInsertM
     User
     [sql|INSERT into users (last_name, first_name, avatar, user_login, pass, creation_date, is_admin) values {0}|]
     [ rowEither
@@ -56,7 +56,7 @@ insertAuthor = do
   params <- Cache.getParams
   checkExist "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
   checkNotExist "author" "user_id" [sql|SELECT 1 FROM authors WHERE authors.user_id = {0}|]
-  DB.insertM
+  DB.dbInsertM
     Author
     [sql|INSERT into authors (user_id, description)  values {0}|]
     [row params ["user_id", "description"]]
@@ -70,7 +70,7 @@ insertCategory :: MTrans m => m ()
 insertCategory = do
   params <- Cache.getParams
   checkExist "parent_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
-  DB.insertM
+  DB.dbInsertM
     Category
     [sql|INSERT into categories (parent_id, category_name) values {0}|]
     [row params ["parent_id", "category_name"]]
@@ -80,7 +80,7 @@ insertTag :: MTrans m => m ()
 insertTag = do
   params <- Cache.getParams
   checkNotExist "tag" "tag_name" [sql|SELECT 1 FROM tags WHERE tag_name = {0}|]
-  DB.insertM
+  DB.dbInsertM
     Cache.Tag
     [sql|INSERT into tags (tag_name)  values ({0})|]
     [paramToQuery $ params ! "tag_name"]
@@ -95,7 +95,7 @@ insertTagToContent Check = do
 insertTagToContent Execute = do
   params <- Cache.getParams
   unless (emptyParam $ params ! "tag_id") $ do
-    DB.executeM_
+    DB.dbExecuteM_
       [sql|INSERT into tags_to_contents (tag_id, content_id) values {0}|]
       [rows params ["tag_id", "content_id"]]
 
@@ -108,7 +108,7 @@ insertDraft = do
   checkExist "category_id" [sql|SELECT 1 FROM categories WHERE categories.id = {0}|]
   insertTagToContent Check
   [Only contentId] <-
-    DB.queryM
+    DB.dbQueryM
       [sql|INSERT into contents (author_id, content_name, creation_date, category_id, content_text, main_photo, photos, is_draft, post_id) values {0} RETURNING id|]
       [ rowEither
           params
@@ -132,24 +132,24 @@ publish :: MTrans m => Int -> m ()
 publish draftId = do
   Cache.addIdParam_ "draft_id" draftId
   checkExist "draft_id" [sql|SELECT 1 FROM contents WHERE id = {0} AND is_draft = TRUE|]
-  [Only mPostId] <- DB.query [sql|SELECT post_id FROM contents WHERE id = {0}|] [toQuery draftId]
+  [Only mPostId] <- DB.dbQuery [sql|SELECT post_id FROM contents WHERE id = {0}|] [toQuery draftId]
   case mPostId :: Maybe Int of
     Nothing ->
-      DB.update
+      DB.dbUpdate
         Content
         [sql|UPDATE contents SET post_id = NULL, is_draft = FALSE WHERE id = {0}|]
         [toQuery draftId] -- first publish
     Just postId -> do
-      DB.execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [toQuery postId]
-      DB.update
+      DB.dbExecute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [toQuery postId]
+      DB.dbUpdate
         Content
         [sql|UPDATE contents SET
           (content_name, creation_date, category_id, content_text, main_photo, photos) =
               (SELECT content_name, creation_date, category_id, content_text, main_photo, photos  FROM contents WHERE id = {1})
           WHERE id = {0}|]
         [toQuery postId, toQuery draftId] -- turn draft to post with old postId
-      DB.execute_ [sql|UPDATE tags_to_contents SET content_id = {0} WHERE content_id = {1}|] [toQuery postId, toQuery draftId]
-      DB.delete Content [sql|DELETE FROM contents WHERE contents.id = {0} |] [toQuery (draftId :: Int)]
+      DB.dbExecute_ [sql|UPDATE tags_to_contents SET content_id = {0} WHERE content_id = {1}|] [toQuery postId, toQuery draftId]
+      DB.dbDelete Content [sql|DELETE FROM contents WHERE contents.id = {0} |] [toQuery (draftId :: Int)]
 
 ----------------------------------Comment--------------------------------------
 insertComment :: MTrans m => Int -> m ()
@@ -160,7 +160,7 @@ insertComment postId = do
     Error.throwDB "Unable to create comment from deleted author with id = 1" []
   checkExist "post_id" [sql|SELECT 1 FROM contents WHERE id = {0} and is_draft = FALSE|]
   checkExist "user_id" [sql|SELECT 1 FROM users WHERE users.id = {0}|]
-  DB.insertM
+  DB.dbInsertM
     Comment
     [sql|INSERT into comments (post_id, user_id, creation_date, comment_text) values {0}|]
     [rowEither params [Left "post_id", Left "user_id", Right [sql|current_date|], Left "comment_text"]]
@@ -175,7 +175,7 @@ checkExist name templ = do
     ParamNo -> return ()
     ParamNull -> return ()
     ParamEq (IntParam paramId) -> do
-      exist <- DB.query templ [toQuery paramId]
+      exist <- DB.dbQuery templ [toQuery paramId]
       case exist :: [Only Int] of
         [] -> Error.throwDB "Entity {0} = {1} is not exist" [show name, show paramId]
         _ -> return ()
@@ -184,7 +184,7 @@ checkExist name templ = do
 -- | Check for all entities existence
 checkExistAll :: MTrans m => BSName -> [Int] -> Query -> m ()
 checkExistAll name ids templ = do
-  exist <- fromOnly <<$>> DB.query_ templ
+  exist <- fromOnly <<$>> DB.dbQuery_ templ
   when (length exist /= length ids) $ do
     let notExist = filter (`notElem` exist) ids
     Error.throwDB "Entities \"{0}\" from list {1} are not exist" [show name, show notExist]
@@ -195,7 +195,7 @@ checkNotExist description name templ = do
   case param of
     ParamNo -> return ()
     ParamEq v -> do
-      exist <- DB.query templ [valToQuery v]
+      exist <- DB.dbQuery templ [valToQuery v]
       case exist :: [Only Int] of
         [] -> return ()
         _ -> Error.throwDB "Entity \"{2}\" with {0} = {1} is already exist" [show name, toString v, description]
@@ -262,7 +262,7 @@ addAuthAuthorIdParam = do
           WHERE users.id = {0}
       |]
       [paramToQuery paramUserId]
-  mAuthorId <- fromOnly <<$>> listToMaybe <$> DB.query_ query
+  mAuthorId <- fromOnly <<$>> listToMaybe <$> DB.dbQuery_ query
   case mAuthorId :: (Maybe Int) of
     Nothing -> Error.throwServerError $ Error.AuthError "This feature is only available for authors"
     Just 1 -> Error.throwServerError $ Error.AuthError "Unable to authenticate deleted author"

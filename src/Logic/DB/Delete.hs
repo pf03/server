@@ -29,37 +29,37 @@ deleteUser :: MTrans m => Int -> m ()
 deleteUser paramId = do
   when (paramId == 1) $ throwServerError $ DBError "Unable to delete default user with id = 1"
   when (paramId == 2) $ throwServerError $ DBError "Unable to delete admin with id = 2"
-  DB.update Author [sql|UPDATE authors SET user_id = 1 WHERE user_id = {0}|] [toQuery paramId]
-  DB.update Comment [sql|UPDATE comments SET user_id = 1 WHERE user_id = {0}|] [toQuery paramId]
-  DB.delete User [sql|DELETE FROM users WHERE id = {0}|] [toQuery paramId]
+  DB.dbUpdate Author [sql|UPDATE authors SET user_id = 1 WHERE user_id = {0}|] [toQuery paramId]
+  DB.dbUpdate Comment [sql|UPDATE comments SET user_id = 1 WHERE user_id = {0}|] [toQuery paramId]
+  DB.dbDelete User [sql|DELETE FROM users WHERE id = {0}|] [toQuery paramId]
 
 deleteAuthor :: MTrans m => Int -> m ()
 deleteAuthor paramId = do
   when (paramId == 1) $ throwServerError $ DBError "Unable to delete default author with id = 1"
-  DB.update Content [sql|UPDATE contents SET author_id = 1 WHERE author_id = {0}|] [toQuery paramId]
-  DB.delete Author [sql|DELETE FROM authors WHERE id = {0}|] [toQuery paramId]
+  DB.dbUpdate Content [sql|UPDATE contents SET author_id = 1 WHERE author_id = {0}|] [toQuery paramId]
+  DB.dbDelete Author [sql|DELETE FROM authors WHERE id = {0}|] [toQuery paramId]
 
 deletePost :: MTrans m => Int -> m ()
 deletePost contentId = do
   _ <- Update.checkAuthExistContent False contentId
-  DB.delete Comment [sql|DELETE FROM comments WHERE post_id = {0}|] [toQuery contentId]
-  DB.execute_
+  DB.dbDelete Comment [sql|DELETE FROM comments WHERE post_id = {0}|] [toQuery contentId]
+  DB.dbExecute_
     [sql|DELETE FROM tags_to_contents WHERE content_id = {0} OR content_id IN
     (SELECT id FROM contents WHERE post_id = {0})|]
     [toQuery contentId] --delete tags binds to post and all its drafts
-  DB.delete Content [sql|DELETE FROM contents WHERE post_id = {0}|] [toQuery contentId] -- delete all post drafts
-  DB.delete Content [sql|DELETE FROM contents WHERE id = {0}|] [toQuery contentId] -- delete post
+  DB.dbDelete Content [sql|DELETE FROM contents WHERE post_id = {0}|] [toQuery contentId] -- delete all post drafts
+  DB.dbDelete Content [sql|DELETE FROM contents WHERE id = {0}|] [toQuery contentId] -- delete post
 
 deleteDraft :: MTrans m => Int -> m ()
 deleteDraft contentId = do
   _ <- Update.checkAuthExistContent True contentId
-  DB.execute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [toQuery contentId]
-  DB.delete Content [sql|DELETE FROM contents WHERE id = {0}|] [toQuery contentId]
+  DB.dbExecute_ [sql|DELETE FROM tags_to_contents WHERE content_id = {0}|] [toQuery contentId]
+  DB.dbDelete Content [sql|DELETE FROM contents WHERE id = {0}|] [toQuery contentId]
 
 deleteComment :: MTrans m => Int -> m ()
 deleteComment paramId = do
   _ <- Update.checkAuthExistComment paramId
-  DB.delete Comment [sql|DELETE FROM comments WHERE id = {0}|] [toQuery paramId]
+  DB.dbDelete Comment [sql|DELETE FROM comments WHERE id = {0}|] [toQuery paramId]
 
 deleteCategory :: MTrans m => Int -> m ()
 deleteCategory paramId = do
@@ -90,17 +90,17 @@ deleteCategory paramId = do
         WHERE categories.id = {0}
     |]
       [toQuery paramId]
-  DB.delete Category [sql|DELETE FROM categories WHERE id = {0}|] [toQuery paramId]
+  DB.dbDelete Category [sql|DELETE FROM categories WHERE id = {0}|] [toQuery paramId]
 
 deleteTag :: MTrans m => Int -> m ()
 deleteTag paramId = do
-  DB.execute_ [sql|DELETE FROM tags_to_contents WHERE tag_id = {0}|] [toQuery paramId]
-  DB.delete Tag [sql|DELETE FROM tags WHERE id = {0}|] [toQuery paramId]
+  DB.dbExecute_ [sql|DELETE FROM tags_to_contents WHERE tag_id = {0}|] [toQuery paramId]
+  DB.dbDelete Tag [sql|DELETE FROM tags WHERE id = {0}|] [toQuery paramId]
 
 -----------------------------Private functions----------------------------------
 checkNotExist :: MDB m => Int -> String -> String -> Query -> m ()
 checkNotExist paramId name1 name2 templ = do
-  results <- DB.query templ [toQuery paramId]
+  results <- DB.dbQuery templ [toQuery paramId]
   case results :: [(Int, String)] of
     [] -> return ()
     _ ->
