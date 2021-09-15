@@ -21,14 +21,14 @@ runConfig = do
     Log.writeCritical Log.defaultConfig logSettings0 "Error config read while run the transformer:"
     Log.writeCritical Log.defaultConfig logSettings0 $ show err
     Error.throwServerError err
-  let logConfig0 = Config.log config
+  let logConfig0 = Config.configLog config
   Log.writeInfo logConfig0 logSettings0 "Config read successfully..."
   return config
 
 runConnection :: (MIOError m) => Config.Config -> m Connection
 runConnection config = do
-  let logConfig0 = Config.log config
-  connection <- Error.catchServerError (connectDB . Config.getConnectInfo . Config.db $ config) $ \err -> do
+  let logConfig0 = Config.configLog config
+  connection <- Error.catchServerError (connectDB . Config.getConnectInfo . Config.configDb $ config) $ \err -> do
     Log.writeCritical logConfig0 logSettings0 "Error DB connection while start the transformer: "
     Log.writeCritical logConfig0 logSettings0 $ show err
     Error.throwServerError err
@@ -38,7 +38,7 @@ runConnection config = do
 getValue :: Config.Config -> Connection -> Transformer a -> ExceptT Error.Error IO a
 getValue config connection m = do
   let state = configToState config connection
-  let logConfig0 = Config.log config
+  let logConfig0 = Config.configLog config
   (a, _) <- Error.catchServerError (runStateT (getTransformer m) state) $ \err -> do
     Log.writeError logConfig0 logSettings0 "Application error: "
     Log.writeError logConfig0 logSettings0 $ show err
@@ -47,7 +47,7 @@ getValue config connection m = do
 
 showValue :: (MonadIO m, Show a) => Config.Config -> a -> m ()
 showValue config value = do
-  let logConfig0 = Config.log config
+  let logConfig0 = Config.configLog config
   Log.writeInfo logConfig0 logSettings0 "Result: "
   Log.writeInfo logConfig0 logSettings0 $ show value
   return ()
@@ -57,7 +57,7 @@ logSettings0 = Log.Settings Log.CyanScheme True
 
 -----------------------------Config--------------------------------------------
 configToState :: Config.Config -> Connection -> State
-configToState Config.Config {Config.warp = configWarp0, Config.db = _, Config.log = logConfig0} connection =
+configToState Config.Config {Config.configWarp = configWarp0, Config.configDb = _, Config.configLog = logConfig0} connection =
   State
     { configWarp = configWarp0,
       connectionDB = ConnectionDB connection,

@@ -1,7 +1,8 @@
 module Logic.IO.Config where
 
+import Common.Functions (deletePrefixOptions)
 import Control.Exception (IOException)
-import Data.Aeson (FromJSON (parseJSON), withObject, (.:))
+import Data.Aeson (FromJSON (parseJSON), genericParseJSON, withObject, (.:))
 import qualified Data.ByteString.Lazy as L
 import Database.PostgreSQL.Simple (ConnectInfo (ConnectInfo))
 import GHC.Generics (Generic)
@@ -13,9 +14,9 @@ import System.IO.Error (isDoesNotExistError)
 
 -----------------------------Types---------------------------------------------
 data Config = Config
-  { warp :: ConfigWarp,
-    db :: DBConnectInfo,
-    log :: Log.Config
+  { configWarp :: ConfigWarp,
+    configDb :: DBConnectInfo,
+    configLog :: Log.Config
   }
   deriving (Show, Generic)
 
@@ -42,7 +43,8 @@ newtype ConfigWarp = ConfigWarp
 
 instance FromJSON ConfigWarp
 
-instance FromJSON Config
+instance FromJSON Config where
+  parseJSON = genericParseJSON $ deletePrefixOptions 6
 
 -----------------------------Functions-----------------------------------------
 

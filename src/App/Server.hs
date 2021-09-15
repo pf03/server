@@ -17,8 +17,8 @@ run = do
   case mConfig of
     Nothing -> return ()
     Just config -> do
-      let port = warpPort . Config.warp $ config
-      let logConfig = Config.log config
+      let port = warpPort . Config.configWarp $ config
+      let logConfig = Config.configLog config
       Log.writeInfoColor logConfig Log.GreenScheme $ template "Start server. Listen to port {0}..." [show port]
       Warp.run port $ app config
 
