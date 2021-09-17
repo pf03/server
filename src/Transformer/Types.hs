@@ -11,6 +11,7 @@ import qualified Interface.MDB.Exports as DB
 import qualified Interface.MError.Exports as Error
 import qualified Interface.MLog.Exports as Log
 import qualified Logic.IO.Config as Config
+import Control.Exception (bracket)
 
 -----------------------------Types---------------------------------------------
 newtype Transformer a = Transformer {getTransformer :: StateT State (ExceptT Error.Error IO) a}
@@ -51,7 +52,8 @@ instance MDB Transformer where
   mdbQuery query = do
     Config.DBConnectInfo connectInfo <- Transformer $ gets dBConnectInfo
     connection <- liftIO $ SQL.connect connectInfo
-    result <- Error.liftEIO $ SQL.query_ connection query
+    result <- Error.catchServerError (Error.liftEIO $ SQL.query_ connection query) $ \err -> do
+      undefined
     liftIO $ SQL.close connection
     return result
   mdbExecute query = do
@@ -61,23 +63,32 @@ instance MDB Transformer where
     liftIO $ SQL.close connection
     return result
 
---error handling (with bracket function) and logging will be fixed in next commits..
--- runConnection :: (MIOError m) => Config.Config -> m Connection
--- runConnection config = do
---   let logConfig0 = Config.configLog config
---   connection <- Error.catchServerError (connectDB . Config.getConnectInfo . Config.configDb $ config) $ \err -> do
---     Log.writeCritical logConfig0 logSettings0 "Error DB connection while start the transformer: "
---     Log.writeCritical logConfig0 logSettings0 $ show err
---     Error.throwServerError err
---   Log.writeInfo logConfig0 logSettings0 "DB connected successfully..."
---   return connection
+mdbQuery2 :: SQL.FromRow r => SQL.Query -> Transformer [r]
+mdbQuery2 query = do
+    connection <- runConnection
+    result <- Error.liftEIO $ SQL.query_ connection query
+    liftIO $ SQL.close connection
+    return result
 
--- -----------------------------DB------------------------------------------------
--- connectDB :: MIOError m => ConnectInfo -> m Connection
--- connectDB connectInfo = connect connectInfo `Error.catchEIO` handler
---   where
---     handler :: SqlError -> Error.Error
---     handler _ = Error.DBError "Error DB Connection!"
+runConnection :: Transformer SQL.Connection
+runConnection = do
+  logConfig0 <- Transformer $ gets configLog
+  Config.DBConnectInfo connectInfo <- Transformer $ gets dBConnectInfo
+  connection <- Error.catchServerError (connectDB connectInfo) $ \err -> do
+    Log.writeCritical logConfig0 logSettings0 "Error DB connection while start the transformer: "
+    Log.writeCritical logConfig0 logSettings0 $ show err
+    Error.throwServerError err
+  Log.writeInfo logConfig0 logSettings0 "DB connected successfully..."
+  return connection
+
+logSettings0 :: Log.Settings
+logSettings0 = Log.Settings Log.CyanScheme True
+
+connectDB :: MIOError m => SQL.ConnectInfo -> m SQL.Connection
+connectDB connectInfo = SQL.connect connectInfo `Error.catchEIO` handler
+  where
+    handler :: SQL.SqlError -> Error.Error
+    handler _ = Error.DBError "Error DB Connection!"
 
 instance MCache Transformer where
   getCache = Transformer $ gets cache
