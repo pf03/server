@@ -1,9 +1,10 @@
 module Transformer.Types where
 
 import Control.Monad.Except (ExceptT, MonadTrans (lift))
-import Control.Monad.State.Lazy (MonadIO, MonadState, StateT (..), gets, modify, liftIO)
+import Control.Monad.State.Lazy (MonadIO, MonadState, StateT (..), gets, modify)
 import Control.Monad.Trans.Except (catchE, throwE)
-import qualified Database.PostgreSQL.Simple as SQL
+import Database.PostgreSQL.Simple (Connection)
+import qualified Database.PostgreSQL.Simple as SQL (execute_, query_)
 import GHC.Generics (Generic)
 import Interface.Class (MCache, MDB, MError, MIOError, MLog, MTrans)
 import qualified Interface.MCache.Exports as Cache
@@ -11,7 +12,6 @@ import qualified Interface.MDB.Exports as DB
 import qualified Interface.MError.Exports as Error
 import qualified Interface.MLog.Exports as Log
 import qualified Logic.IO.Config as Config
-import Control.Exception (bracket)
 
 -----------------------------Types---------------------------------------------
 newtype Transformer a = Transformer {getTransformer :: StateT State (ExceptT Error.Error IO) a}
@@ -19,12 +19,17 @@ newtype Transformer a = Transformer {getTransformer :: StateT State (ExceptT Err
 
 data State = State
   { configWarp :: Config.ConfigWarp,
-    dBConnectInfo :: Config.DBConnectInfo,
+    connectionDB :: ConnectionDB,
     configLog :: Log.Config,
     logSettings :: Log.Settings,
     cache :: Cache.Cache
   }
   deriving (Show, Generic)
+
+newtype ConnectionDB = ConnectionDB Connection
+
+instance Show ConnectionDB where
+  show _ = "connected"
 
 -----------------------------Instances-----------------------------------------
 instance MLog Transformer where
@@ -50,45 +55,11 @@ instance MIOError Transformer
 
 instance MDB Transformer where
   mdbQuery query = do
-    Config.DBConnectInfo connectInfo <- Transformer $ gets dBConnectInfo
-    connection <- liftIO $ SQL.connect connectInfo
-    result <- Error.catchServerError (Error.liftEIO $ SQL.query_ connection query) $ \err -> do
-      undefined
-    liftIO $ SQL.close connection
-    return result
+    ConnectionDB connection <- Transformer $ gets connectionDB
+    Error.liftEIO $ SQL.query_ connection query
   mdbExecute query = do
-    Config.DBConnectInfo connectInfo <- Transformer $ gets dBConnectInfo
-    connection <- liftIO $ SQL.connect connectInfo
-    result <- Error.liftEIO $ SQL.execute_ connection query
-    liftIO $ SQL.close connection
-    return result
-
-mdbQuery2 :: SQL.FromRow r => SQL.Query -> Transformer [r]
-mdbQuery2 query = do
-    connection <- runConnection
-    result <- Error.liftEIO $ SQL.query_ connection query
-    liftIO $ SQL.close connection
-    return result
-
-runConnection :: Transformer SQL.Connection
-runConnection = do
-  logConfig0 <- Transformer $ gets configLog
-  Config.DBConnectInfo connectInfo <- Transformer $ gets dBConnectInfo
-  connection <- Error.catchServerError (connectDB connectInfo) $ \err -> do
-    Log.writeCritical logConfig0 logSettings0 "Error DB connection while start the transformer: "
-    Log.writeCritical logConfig0 logSettings0 $ show err
-    Error.throwServerError err
-  Log.writeInfo logConfig0 logSettings0 "DB connected successfully..."
-  return connection
-
-logSettings0 :: Log.Settings
-logSettings0 = Log.Settings Log.CyanScheme True
-
-connectDB :: MIOError m => SQL.ConnectInfo -> m SQL.Connection
-connectDB connectInfo = SQL.connect connectInfo `Error.catchEIO` handler
-  where
-    handler :: SQL.SqlError -> Error.Error
-    handler _ = Error.DBError "Error DB Connection!"
+    ConnectionDB connection <- Transformer $ gets connectionDB
+    Error.liftEIO $ SQL.execute_ connection query
 
 instance MCache Transformer where
   getCache = Transformer $ gets cache
