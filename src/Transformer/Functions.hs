@@ -6,7 +6,6 @@ import Transformer.Internal
   ( exceptToMaybe,
     getValue,
     runConfig,
-    runConnection,
     runEWithHandler,
     runE_,
   )
@@ -16,12 +15,10 @@ import Transformer.Types (Transformer)
 runT :: Transformer a -> IO ()
 runT m = runE_ $ do
   config <- runConfig
-  connection <- runConnection config
-  _ <- getValue config connection m
+  _ <- getValue config m
   return ()
 
 -- | Evaluate value of transformer with error handler
 evalTWithHandler :: Transformer a -> (Error.Error -> a) -> Config.Config -> IO a
 evalTWithHandler m handler config = runEWithHandler handler $ do
-  connection <- runConnection config
-  getValue config connection m
+  getValue config m

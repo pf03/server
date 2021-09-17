@@ -2,15 +2,13 @@ module Transformer.Internal where
 
 import Control.Monad.Except (ExceptT, MonadIO, runExceptT, void)
 import Control.Monad.State.Lazy (StateT (runStateT))
-import Database.PostgreSQL.Simple (ConnectInfo, Connection, SqlError, connect)
 import Interface.Class (MIOError)
 import qualified Interface.MCache.Exports as Cache
 import qualified Interface.MError.Exports as Error
 import qualified Interface.MLog.Exports as Log
 import qualified Logic.IO.Config as Config
 import Transformer.Types
-  ( ConnectionDB (ConnectionDB),
-    State (..),
+  ( State (..),
     Transformer (getTransformer),
   )
 
@@ -25,19 +23,9 @@ runConfig = do
   Log.writeInfo logConfig0 logSettings0 "Config read successfully..."
   return config
 
-runConnection :: (MIOError m) => Config.Config -> m Connection
-runConnection config = do
-  let logConfig0 = Config.configLog config
-  connection <- Error.catchServerError (connectDB . Config.getConnectInfo . Config.configDb $ config) $ \err -> do
-    Log.writeCritical logConfig0 logSettings0 "Error DB connection while start the transformer: "
-    Log.writeCritical logConfig0 logSettings0 $ show err
-    Error.throwServerError err
-  Log.writeInfo logConfig0 logSettings0 "DB connected successfully..."
-  return connection
-
-getValue :: Config.Config -> Connection -> Transformer a -> ExceptT Error.Error IO a
-getValue config connection m = do
-  let state = configToState config connection
+getValue :: Config.Config -> Transformer a -> ExceptT Error.Error IO a
+getValue config m = do
+  let state = configToState config
   let logConfig0 = Config.configLog config
   (a, _) <- Error.catchServerError (runStateT (getTransformer m) state) $ \err -> do
     Log.writeError logConfig0 logSettings0 "Application error: "
@@ -56,22 +44,15 @@ logSettings0 :: Log.Settings
 logSettings0 = Log.Settings Log.CyanScheme True
 
 -----------------------------Config--------------------------------------------
-configToState :: Config.Config -> Connection -> State
-configToState Config.Config {Config.configWarp = configWarp0, Config.configDb = _, Config.configLog = logConfig0} connection =
+configToState :: Config.Config -> State
+configToState Config.Config {Config.configWarp = configWarp0, Config.configDb = dBConnectInfo0, Config.configLog = logConfig0} =
   State
     { configWarp = configWarp0,
-      connectionDB = ConnectionDB connection,
+      dBConnectInfo = dBConnectInfo0,
       configLog = logConfig0,
       logSettings = Log.defaultSettings,
       cache = Cache.defaultCache
     }
-
------------------------------DB------------------------------------------------
-connectDB :: MIOError m => ConnectInfo -> m Connection
-connectDB connectInfo = connect connectInfo `Error.catchEIO` handler
-  where
-    handler :: SqlError -> Error.Error
-    handler _ = Error.DBError "Error DB Connection!"
 
 -----------------------------ExceptT E IO a------------------------------------
 
