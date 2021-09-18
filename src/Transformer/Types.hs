@@ -18,11 +18,11 @@ newtype ServerStateIO a = ServerStateIO {getServerStateIO :: StateT ServerState 
   deriving newtype (Functor, Applicative, Monad, MonadFail, MonadIO, MonadState ServerState)
 
 data ServerState = ServerState
-  { configWarp :: Config.ConfigWarp,
-    connectionDB :: ConnectionDB,
-    configLog :: Log.Config,
-    logSettings :: Log.Settings,
-    cache :: Cache.Cache
+  { stateConfigWarp :: Config.ConfigWarp,
+    stateConnectionDB :: ConnectionDB,
+    stateConfigLog :: Log.Config,
+    stateLogSettings :: Log.Settings,
+    stateCache :: Cache.Cache
   }
   deriving (Show, Generic)
 
@@ -34,13 +34,13 @@ instance Show ConnectionDB where
 -----------------------------Instances-----------------------------------------
 instance MLog ServerStateIO where
   getSettings = ServerStateIO $ do
-    gets logSettings
+    gets stateLogSettings
   setSettings colorScheme logEnable = ServerStateIO $ do
-    modify $ \state -> state {logSettings = Log.Settings colorScheme logEnable}
+    modify $ \state -> state {stateLogSettings = Log.Settings colorScheme logEnable}
   getConfig = ServerStateIO $ do
-    gets configLog
-  message logConfig0 logSettings0 logLevel0 str = ServerStateIO $ do
-    Log.writeMessageIO logConfig0 logSettings0 logLevel0 str
+    gets stateConfigLog
+  message logConfig logSettings logLevel str = ServerStateIO $ do
+    Log.writeMessageIO logConfig logSettings logLevel str
 
 instance MError ServerStateIO where
   throwServerError :: Error.Error -> ServerStateIO a
@@ -55,14 +55,14 @@ instance MIOError ServerStateIO
 
 instance MDB ServerStateIO where
   mdbQuery query = do
-    ConnectionDB connection <- ServerStateIO $ gets connectionDB
+    ConnectionDB connection <- ServerStateIO $ gets stateConnectionDB
     Error.liftEIO $ SQL.query_ connection query
   mdbExecute query = do
-    ConnectionDB connection <- ServerStateIO $ gets connectionDB
+    ConnectionDB connection <- ServerStateIO $ gets stateConnectionDB
     Error.liftEIO $ SQL.execute_ connection query
 
 instance MCache ServerStateIO where
-  getCache = ServerStateIO $ gets cache
-  setCache cache0 = ServerStateIO $ modify (\state -> state {cache = cache0})
+  getCache = ServerStateIO $ gets stateCache
+  setCache cache = ServerStateIO $ modify (\state -> state {stateCache = cache})
 
 instance MTrans ServerStateIO

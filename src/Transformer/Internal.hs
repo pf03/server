@@ -18,52 +18,52 @@ import Transformer.Types
 runConfig :: (MIOError m) => m Config.Config
 runConfig = do
   config <- Error.catchServerError Config.readConfig $ \err -> do
-    Log.writeCritical Log.defaultConfig logSettings0 "Error config read while run the transformer:"
-    Log.writeCritical Log.defaultConfig logSettings0 $ show err
+    Log.writeCritical Log.defaultConfig logSettings "Error config read while run the transformer:"
+    Log.writeCritical Log.defaultConfig logSettings $ show err
     Error.throwServerError err
-  let logConfig0 = Config.configLog config
-  Log.writeInfo logConfig0 logSettings0 "Config read successfully..."
+  let logConfig = Config.configLog config
+  Log.writeInfo logConfig logSettings "Config read successfully..."
   return config
 
 runConnection :: (MIOError m) => Config.Config -> m Connection
 runConnection config = do
-  let logConfig0 = Config.configLog config
+  let logConfig = Config.configLog config
   connection <- Error.catchServerError (connectDB . Config.getConnectInfo . Config.configDb $ config) $ \err -> do
-    Log.writeCritical logConfig0 logSettings0 "Error DB connection while start the transformer: "
-    Log.writeCritical logConfig0 logSettings0 $ show err
+    Log.writeCritical logConfig logSettings "Error DB connection while start the transformer: "
+    Log.writeCritical logConfig logSettings $ show err
     Error.throwServerError err
-  Log.writeInfo logConfig0 logSettings0 "DB connected successfully..."
+  Log.writeInfo logConfig logSettings "DB connected successfully..."
   return connection
 
 getValue :: Config.Config -> Connection -> ServerStateIO a -> ExceptT Error.Error IO a
 getValue config connection m = do
   let state = configToState config connection
-  let logConfig0 = Config.configLog config
+  let logConfig = Config.configLog config
   (a, _) <- Error.catchServerError (runStateT (getServerStateIO m) state) $ \err -> do
-    Log.writeError logConfig0 logSettings0 "Application error: "
-    Log.writeError logConfig0 logSettings0 $ show err
+    Log.writeError logConfig logSettings "Application error: "
+    Log.writeError logConfig logSettings $ show err
     Error.throwServerError err
   return a
 
 showValue :: (MonadIO m, Show a) => Config.Config -> a -> m ()
 showValue config value = do
-  let logConfig0 = Config.configLog config
-  Log.writeInfo logConfig0 logSettings0 "Result: "
-  Log.writeInfo logConfig0 logSettings0 $ show value
+  let logConfig = Config.configLog config
+  Log.writeInfo logConfig logSettings "Result: "
+  Log.writeInfo logConfig logSettings $ show value
   return ()
 
-logSettings0 :: Log.Settings
-logSettings0 = Log.Settings Log.CyanScheme True
+logSettings :: Log.Settings
+logSettings = Log.Settings Log.CyanScheme True
 
 -----------------------------Config--------------------------------------------
 configToState :: Config.Config -> Connection -> ServerState
-configToState Config.Config {Config.configWarp = configWarp0, Config.configDb = _, Config.configLog = logConfig0} connection =
+configToState Config.Config {Config.configWarp = configWarp, Config.configDb = _, Config.configLog = logConfig} connection =
   ServerState
-    { configWarp = configWarp0,
-      connectionDB = ConnectionDB connection,
-      configLog = logConfig0,
-      logSettings = Log.defaultSettings,
-      cache = Cache.defaultCache
+    { stateConfigWarp = configWarp,
+      stateConnectionDB = ConnectionDB connection,
+      stateConfigLog = logConfig,
+      stateLogSettings = Log.defaultSettings,
+      stateCache = Cache.defaultCache
     }
 
 -----------------------------DB------------------------------------------------
