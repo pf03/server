@@ -11,10 +11,10 @@ import Transformer.Internal
     runEWithHandler,
     runE_,
   )
-import Transformer.Types (Transformer)
+import Transformer.Types (ServerStateIO)
 
 -- | Run transformer without showing
-runT :: Transformer a -> IO ()
+runT :: ServerStateIO a -> IO ()
 runT m = runE_ $ do
   config <- runConfig
   connection <- runConnection config
@@ -25,7 +25,7 @@ runT m = runE_ $ do
   Error.liftEIO $ close connection
 
 -- | Evaluate value of transformer with error handler
-evalTWithHandler :: Transformer a -> (Error.Error -> a) -> Config.Config -> IO a
+evalTWithHandler :: ServerStateIO a -> (Error.Error -> a) -> Config.Config -> IO a
 evalTWithHandler m handler config = runEWithHandler handler $ do
   connection <- runConnection config
   value <-

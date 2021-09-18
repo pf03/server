@@ -10,8 +10,8 @@ import qualified Interface.MLog.Exports as Log
 import qualified Logic.IO.Config as Config
 import Transformer.Types
   ( ConnectionDB (ConnectionDB),
-    State (..),
-    Transformer (getTransformer),
+    ServerState (..),
+    ServerStateIO (getServerStateIO),
   )
 
 -----------------------------Run------------------------------------------
@@ -35,11 +35,11 @@ runConnection config = do
   Log.writeInfo logConfig0 logSettings0 "DB connected successfully..."
   return connection
 
-getValue :: Config.Config -> Connection -> Transformer a -> ExceptT Error.Error IO a
+getValue :: Config.Config -> Connection -> ServerStateIO a -> ExceptT Error.Error IO a
 getValue config connection m = do
   let state = configToState config connection
   let logConfig0 = Config.configLog config
-  (a, _) <- Error.catchServerError (runStateT (getTransformer m) state) $ \err -> do
+  (a, _) <- Error.catchServerError (runStateT (getServerStateIO m) state) $ \err -> do
     Log.writeError logConfig0 logSettings0 "Application error: "
     Log.writeError logConfig0 logSettings0 $ show err
     Error.throwServerError err
@@ -56,9 +56,9 @@ logSettings0 :: Log.Settings
 logSettings0 = Log.Settings Log.CyanScheme True
 
 -----------------------------Config--------------------------------------------
-configToState :: Config.Config -> Connection -> State
+configToState :: Config.Config -> Connection -> ServerState
 configToState Config.Config {Config.configWarp = configWarp0, Config.configDb = _, Config.configLog = logConfig0} connection =
-  State
+  ServerState
     { configWarp = configWarp0,
       connectionDB = ConnectionDB connection,
       configLog = logConfig0,

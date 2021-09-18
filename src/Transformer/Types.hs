@@ -14,10 +14,10 @@ import qualified Interface.MLog.Exports as Log
 import qualified Logic.IO.Config as Config
 
 -----------------------------Types---------------------------------------------
-newtype Transformer a = Transformer {getTransformer :: StateT State (ExceptT Error.Error IO) a}
-  deriving newtype (Functor, Applicative, Monad, MonadFail, MonadIO, MonadState State)
+newtype ServerStateIO a = ServerStateIO {getServerStateIO :: StateT ServerState (ExceptT Error.Error IO) a}
+  deriving newtype (Functor, Applicative, Monad, MonadFail, MonadIO, MonadState ServerState)
 
-data State = State
+data ServerState = ServerState
   { configWarp :: Config.ConfigWarp,
     connectionDB :: ConnectionDB,
     configLog :: Log.Config,
@@ -32,37 +32,37 @@ instance Show ConnectionDB where
   show _ = "connected"
 
 -----------------------------Instances-----------------------------------------
-instance MLog Transformer where
-  getSettings = Transformer $ do
+instance MLog ServerStateIO where
+  getSettings = ServerStateIO $ do
     gets logSettings
-  setSettings colorScheme logEnable = Transformer $ do
+  setSettings colorScheme logEnable = ServerStateIO $ do
     modify $ \state -> state {logSettings = Log.Settings colorScheme logEnable}
-  getConfig = Transformer $ do
+  getConfig = ServerStateIO $ do
     gets configLog
-  message logConfig0 logSettings0 logLevel0 str = Transformer $ do
+  message logConfig0 logSettings0 logLevel0 str = ServerStateIO $ do
     Log.writeMessageIO logConfig0 logSettings0 logLevel0 str
 
-instance MError Transformer where
-  throwServerError :: Error.Error -> Transformer a
-  throwServerError err = Transformer $ do
+instance MError ServerStateIO where
+  throwServerError :: Error.Error -> ServerStateIO a
+  throwServerError err = ServerStateIO $ do
     lift $ throwE err
-  catchServerError :: Transformer a -> (Error.Error -> Transformer a) -> Transformer a
-  catchServerError ta f = Transformer $ do
-    StateT $ \state -> catchE (runStateT (getTransformer ta) state) $ \err ->
-      runStateT (getTransformer $ f err) state
+  catchServerError :: ServerStateIO a -> (Error.Error -> ServerStateIO a) -> ServerStateIO a
+  catchServerError ta f = ServerStateIO $ do
+    StateT $ \state -> catchE (runStateT (getServerStateIO ta) state) $ \err ->
+      runStateT (getServerStateIO $ f err) state
 
-instance MIOError Transformer
+instance MIOError ServerStateIO
 
-instance MDB Transformer where
+instance MDB ServerStateIO where
   mdbQuery query = do
-    ConnectionDB connection <- Transformer $ gets connectionDB
+    ConnectionDB connection <- ServerStateIO $ gets connectionDB
     Error.liftEIO $ SQL.query_ connection query
   mdbExecute query = do
-    ConnectionDB connection <- Transformer $ gets connectionDB
+    ConnectionDB connection <- ServerStateIO $ gets connectionDB
     Error.liftEIO $ SQL.execute_ connection query
 
-instance MCache Transformer where
-  getCache = Transformer $ gets cache
-  setCache cache0 = Transformer $ modify (\state -> state {cache = cache0})
+instance MCache ServerStateIO where
+  getCache = ServerStateIO $ gets cache
+  setCache cache0 = ServerStateIO $ modify (\state -> state {cache = cache0})
 
-instance MTrans Transformer
+instance MTrans ServerStateIO
