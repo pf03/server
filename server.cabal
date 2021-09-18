@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.33.0.
+-- This file has been generated from package.yaml by hpack version 0.34.4.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: fcec16e8ddaa899d6d546db757d1cd07cfda72945e0f8c96fb8772777b1a4278
+-- hash: 64c6fe43349ae07282bb96ad0a95bb89d549cd57583bf336c155513e1f5fc12b
 
 name:           server
 version:        0.1.0.0
@@ -87,10 +87,10 @@ library
       Paths_server
   hs-source-dirs:
       src
-  default-extensions: OverloadedStrings, TemplateHaskell, QuasiQuotes, FlexibleInstances, DeriveGeneric, DeriveAnyClass, DerivingStrategies, GeneralizedNewtypeDeriving, TypeOperators, InstanceSigs
+  default-extensions:
+      OverloadedStrings, TemplateHaskell, QuasiQuotes, FlexibleInstances, DeriveGeneric, DeriveAnyClass, DerivingStrategies, GeneralizedNewtypeDeriving, TypeOperators, InstanceSigs
   build-depends:
-      QuickCheck
-    , aeson
+      aeson
     , aeson-pretty
     , ansi-terminal
     , base >=4.7 && <5
@@ -101,9 +101,7 @@ library
     , hspec
     , http-types
     , mtl
-    , neat-interpolation
     , postgresql-simple
-    , postgresql-simple-migration
     , split
     , text
     , time
@@ -118,11 +116,11 @@ executable server-exe
       Paths_server
   hs-source-dirs:
       app
-  default-extensions: OverloadedStrings, TemplateHaskell, QuasiQuotes, FlexibleInstances, DeriveGeneric, DeriveAnyClass, DerivingStrategies, GeneralizedNewtypeDeriving, TypeOperators, InstanceSigs
+  default-extensions:
+      OverloadedStrings, TemplateHaskell, QuasiQuotes, FlexibleInstances, DeriveGeneric, DeriveAnyClass, DerivingStrategies, GeneralizedNewtypeDeriving, TypeOperators, InstanceSigs
   ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -Werror
   build-depends:
-      QuickCheck
-    , aeson
+      aeson
     , aeson-pretty
     , ansi-terminal
     , base >=4.7 && <5
@@ -133,9 +131,7 @@ executable server-exe
     , hspec
     , http-types
     , mtl
-    , neat-interpolation
     , postgresql-simple
-    , postgresql-simple-migration
     , server
     , split
     , text
@@ -155,11 +151,11 @@ test-suite server-test
       Paths_server
   hs-source-dirs:
       test
-  default-extensions: OverloadedStrings, TemplateHaskell, QuasiQuotes, FlexibleInstances, DeriveGeneric, DeriveAnyClass, DerivingStrategies, GeneralizedNewtypeDeriving, TypeOperators, InstanceSigs
+  default-extensions:
+      OverloadedStrings, TemplateHaskell, QuasiQuotes, FlexibleInstances, DeriveGeneric, DeriveAnyClass, DerivingStrategies, GeneralizedNewtypeDeriving, TypeOperators, InstanceSigs
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      QuickCheck
-    , aeson
+      aeson
     , aeson-pretty
     , ansi-terminal
     , base >=4.7 && <5
@@ -170,9 +166,7 @@ test-suite server-test
     , hspec
     , http-types
     , mtl
-    , neat-interpolation
     , postgresql-simple
-    , postgresql-simple-migration
     , server
     , split
     , text

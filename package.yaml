@@ -40,21 +40,16 @@ dependencies:
 - wai
 - http-types
 - postgresql-simple
-- postgresql-simple-migration
 - cryptohash-md5
 - ansi-terminal
 - text
 - aeson
 - split
-# - exceptions
-# - exception-transformers
 - transformers
 - mtl
 - hspec
-- QuickCheck
 - containers
 - aeson-pretty
-- neat-interpolation
 - time
 library:
   source-dirs: src
