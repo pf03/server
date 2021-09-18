@@ -35,7 +35,7 @@ addChanged queryType apiType n = do
   let apiTypeChanged = M.fromList [(apiTypeHelper apiType, n)]
   let queryTypeChanged = M.fromList [(queryTypeHelper queryType, apiTypeChanged)]
   let newChange = Changed queryTypeChanged
-  modifyCache $ \cache -> cache {changed = changed cache <> newChange}
+  modifyCache $ \cache -> cache {cacheChanged = cacheChanged cache <> newChange}
   where
     apiTypeHelper :: APIType -> String
     apiTypeHelper = plural . lower . show
@@ -59,16 +59,16 @@ addChanged queryType apiType n = do
     queryTypeHelper Empty = "none"
 
 getChanged :: MCache m => m Changed
-getChanged = getsCache changed
+getChanged = getsCache cacheChanged
 
 resetChanged :: MCache m => m ()
-resetChanged = modifyCache $ \cache -> cache {changed = mempty}
+resetChanged = modifyCache $ \cache -> cache {cacheChanged = mempty}
 
 setParams :: MCache m => ParamsMap -> m ()
-setParams params0 = modifyCache $ \cache -> cache {params = params0}
+setParams params = modifyCache $ \cache -> cache {cacheParams = params}
 
 getParams :: MCache m => m ParamsMap
-getParams = getsCache params
+getParams = getsCache cacheParams
 
 modifyParams :: MCache m => (ParamsMap -> ParamsMap) -> m ParamsMap
 modifyParams f = do
@@ -78,13 +78,13 @@ modifyParams f = do
 
 modifyParamsM :: MCache m => (ParamsMap -> m ParamsMap) -> m ParamsMap
 modifyParamsM f = do
-  params0 <- getParams
-  newParams <- f params0
+  params <- getParams
+  newParams <- f params
   setParams newParams
   getParams
 
 getParam :: MCache m => BSName -> m Param
-getParam name = getsCache (\cache -> params cache M.! name)
+getParam name = getsCache (\cache -> cacheParams cache M.! name)
 
 -- | For example "user_id", "tag_id"
 addIdParam :: MCache m => BSName -> Int -> m ParamsMap
@@ -107,16 +107,16 @@ resetCache :: MCache m => m ()
 resetCache = setCache defaultCache
 
 defaultCache :: Cache
-defaultCache = Cache {changed = mempty, auth = Unauthorized, params = mempty, api = API Empty []}
+defaultCache = Cache {cacheChanged = mempty, cacheAuth = Unauthorized,cacheParams = mempty, cacheApi = API Empty []}
 
 getAuth :: MCache m => m Auth
-getAuth = getsCache auth
+getAuth = getsCache cacheAuth
 
 setAuth :: MCache m => Auth -> m ()
-setAuth auth0 = modifyCache $ \cache -> cache {auth = auth0}
+setAuth auth = modifyCache $ \cache -> cache {cacheAuth = auth}
 
 getAPI :: MCache m => m API
-getAPI = getsCache api
+getAPI = getsCache cacheApi
 
 setAPI :: MCache m => API -> m ()
-setAPI api0 = modifyCache $ \state -> state {api = api0}
+setAPI api = modifyCache $ \state -> state {cacheApi = api}

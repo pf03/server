@@ -8,10 +8,10 @@ import Database.PostgreSQL.Simple.Time (Date)
 import GHC.Generics (Generic)
 
 data Cache = Cache
-  { changed :: Changed,
-    auth :: Auth,
-    params :: ParamsMap,
-    api :: API
+  { cacheChanged :: Changed,
+    cacheAuth :: Auth,
+    cacheParams :: ParamsMap,
+    cacheApi :: API
   }
   deriving (Show, Generic)
 
