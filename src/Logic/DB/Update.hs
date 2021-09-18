@@ -178,7 +178,7 @@ checkAuthExist :: MTrans m => Int -> BSName -> Query -> m (Int, Int, Int)
 checkAuthExist paramId name query = do
   exist <- DB.dbQuery_ query
   case exist of
-    [] -> Error.throwDB "Entity {0} = {1} is not exist" [show name, show paramId]
+    [] -> Error.throwDB "Entity {0} = {1} does not exist" [show name, show paramId]
     [(userId, authorId, contentId)] -> do
       a <- Cache.getAuth
       case a of

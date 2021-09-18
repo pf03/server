@@ -47,4 +47,4 @@ checkExist :: (MIOError m) => FilePath -> FileName -> m ()
 checkExist path fileName = do
   items <- Error.liftEIO $ listDirectory path
   when (fileName `notElem` items) $ do
-    Error.throwIO "File {0} is not exist in directory {1}" [fileName, path]
+    Error.throwIO "File {0} does not exist in directory {1}" [fileName, path]

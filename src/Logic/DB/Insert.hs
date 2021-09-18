@@ -177,7 +177,7 @@ checkExist name templ = do
     ParamEq (IntParam paramId) -> do
       exist <- DB.dbQuery templ [toQuery paramId]
       case exist :: [Only Int] of
-        [] -> Error.throwDB "Entity {0} = {1} is not exist" [show name, show paramId]
+        [] -> Error.throwDB "Entity {0} = {1} does not exist" [show name, show paramId]
         _ -> return ()
     _ -> Error.throwServerError $ Error.patError "Insert.checkExist" param
 
