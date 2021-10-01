@@ -3,5 +3,6 @@
 config.json
 log.txt
 response.json
-photos/
+photos/*
+!photos/zvezdnoe_nebo_test.png
 curl/tokens.sh
